@@ -240,42 +240,23 @@ class PaymentPopup(BasePopup):
 
         # File Saving Logic
         saved_paths = {}
-        target_dir = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "입금")
+        try:
+            client_name = self.dm.df_data.loc[self.dm.df_data["관리번호"] == self.mgmt_nos[0], "업체명"].values[0]
+        except: client_name = "Unknown"
         
+        info_text = f"{client_name}_{self.mgmt_nos[0]}"
+
         file_inputs = [
-            ("외화입금증빙경로", self.entry_file_foreign, "외화 입금"),
-            ("송금상세경로", self.entry_file_remit, "Remittance detail")
+            ("외화입금증빙경로", "외화 입금"),
+            ("송금상세경로", "Remittance detail")
         ]
 
-        for col, entry, prefix in file_inputs:
-            path = self.full_paths.get(col)
-            if not path: path = entry.get().strip()
-            
-            if path and os.path.exists(path):
-                if not os.path.exists(target_dir):
-                    try: os.makedirs(target_dir)
-                    except: pass
-                
-                try:
-                    client_name = self.dm.df_data.loc[self.dm.df_data["관리번호"] == self.mgmt_nos[0], "업체명"].values[0]
-                except: client_name = "Unknown"
-                
-                safe_client = "".join([c for c in str(client_name) if c.isalnum() or c in (' ', '_')]).strip()
-                ext = os.path.splitext(path)[1]
-                
-                new_name = f"{prefix}_{safe_client}_{self.mgmt_nos[0]}{ext}"
-                target_path = os.path.join(target_dir, new_name)
-                
-                if os.path.abspath(path) != os.path.abspath(target_path):
-                    try:
-                        shutil.copy2(path, target_path)
-                        saved_paths[col] = target_path
-                    except Exception as e:
-                        print(f"File copy error ({col}): {e}")
-                else:
-                    saved_paths[col] = path
-            else:
-                saved_paths[col] = "" 
+        for col, prefix in file_inputs:
+            success, msg, path = self.file_manager.save_file(col, "입금", prefix, info_text)
+            if success and path:
+                saved_paths[col] = path
+            elif not success and msg:
+                print(f"File save warning ({col}): {msg}") 
 
         def update_logic(dfs):
             mask = dfs["data"]["관리번호"].isin(self.mgmt_nos)

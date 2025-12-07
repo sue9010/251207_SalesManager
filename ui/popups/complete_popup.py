@@ -12,7 +12,6 @@ from src.config import Config
 
 class CompletePopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no):
-        self.full_paths = {}
         # 탭 뷰 참조 변수 초기화
         self.tabview = None
         super().__init__(parent, data_manager, refresh_callback, popup_title="완료 주문 상세", mgmt_no=mgmt_no)
