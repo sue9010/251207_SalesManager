@@ -71,39 +71,40 @@ class DataManager:
         try:
             current_mtime = os.path.getmtime(self.current_excel_path)
             
-            with pd.ExcelFile(self.current_excel_path) as xls:
-                if Config.SHEET_CLIENTS in xls.sheet_names:
-                    self.df_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
-                    self.df_clients.columns = self.df_clients.columns.astype(str).str.strip()
-                
-                if Config.SHEET_DATA in xls.sheet_names:
-                    self.df_data = pd.read_excel(xls, Config.SHEET_DATA)
-                    self.df_data.columns = self.df_data.columns.astype(str).str.strip()
-                
-                if Config.SHEET_PAYMENT in xls.sheet_names:
-                    self.df_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
-                else:
-                    self.df_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
+            with open(self.current_excel_path, "rb") as f:
+                with pd.ExcelFile(f, engine="openpyxl") as xls:
+                    if Config.SHEET_CLIENTS in xls.sheet_names:
+                        self.df_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
+                        self.df_clients.columns = self.df_clients.columns.astype(str).str.strip()
+                    
+                    if Config.SHEET_DATA in xls.sheet_names:
+                        self.df_data = pd.read_excel(xls, Config.SHEET_DATA)
+                        self.df_data.columns = self.df_data.columns.astype(str).str.strip()
+                    
+                    if Config.SHEET_PAYMENT in xls.sheet_names:
+                        self.df_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
+                    else:
+                        self.df_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
 
-                if Config.SHEET_DELIVERY in xls.sheet_names:
-                    self.df_delivery = pd.read_excel(xls, Config.SHEET_DELIVERY)
-                else:
-                    self.df_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
+                    if Config.SHEET_DELIVERY in xls.sheet_names:
+                        self.df_delivery = pd.read_excel(xls, Config.SHEET_DELIVERY)
+                    else:
+                        self.df_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
 
-                if Config.SHEET_LOG in xls.sheet_names:
-                    self.df_log = pd.read_excel(xls, Config.SHEET_LOG)
-                else:
-                    self.df_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
+                    if Config.SHEET_LOG in xls.sheet_names:
+                        self.df_log = pd.read_excel(xls, Config.SHEET_LOG)
+                    else:
+                        self.df_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
 
-                if Config.SHEET_MEMO in xls.sheet_names:
-                    self.df_memo = pd.read_excel(xls, Config.SHEET_MEMO)
-                else:
-                    self.df_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
+                    if Config.SHEET_MEMO in xls.sheet_names:
+                        self.df_memo = pd.read_excel(xls, Config.SHEET_MEMO)
+                    else:
+                        self.df_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
 
-                if Config.SHEET_MEMO_LOG in xls.sheet_names:
-                    self.df_memo_log = pd.read_excel(xls, Config.SHEET_MEMO_LOG)
-                else:
-                    self.df_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
+                    if Config.SHEET_MEMO_LOG in xls.sheet_names:
+                        self.df_memo_log = pd.read_excel(xls, Config.SHEET_MEMO_LOG)
+                    else:
+                        self.df_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
 
             self._preprocess_data()
             self.last_file_timestamp = current_mtime
@@ -125,36 +126,37 @@ class DataManager:
             return False, "엑셀 파일이 존재하지 않습니다."
 
         try:
-            with pd.ExcelFile(self.current_excel_path) as xls:
-                if Config.SHEET_CLIENTS in xls.sheet_names:
-                    temp_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
-                    temp_clients.columns = temp_clients.columns.astype(str).str.strip()
-                else: temp_clients = pd.DataFrame(columns=Config.CLIENT_COLUMNS)
+            with open(self.current_excel_path, "rb") as f:
+                with pd.ExcelFile(f, engine="openpyxl") as xls:
+                    if Config.SHEET_CLIENTS in xls.sheet_names:
+                        temp_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
+                        temp_clients.columns = temp_clients.columns.astype(str).str.strip()
+                    else: temp_clients = pd.DataFrame(columns=Config.CLIENT_COLUMNS)
 
-                if Config.SHEET_DATA in xls.sheet_names:
-                    temp_data = pd.read_excel(xls, Config.SHEET_DATA)
-                    temp_data.columns = temp_data.columns.astype(str).str.strip()
-                else: temp_data = pd.DataFrame(columns=Config.DATA_COLUMNS)
+                    if Config.SHEET_DATA in xls.sheet_names:
+                        temp_data = pd.read_excel(xls, Config.SHEET_DATA)
+                        temp_data.columns = temp_data.columns.astype(str).str.strip()
+                    else: temp_data = pd.DataFrame(columns=Config.DATA_COLUMNS)
 
-                if Config.SHEET_PAYMENT in xls.sheet_names:
-                    temp_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
-                else: temp_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
+                    if Config.SHEET_PAYMENT in xls.sheet_names:
+                        temp_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
+                    else: temp_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
 
-                if Config.SHEET_DELIVERY in xls.sheet_names:
-                    temp_delivery = pd.read_excel(xls, Config.SHEET_DELIVERY)
-                else: temp_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
+                    if Config.SHEET_DELIVERY in xls.sheet_names:
+                        temp_delivery = pd.read_excel(xls, Config.SHEET_DELIVERY)
+                    else: temp_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
 
-                if Config.SHEET_LOG in xls.sheet_names:
-                    temp_log = pd.read_excel(xls, Config.SHEET_LOG)
-                else: temp_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
+                    if Config.SHEET_LOG in xls.sheet_names:
+                        temp_log = pd.read_excel(xls, Config.SHEET_LOG)
+                    else: temp_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
 
-                if Config.SHEET_MEMO in xls.sheet_names:
-                    temp_memo = pd.read_excel(xls, Config.SHEET_MEMO)
-                else: temp_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
-                
-                if Config.SHEET_MEMO_LOG in xls.sheet_names:
-                    temp_memo_log = pd.read_excel(xls, Config.SHEET_MEMO_LOG)
-                else: temp_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
+                    if Config.SHEET_MEMO in xls.sheet_names:
+                        temp_memo = pd.read_excel(xls, Config.SHEET_MEMO)
+                    else: temp_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
+                    
+                    if Config.SHEET_MEMO_LOG in xls.sheet_names:
+                        temp_memo_log = pd.read_excel(xls, Config.SHEET_MEMO_LOG)
+                    else: temp_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
 
             # 컬럼 보정
             for col in Config.DATA_COLUMNS:

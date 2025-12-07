@@ -22,7 +22,7 @@ class QuotePopup(BasePopup):
         self.item_rows = [] # 데이터 추적용 (BasePopup 호환)
 
         super().__init__(parent, data_manager, refresh_callback, popup_title="견적", mgmt_no=real_mgmt_no)
-        self.geometry("1350x850")
+        self.geometry("1350x650")
 
         # 신규 등록(또는 복사)일 때 기본값 설정
         if not real_mgmt_no:

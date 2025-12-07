@@ -10,7 +10,9 @@ class Config:
     DEFAULT_ORDER_REQUEST_DIR = "order_requests"
     CONFIG_FILENAME = "config.json"
     
-    ORDER_REQUEST_FORM_PATH = os.path.join(DEFAULT_ATTACHMENT_ROOT, "forms", "order_request_form.xlsx")
+    # 폼(템플릿) 파일 경로 (항상 attachments/forms 참조)
+    FORMS_DIR = os.path.join("attachments", "forms")
+    ORDER_REQUEST_FORM_PATH = os.path.join(FORMS_DIR, "order_request_form.xlsx")
     
     # 시트 이름 설정
     SHEET_CLIENTS = "Clients"

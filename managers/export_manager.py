@@ -20,6 +20,7 @@ class ExportManager:
         temp_xlsx_path = None
         excel = None
         wb_opened = None
+        wb = None
 
         try:
             client_name = quote_info['client_name']
@@ -29,8 +30,7 @@ class ExportManager:
             is_kr = any(x in country for x in ["대한민국", "KR", "한국", "KOREA"])
             
             template_filename = "Quotation_KR.xlsx" if is_kr else "Quotation_EN.xlsx"
-            template_dir = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "forms")
-            template_path = os.path.join(template_dir, template_filename)
+            template_path = os.path.join(Config.FORMS_DIR, template_filename)
 
             if not os.path.exists(template_path):
                 return False, f"견적서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
@@ -72,7 +72,7 @@ class ExportManager:
             pdf_path = os.path.join(desktop, pdf_filename)
             
             wb.save(temp_xlsx_path)
-            wb.close()
+            # wb.close() -> finally에서 처리
 
             pythoncom.CoInitialize()
             excel = win32com.client.Dispatch("Excel.Application")
@@ -97,6 +97,9 @@ class ExportManager:
             return False, f"오류 발생: {str(e)}"
             
         finally:
+            if wb:
+                try: wb.close()
+                except: pass
             if wb_opened:
                 try: wb_opened.Close(False)
                 except: pass
@@ -117,13 +120,14 @@ class ExportManager:
         temp_xlsx_path = None
         excel = None
         wb_opened = None
+        wb = None
 
         try:
             template_path = Config.ORDER_REQUEST_FORM_PATH
             if not os.path.exists(template_path):
                 return False, f"출고요청서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
 
-            wb = openpyxl.load_workbook(template_path, keep_vba=True)
+            wb = openpyxl.load_workbook(template_path)
             ws = wb.active
 
             ws["C1"] = order_info.get('type', '')
@@ -160,7 +164,7 @@ class ExportManager:
             pdf_filename = f"출고요청서_{client_safe}_{order_info['mgmt_no']}.pdf"
             
             desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            temp_xlsx_name = f"temp_req_{order_info['mgmt_no']}.xlsm"
+            temp_xlsx_name = f"temp_req_{order_info['mgmt_no']}.xlsx"
             temp_xlsx_path = os.path.join(desktop, temp_xlsx_name)
             
             if os.path.exists(target_dir):
@@ -169,7 +173,7 @@ class ExportManager:
                 pdf_path = os.path.join(desktop, pdf_filename)
 
             wb.save(temp_xlsx_path)
-            wb.close()
+            # wb.close() -> finally에서 처리
 
             pythoncom.CoInitialize()
             excel = win32com.client.Dispatch("Excel.Application")
@@ -194,6 +198,9 @@ class ExportManager:
             return False, f"오류 발생: {str(e)}"
             
         finally:
+            if wb:
+                try: wb.close()
+                except: pass
             if wb_opened:
                 try: wb_opened.Close(False)
                 except: pass
@@ -214,9 +221,10 @@ class ExportManager:
         temp_xlsx_path = None
         excel = None
         wb_opened = None
+        wb = None
 
         try:
-            template_path = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "forms", "PI.xlsx")
+            template_path = os.path.join(Config.FORMS_DIR, "PI.xlsx")
             
             if not os.path.exists(template_path):
                 return False, f"PI 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
@@ -263,7 +271,7 @@ class ExportManager:
             server_pdf_path = os.path.join(server_pi_folder, pdf_filename)
 
             wb.save(temp_xlsx_path)
-            wb.close()
+            # wb.close() -> finally에서 처리
 
             pythoncom.CoInitialize()
             excel = win32com.client.Dispatch("Excel.Application")
@@ -300,6 +308,9 @@ class ExportManager:
             return False, f"오류 발생: {str(e)}"
             
         finally:
+            if wb:
+                try: wb.close()
+                except: pass
             if wb_opened:
                 try: wb_opened.Close(False)
                 except: pass
@@ -320,9 +331,10 @@ class ExportManager:
         temp_xlsx_path = None
         excel = None
         wb_opened = None
+        wb = None
 
         try:
-            template_path = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "forms", "CI.xlsx")
+            template_path = os.path.join(Config.FORMS_DIR, "CI.xlsx")
             
             if not os.path.exists(template_path):
                 return False, f"CI 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
@@ -398,7 +410,7 @@ class ExportManager:
             server_pdf_path = os.path.join(server_ci_folder, pdf_filename)
 
             wb.save(temp_xlsx_path)
-            wb.close()
+            # wb.close() -> finally에서 처리
 
             pythoncom.CoInitialize()
             excel = win32com.client.Dispatch("Excel.Application")
@@ -435,6 +447,9 @@ class ExportManager:
             return False, f"오류 발생: {str(e)}"
             
         finally:
+            if wb:
+                try: wb.close()
+                except: pass
             if wb_opened:
                 try: wb_opened.Close(False)
                 except: pass
@@ -455,9 +470,10 @@ class ExportManager:
         temp_xlsx_path = None
         excel = None
         wb_opened = None
+        wb = None
 
         try:
-            template_path = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "forms", "PL.xlsx")
+            template_path = os.path.join(Config.FORMS_DIR, "PL.xlsx")
             
             if not os.path.exists(template_path):
                 return False, f"PL 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
@@ -558,7 +574,7 @@ class ExportManager:
             server_pdf_path = os.path.join(server_pl_folder, pdf_filename)
 
             wb.save(temp_xlsx_path)
-            wb.close()
+            # wb.close() -> finally에서 처리
 
             pythoncom.CoInitialize()
             excel = win32com.client.Dispatch("Excel.Application")
@@ -595,6 +611,9 @@ class ExportManager:
             return False, f"오류 발생: {str(e)}"
             
         finally:
+            if wb:
+                try: wb.close()
+                except: pass
             if wb_opened:
                 try: wb_opened.Close(False)
                 except: pass

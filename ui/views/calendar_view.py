@@ -92,7 +92,6 @@ class CalendarView(ctk.CTkFrame):
         if df.empty: return
 
         # 조건: '납품대기'가 포함된 상태이면서, 출고예정일이 없거나(-)인 경우
-        # 또는 단순히 날짜가 미정인 '주문/생산중' 건도 포함 가능
         target_status = ["주문", "생산중", "납품대기"]
         
         # 출고예정일이 '-' 이거나 비어있는 데이터
@@ -105,22 +104,58 @@ class CalendarView(ctk.CTkFrame):
             ctk.CTkLabel(self.unscheduled_scroll, text="데이터 없음", text_color=COLORS["text_dim"]).pack(pady=10)
             return
 
-        for _, row in target_df.iterrows():
-            self._create_sidebar_item(row)
+        # [수정] 그룹화 (관리번호, 업체명)
+        grouped = target_df.groupby(["관리번호", "업체명"])
+        
+        for (mgmt_no, client_name), group in grouped:
+            item_count = len(group)
+            first_row = group.iloc[0]
+            first_model = first_row.get("모델명", "")
+            
+            # 모델명 요약
+            model_display = first_model
+            if item_count > 1:
+                 model_display = f"{first_model} 외 {item_count-1}건"
+            
+            # 수량 합계 (문자열일 수 있으므로 처리)
+            total_qty = 0
+            try:
+                # 숫자만 추출하거나 변환
+                for q in group["수량"]:
+                    total_qty += float(str(q).replace(",", ""))
+            except: total_qty = 0
 
-    def _create_sidebar_item(self, row):
+            # 카드 데이터 생성
+            card_data = {
+                "mgmt_no": mgmt_no,
+                "client_name": client_name,
+                "model": model_display,
+                "status": first_row['Status'], # 대표 상태
+                "qty": total_qty,
+                "item_count": item_count
+            }
+            self._create_sidebar_item(card_data)
+
+    def _create_sidebar_item(self, data):
         card = ctk.CTkFrame(self.unscheduled_scroll, fg_color=COLORS["bg_dark"], corner_radius=5)
         card.pack(fill="x", pady=3, padx=5)
         
-        mgmt_no = row['관리번호']
-        title = f"[{row['업체명']}] {row['모델명']}"
-        info = f"{row['수량']}개 | {row['Status']}"
+        mgmt_no = data['mgmt_no']
+        title = f"[{data['client_name']}] {data['model']}"
+        
+        # 수량 포맷
+        qty_str = f"{data['qty']:g}" 
+        info = f"{qty_str}개 | {data['status']}"
+        if data['item_count'] > 1:
+            info += f" ({data['item_count']} items)"
         
         ctk.CTkLabel(card, text=title, font=(FONT_FAMILY, 11, "bold"), anchor="w").pack(fill="x", padx=5, pady=(5,0))
         ctk.CTkLabel(card, text=info, font=(FONT_FAMILY, 10), text_color=COLORS["text_dim"], anchor="w").pack(fill="x", padx=5, pady=(0,5))
         
         # 드래그 이벤트 연결
-        drag_text = f"[{mgmt_no}] {row['업체명']}"
+        count_str = f" ({data['item_count']})" if data['item_count'] > 1 else ""
+        drag_text = f"[{mgmt_no}] {data['client_name']}{count_str}"
+        
         for w in [card] + card.winfo_children():
             w.bind("<Button-1>", lambda e, r=mgmt_no, d=None, t=drag_text, w=card: self.start_drag(e, r, d, t, w))
             w.bind("<B1-Motion>", self.do_drag)
@@ -145,24 +180,43 @@ class CalendarView(ctk.CTkFrame):
 
         for i in range(7): self.calendar_frame.grid_columnconfigure(i, weight=1, uniform="days")
 
-        # 데이터 매핑
+        # 데이터 매핑 (그룹화 적용)
         df = self.dm.df_data
         events = {}
+
         if not df.empty:
             s_str = start_date.strftime("%Y-%m-%d")
             e_str = end_date.strftime("%Y-%m-%d")
             
             # 출고예정일이 범위 내에 있는 데이터
             mask = (df['출고예정일'] >= s_str) & (df['출고예정일'] <= e_str) & (df['출고예정일'] != '-')
-            # 완료/취소 제외
             mask_status = ~df['Status'].isin(['완료', '취소', '보류'])
             
             target_df = df[mask & mask_status]
             
-            for _, row in target_df.iterrows():
-                d_str = row['출고예정일']
-                if d_str not in events: events[d_str] = []
-                events[d_str].append(row)
+            if not target_df.empty:
+                # [수정] 날짜, 관리번호, 업체명으로 그룹화하여 카드 생성
+                grouped = target_df.groupby(["출고예정일", "관리번호", "업체명"])
+                
+                for (d_str, mgmt_no, client_name), group in grouped:
+                    if d_str not in events: events[d_str] = []
+                    
+                    item_count = len(group)
+                    first_row = group.iloc[0]
+                    first_model = first_row.get("모델명", "")
+                    
+                    model_display = first_model
+                    if item_count > 1:
+                         model_display = f"{first_model} 외 {item_count-1}건"
+                    
+                    # 카드 정보 객체 생성
+                    card_data = {
+                        "mgmt_no": mgmt_no,
+                        "client_name": client_name,
+                        "model": model_display,
+                        "item_count": item_count
+                    }
+                    events[d_str].append(card_data)
 
         # 달력 셀 그리기
         for i, curr_date in enumerate(calendar_days):
@@ -190,21 +244,22 @@ class CalendarView(ctk.CTkFrame):
             if date_str in events:
                 scroll = ctk.CTkScrollableFrame(cell, fg_color="transparent")
                 scroll.pack(fill="both", expand=True, padx=2, pady=2)
-                # 스크롤바 숨기기 Hack (필요시)
                 
-                for row in events[date_str]:
-                    mgmt_no = row['관리번호']
-                    comp = row['업체명']
-                    txt = f"[{comp}] {row['모델명']}"
+                for card in events[date_str]:
+                    mgmt_no = card['mgmt_no']
+                    comp = card['client_name']
+                    txt = f"[{comp}] {card['model']}"
                     
                     lbl = ctk.CTkLabel(scroll, text=txt, font=(FONT_FAMILY, 10), anchor="w", fg_color=COLORS["bg_dark"], corner_radius=4)
                     lbl.pack(fill="x", pady=1)
                     
-                    drag_text = f"[{mgmt_no}] {comp}"
+                    count_str = f" ({card['item_count']})" if card['item_count'] > 1 else ""
+                    drag_text = f"[{mgmt_no}] {comp}{count_str}"
+                    
                     lbl.bind("<Button-1>", lambda e, r=mgmt_no, d=date_str, t=drag_text, w=lbl: self.start_drag(e, r, d, t, w))
                     lbl.bind("<B1-Motion>", self.do_drag)
                     lbl.bind("<ButtonRelease-1>", self.stop_drag)
-                    # 더블클릭 시 상세 (견적 팝업)
+                    # 더블클릭 시 상세
                     lbl.bind("<Double-1>", lambda e, r=mgmt_no: self.pm.open_quote_popup(r))
 
     # --- 드래그 앤 드롭 로직 (간소화) ---
