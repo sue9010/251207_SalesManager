@@ -99,15 +99,15 @@ class ClientPopup(ctk.CTkToplevel):
         # Group 4: Documents
         self._create_group_header(right_col, "증빙 서류")
         doc_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        doc_frame.pack(fill="x", pady=(0, 15))
+        doc_frame.pack(fill="x", pady=(0, 5))
         
-        # [수정] height 파라미터 전달 (기본 28, 여기선 50으로 설정하여 드래그 영역 확보)
-        entry, _, _ = self.file_manager.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로", height=65)
+        # [수정] height 파라미터 전달
+        entry, _, _ = self.file_manager.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로", height=38)
         self.entries["사업자등록증경로"] = entry
 
         # --- Bottom Section (Notes) ---
         bottom_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        bottom_frame.pack(fill="x", pady=(10, 0))
+        bottom_frame.pack(fill="x", pady=(5, 0))
         
         self._create_group_header(bottom_frame, "기타 특이사항")
         note_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
@@ -119,7 +119,7 @@ class ClientPopup(ctk.CTkToplevel):
 
         # 3. Footer (Action Buttons)
         footer_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        footer_frame.pack(fill="x", pady=(20, 0), side="bottom")
+        footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
         
         if self.client_name:
             ctk.CTkButton(footer_frame, text="삭제", command=self.delete, width=100, height=40,

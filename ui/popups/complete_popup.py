@@ -158,8 +158,8 @@ class CompletePopup(BasePopup):
         right_col = ctk.CTkFrame(footer_frame, fg_color=COLORS["bg_medium"], corner_radius=10)
         right_col.grid(row=0, column=1, sticky="nsew")
         
-        ctk.CTkLabel(right_col, text="관련 문서 (주문서/사업자등록증)", font=FONTS["main_bold"]).pack(anchor="w", padx=15, pady=15)
-        self.files_scroll = ctk.CTkScrollableFrame(right_col, fg_color="transparent", height=20)
+        ctk.CTkLabel(right_col, text="관련 문서", font=FONTS["main_bold"]).pack(anchor="w", padx=15, pady=15)
+        self.files_scroll = ctk.CTkScrollableFrame(right_col, fg_color="transparent", height=100)
         self.files_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 10))
 
     def _create_action_buttons_custom(self, parent):
