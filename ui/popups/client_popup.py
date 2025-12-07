@@ -21,7 +21,7 @@ class ClientPopup(ctk.CTkToplevel):
         self.title(title)
         
         # Compact Size
-        self.geometry("900x620")
+        self.geometry("900x660")
         self.configure(fg_color=COLORS["bg_dark"])
         
         self.entries = {}
@@ -113,7 +113,7 @@ class ClientPopup(ctk.CTkToplevel):
         note_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
         note_frame.pack(fill="x")
         
-        self.entry_note = ctk.CTkEntry(note_frame, height=60) # Multiline simulation
+        self.entry_note = ctk.CTkTextbox(note_frame, height=100) # Multiline
         self.entry_note.pack(fill="x", padx=10, pady=10)
         self.entries["특이사항"] = self.entry_note
 
@@ -178,6 +178,9 @@ class ClientPopup(ctk.CTkToplevel):
             else:
                 if isinstance(widget, ctk.CTkComboBox):
                     widget.set(val)
+                elif isinstance(widget, ctk.CTkTextbox):
+                    widget.delete("1.0", "end")
+                    widget.insert("1.0", val)
                 else:
                     widget.delete(0, "end")
                     widget.insert(0, val)
@@ -193,6 +196,8 @@ class ClientPopup(ctk.CTkToplevel):
         for key, widget in self.entries.items():
             if key == "사업자등록증경로":
                 data[key] = self.file_manager.full_paths.get(key, "").strip()
+            elif isinstance(widget, ctk.CTkTextbox):
+                data[key] = widget.get("1.0", "end-1c").strip()
             else:
                 data[key] = widget.get().strip()
             
