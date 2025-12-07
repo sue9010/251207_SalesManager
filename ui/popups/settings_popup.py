@@ -117,20 +117,7 @@ class SettingsPopup(ctk.CTkToplevel):
         ctk.CTkButton(prod_frame, text="찾기", width=60, command=self.browse_production_file, 
                       fg_color=COLORS["bg_medium"], text_color=COLORS["text"]).pack(side="right")
 
-        # 5. 출고요청서 저장 폴더 설정 (이 부분이 잘려서 안 보였음)
-        ctk.CTkLabel(parent, text="출고요청서 저장 폴더 (PDF)", font=FONTS["header"]).pack(pady=(15, 5), anchor="w")
 
-        order_req_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        order_req_frame.pack(fill="x")
-
-        self.order_req_path_entry = ctk.CTkEntry(order_req_frame, font=FONTS["main"])
-        self.order_req_path_entry.insert(0, self.dm.order_request_dir)
-        self.order_req_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-
-        ctk.CTkButton(order_req_frame, text="폴더선택", width=80, command=self.browse_order_req_folder, 
-                      fg_color=COLORS["bg_medium"], text_color=COLORS["text"]).pack(side="right")
-
-        ctk.CTkFrame(parent, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=15)
 
         # 6. 개발자 모드 설정
         dev_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -191,13 +178,7 @@ class SettingsPopup(ctk.CTkToplevel):
             self.attach_path_entry.delete(0, "end")
             self.attach_path_entry.insert(0, folder_path)
 
-    def browse_order_req_folder(self):
-        self.attributes("-topmost", False)
-        folder_path = filedialog.askdirectory(parent=self)
-        self.attributes("-topmost", True)
-        if folder_path:
-            self.order_req_path_entry.delete(0, "end")
-            self.order_req_path_entry.insert(0, folder_path)
+
 
     def toggle_dev_mode(self):
         if self.dev_var.get():
@@ -238,15 +219,13 @@ class SettingsPopup(ctk.CTkToplevel):
         new_theme = self.theme_var.get()
         new_attach = self.attach_path_entry.get()
         new_prod_path = self.prod_path_entry.get()
-        new_order_req = self.order_req_path_entry.get() 
         
         if new_path:
             self.dm.save_config(
                 new_path=new_path, 
                 new_theme=new_theme, 
                 new_attachment_dir=new_attach,
-                new_prod_path=new_prod_path,
-                new_order_req_dir=new_order_req 
+                new_prod_path=new_prod_path
             )
             
             self.attributes("-topmost", False)

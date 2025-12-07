@@ -67,7 +67,7 @@ class ExportManager:
             else:
                 pdf_filename = f"Quotation_{client_name}_{mgmt_no}.pdf"
             
-            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name=None)
+            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="견적서")
 
         except Exception as e:
             return False, f"오류 발생: {str(e)}"

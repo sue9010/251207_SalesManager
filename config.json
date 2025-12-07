@@ -1,7 +1,6 @@
 {
     "excel_path": "C:/Users/sue/Desktop/임시/Saleslist.xlsx",
     "theme": "Dark",
-    "attachment_root": "C:/Users/sue/Desktop/임시/Attachments",
-    "production_request_path": "C:/Users/sue/Desktop/임시/생산 요청.xlsx",
-    "order_request_dir": "C:/Users/sue/Desktop/임시/Attachments/출고요청서"
+    "attachment_root": "C:/Users/sue/Desktop/테스트",
+    "production_request_path": "C:/Users/sue/Desktop/임시/생산 요청.xlsx"
 }
