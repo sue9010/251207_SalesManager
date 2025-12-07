@@ -11,6 +11,10 @@ COLORS = {
     "primary": ("#1565C0", "#3B8ED0"), 
     "primary_hover": ("#0D47A1", "#36719F"),
     
+    # 보조 컬러 (업로드, 기타 액션)
+    "secondary": ("#0097A7", "#00ACC1"),
+    "secondary_hover": ("#006064", "#00838F"),
+    
     # 상태별 색상 (빨강, 초록, 주황)
     "danger": ("#C62828", "#E04F5F"),
     "danger_hover": ("#B71C1C", "#D32F2F"),

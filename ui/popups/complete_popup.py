@@ -1,6 +1,9 @@
 import os
 import tkinter as tk
-from tkinter import messagebox
+import tkinter as tk
+from tkinter import messagebox, filedialog
+import shutil
+import datetime
 
 import customtkinter as ctk
 import pandas as pd
@@ -37,7 +40,7 @@ class CompletePopup(BasePopup):
         # 5. 닫기 버튼
         self._create_action_buttons_custom(self.main_container)
 
-        self.geometry("1200x900")
+        self.geometry("1200x1000")
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -95,9 +98,9 @@ class CompletePopup(BasePopup):
         self._setup_delivery_history_tab(self.tabview.tab("납품 이력"))
 
     def _setup_items_tab(self, parent):
-        # 헤더 설정 (시리얼 번호 포함)
-        headers = ["품명", "모델명", "시리얼 번호", "Description", "수량", "단가", "공급가액", "세액", "합계금액"]
-        widths = [150, 150, 120, 200, 60, 100, 100, 80, 100]
+        # 헤더 설정 (시리얼 번호 맨 뒤로 이동)
+        headers = ["모델명", "Description", "수량", "단가", "공급가액", "세액", "합계금액", "시리얼 번호"]
+        widths = [150, 200, 60, 100, 100, 80, 100, 120]
         
         header_frame = ctk.CTkFrame(parent, height=30, fg_color=COLORS["bg_light"])
         header_frame.pack(fill="x", padx=5, pady=5)
@@ -109,8 +112,8 @@ class CompletePopup(BasePopup):
         self.scroll_items.pack(fill="both", expand=True, padx=5, pady=5)
 
     def _setup_payment_history_tab(self, parent):
-        headers = ["일시", "구분", "입금액", "통화", "작업자", "비고"]
-        widths = [150, 100, 120, 60, 100, 200]
+        headers = ["일시", "구분", "입금액", "통화", "작업자", "외화증빙", "송금상세"]
+        widths = [150, 80, 100, 60, 80, 150, 150]
         
         header_frame = ctk.CTkFrame(parent, height=30, fg_color=COLORS["bg_light"])
         header_frame.pack(fill="x", padx=5, pady=5)
@@ -122,8 +125,8 @@ class CompletePopup(BasePopup):
         self.scroll_payment.pack(fill="both", expand=True, padx=5, pady=5)
 
     def _setup_delivery_history_tab(self, parent):
-        headers = ["처리일시", "출고일", "품목명", "출고수량", "송장번호", "운송방법", "비고"]
-        widths = [150, 100, 200, 80, 120, 100, 150]
+        headers = ["처리일시", "출고일", "품목명", "출고수량", "송장번호", "운송장파일", "비고"]
+        widths = [150, 100, 200, 80, 120, 150, 150]
         
         header_frame = ctk.CTkFrame(parent, height=30, fg_color=COLORS["bg_light"])
         header_frame.pack(fill="x", padx=5, pady=5)
@@ -155,8 +158,8 @@ class CompletePopup(BasePopup):
         right_col = ctk.CTkFrame(footer_frame, fg_color=COLORS["bg_medium"], corner_radius=10)
         right_col.grid(row=0, column=1, sticky="nsew")
         
-        ctk.CTkLabel(right_col, text="관련 문서", font=FONTS["main_bold"]).pack(anchor="w", padx=15, pady=15)
-        self.files_scroll = ctk.CTkScrollableFrame(right_col, fg_color="transparent", height=100)
+        ctk.CTkLabel(right_col, text="관련 문서 (주문서/사업자등록증)", font=FONTS["main_bold"]).pack(anchor="w", padx=15, pady=15)
+        self.files_scroll = ctk.CTkScrollableFrame(right_col, fg_color="transparent", height=20)
         self.files_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 10))
 
     def _create_action_buttons_custom(self, parent):
@@ -226,10 +229,9 @@ class CompletePopup(BasePopup):
         for _, row in rows.iterrows():
             item_name = str(row.get("품목명", "")).strip()
             
-            # [수정] Delivery 시트에서 해당 품목의 시리얼 번호 찾기
+            # Delivery 시트에서 해당 품목의 시리얼 번호 찾기
             serial = "-"
             if not current_deliveries.empty:
-                # 품목명이 일치하고 시리얼 번호가 있는 행 필터링
                 target_del = current_deliveries[
                     (current_deliveries["품목명"].astype(str).str.strip() == item_name) & 
                     (current_deliveries["시리얼번호"].notna()) & 
@@ -238,11 +240,9 @@ class CompletePopup(BasePopup):
                 ]
                 
                 if not target_del.empty:
-                    # 모든 시리얼 번호를 쉼표로 연결 (중복 제거)
                     serials = sorted(list(set(target_del["시리얼번호"].astype(str).tolist())))
                     serial = ", ".join(serials)
 
-            # 아이템 데이터에 시리얼 추가
             item_data = row.to_dict()
             item_data["시리얼번호"] = serial
             
@@ -274,45 +274,14 @@ class CompletePopup(BasePopup):
         else:
             ctk.CTkLabel(self.scroll_delivery, text="납품 이력이 없습니다.", text_color=COLORS["text_dim"]).pack(pady=20)
 
-        # 5. 파일 리스트 로드
+        # 5. 파일 리스트 로드 (주문서, 사업자등록증만)
         for widget in self.files_scroll.winfo_children(): widget.destroy()
         has_files = False
         
-        # 5-1. Data 시트의 파일들
+        # 5-1. Data 시트의 주문서
         if self._add_file_row("주문서(발주서)", first.get("발주서경로")): has_files = True
-        if self._add_file_row("운송장", first.get("운송장경로")): has_files = True
         
-        # 5-2. Payment 시트의 파일들
-        added_paths = set()
-        
-        if not self.dm.df_payment.empty:
-            p_rows = self.dm.df_payment[self.dm.df_payment["관리번호"].astype(str) == str(self.mgmt_no)]
-            for _, prow in p_rows.iterrows():
-                f_path = str(prow.get("외화입금증빙경로", "")).strip()
-                if f_path and f_path.lower() != "nan" and f_path != "-" and f_path not in added_paths:
-                    if self._add_file_row("외국환 거래 계산서", f_path): 
-                        has_files = True
-                        added_paths.add(f_path)
-                
-                r_path = str(prow.get("송금상세경로", "")).strip()
-                if r_path and r_path.lower() != "nan" and r_path != "-" and r_path not in added_paths:
-                    if self._add_file_row("Remittance Detail", r_path): 
-                        has_files = True
-                        added_paths.add(r_path)
-
-        # 5-3. Delivery 시트의 운송장
-        if not self.dm.df_delivery.empty:
-            d_rows = self.dm.df_delivery[self.dm.df_delivery["관리번호"].astype(str) == str(self.mgmt_no)]
-            for _, drow in d_rows.iterrows():
-                d_path = str(drow.get("운송장경로", "")).strip()
-                if d_path and d_path.lower() != "nan" and d_path != "-" and d_path not in added_paths:
-                    deliv_no = str(drow.get("출고번호", ""))
-                    label = f"운송장 ({deliv_no})" if deliv_no and deliv_no != "-" else "운송장"
-                    if self._add_file_row(label, d_path):
-                        has_files = True
-                        added_paths.add(d_path)
-
-        # 5-4. 사업자등록증
+        # 5-2. 사업자등록증
         client_name = str(first.get("업체명", ""))
         client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
         if not client_row.empty:
@@ -332,46 +301,89 @@ class CompletePopup(BasePopup):
                            anchor="e" if justify=="right" else "w" if justify=="left" else "center")
         lbl.pack(side="left", padx=2)
 
+    def _create_file_cell(self, parent, path, width, sheet_type=None, row_idx=None, col_name=None, extra_data=None):
+        frame = ctk.CTkFrame(parent, width=width, fg_color="transparent")
+        frame.pack(side="left", padx=2, fill="y")
+        frame.pack_propagate(False)
+        
+        path = str(path).strip()
+        if path and path.lower() != "nan" and path != "-":
+            btn = ctk.CTkButton(frame, text="보기", width=50, height=24, 
+                                fg_color=COLORS["primary"], font=FONTS["small"],
+                                command=lambda p=path: self.open_file(p))
+            btn.pack(expand=True)
+        else:
+            if sheet_type and row_idx is not None and col_name:
+                btn = ctk.CTkButton(frame, text="업로드", width=50, height=24, 
+                                    fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], font=FONTS["small"],
+                                    command=lambda: self.perform_upload(sheet_type, row_idx, col_name, extra_data))
+                btn.pack(expand=True)
+            else:
+                ctk.CTkLabel(frame, text="-", font=FONTS["small"], text_color=COLORS["text_dim"]).pack(expand=True)
+
     def _add_item_row(self, item_data):
         row_frame = ctk.CTkFrame(self.scroll_items, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=2)
         
-        self._create_cell(row_frame, item_data.get("품목명", ""), 150, is_bold=True)
-        self._create_cell(row_frame, item_data.get("모델명", ""), 150)
+        self._create_cell(row_frame, item_data.get("모델명", ""), 150, "center")
         
-        # [수정] 시리얼 번호 셀 추가
-        serial = str(item_data.get("시리얼번호", "-"))
-        ctk.CTkLabel(row_frame, text=serial, width=120, font=FONTS["main"], anchor="center", text_color=COLORS["primary"]).pack(side="left", padx=2)
-        
-        self._create_cell(row_frame, item_data.get("Description", ""), 200)
+        self._create_cell(row_frame, item_data.get("Description", ""), 200, "center")
         self._create_cell(row_frame, item_data.get("수량", 0), 60, "center", True)
         self._create_cell(row_frame, item_data.get("단가", 0), 100, "right", True)
         self._create_cell(row_frame, item_data.get("공급가액", 0), 100, "right", True)
         self._create_cell(row_frame, item_data.get("세액", 0), 80, "right", True)
         self._create_cell(row_frame, item_data.get("합계금액", 0), 100, "right", True)
 
+        serial = str(item_data.get("시리얼번호", "-"))
+        ctk.CTkLabel(row_frame, text=serial, width=120, font=FONTS["main"], anchor="center", text_color=COLORS["primary"]).pack(side="left", padx=2)
+
     def _add_payment_row(self, row):
         row_frame = ctk.CTkFrame(self.scroll_payment, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=2)
+        row_frame.pack_propagate(False)
         
-        self._create_cell(row_frame, row.get("일시", ""), 150)
-        self._create_cell(row_frame, row.get("구분", ""), 100, "center")
-        self._create_cell(row_frame, row.get("입금액", 0), 120, "right", True)
+        self._create_cell(row_frame, row.get("일시", ""), 150, "center")
+        self._create_cell(row_frame, row.get("구분", ""), 80, "center")
+        self._create_cell(row_frame, row.get("입금액", 0), 100, "right", True)
         self._create_cell(row_frame, row.get("통화", ""), 60, "center")
-        self._create_cell(row_frame, row.get("작업자", ""), 100)
-        self._create_cell(row_frame, row.get("비고", ""), 200)
+        self._create_cell(row_frame, row.get("작업자", ""), 80, "center")
+        
+        # extra_data 생성 (파일명용)
+        # Payment: 업체명_관리번호_입금액
+        try: amt = int(float(row.get("입금액", 0)))
+        except: amt = 0
+        extra_data = {
+            "client": self.lbl_client.cget("text"), # 현재 팝업의 업체명
+            "mgmt_no": self.mgmt_no,
+            "amount": amt,
+            "date": row.get("일시", datetime.datetime.now().strftime("%Y-%m-%d"))
+        }
+
+        self._create_file_cell(row_frame, row.get("외화입금증빙경로", ""), 150, "payment", row.name, "외화입금증빙경로", extra_data)
+        self._create_file_cell(row_frame, row.get("송금상세경로", ""), 150,  "payment", row.name, "송금상세경로", extra_data)
 
     def _add_delivery_row(self, row):
         row_frame = ctk.CTkFrame(self.scroll_delivery, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=2)
+        row_frame.pack_propagate(False)
         
-        self._create_cell(row_frame, row.get("일시", ""), 150)
+        self._create_cell(row_frame, row.get("일시", ""), 150, "center")
         self._create_cell(row_frame, row.get("출고일", ""), 100, "center")
-        self._create_cell(row_frame, row.get("품목명", ""), 200)
+        self._create_cell(row_frame, row.get("품목명", ""), 200, "center")
         self._create_cell(row_frame, row.get("출고수량", 0), 80, "center", True)
-        self._create_cell(row_frame, row.get("송장번호", ""), 120)
-        self._create_cell(row_frame, row.get("운송방법", ""), 100)
+        self._create_cell(row_frame, row.get("송장번호", ""), 120, "center")
+        
+        # extra_data 생성 (파일명용)
+        # Delivery: 업체명_관리번호_출고번호
+        extra_data = {
+            "client": self.lbl_client.cget("text"),
+            "mgmt_no": self.mgmt_no,
+            "delivery_no": row.get("출고번호", "")
+        }
+        
+        self._create_file_cell(row_frame, row.get("운송장경로", ""), 150, "delivery", row.name, "운송장경로", extra_data)
         self._create_cell(row_frame, row.get("비고", ""), 150)
+
 
     def _add_file_row(self, title, path):
         if path is None: path = ""
@@ -382,16 +394,81 @@ class CompletePopup(BasePopup):
         row = ctk.CTkFrame(self.files_scroll, fg_color="transparent")
         row.pack(fill="x", pady=2)
         
-        ctk.CTkLabel(row, text="📄", font=FONTS["main"]).pack(side="left", padx=(10, 5))
-        ctk.CTkLabel(row, text=title, font=FONTS["main_bold"], width=150, anchor="w").pack(side="left")
-        
-        file_name = os.path.basename(path)
-        ctk.CTkLabel(row, text=file_name, font=FONTS["small"], text_color=COLORS["text_dim"]).pack(side="left", padx=10)
-        
+        # 1. 버튼 먼저 배치 (우측 고정)
         ctk.CTkButton(row, text="열기", width=50, height=24,
                       fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"],
                       command=lambda p=path: self.open_file(p)).pack(side="right", padx=10)
+        
+        # 2. 아이콘 및 타이틀
+        ctk.CTkLabel(row, text="📄", font=FONTS["main"]).pack(side="left", padx=(10, 5))
+        ctk.CTkLabel(row, text=title, font=FONTS["main_bold"], width=150, anchor="w").pack(side="left")
+        
+        # 3. 파일명 축약 및 배치
+        file_name = os.path.basename(path)
+        if len(file_name) > 30:
+            file_name = file_name[:27] + "..."
+            
+        ctk.CTkLabel(row, text=file_name, font=FONTS["small"], text_color=COLORS["text_dim"]).pack(side="left", padx=10)
         return True
+
+    def perform_upload(self, sheet_type, row_idx, col_name, extra_data):
+        file_path = filedialog.askopenfilename(title="파일 선택", filetypes=[("All Files", "*.*")])
+        if not file_path: return
+        
+        try:
+            # 타겟 디렉토리 및 파일명 생성
+            base_filename = os.path.basename(file_path)
+            _, ext = os.path.splitext(base_filename)
+            timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+            safe_client = str(extra_data.get("client", "")).replace("/", "_").replace("\\", "_")
+            
+            target_dir = ""
+            new_filename = ""
+            
+            if sheet_type == "payment":
+                target_dir = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "입금")
+                # 파일명: 업체명_관리번호_입금액_timestamp
+                new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{extra_data.get('amount')}_{timestamp}{ext}"
+            elif sheet_type == "delivery":
+                target_dir = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "납품")
+                # 파일명: 업체명_관리번호_출고번호_timestamp (출고번호 없으면 그냥 timestamp)
+                d_no = extra_data.get("delivery_no", "")
+                if d_no and d_no != "-":
+                     new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{d_no}_{timestamp}{ext}"
+                else:
+                     new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{timestamp}{ext}"
+            
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+                
+            target_path = os.path.join(target_dir, new_filename)
+            
+            # 파일 복사
+            shutil.copy2(file_path, target_path)
+            
+            # 데이터 업데이트
+            def update_logic(dfs):
+                if sheet_type in dfs:
+                    # 인덱스로 행 찾아서 업데이트
+                    # 주의: dfs[sheet_type]의 인덱스가 보존되어 있어야 함
+                    if row_idx in dfs[sheet_type].index:
+                        dfs[sheet_type].at[row_idx, col_name] = target_path
+                        return True, ""
+                    else:
+                        return False, "해당 데이터를 찾을 수 없습니다."
+                return False, "시트를 찾을 수 없습니다."
+
+            success, msg = self.dm._execute_transaction(update_logic)
+            
+            if success:
+                messagebox.showinfo("성공", "파일이 업로드되었습니다.", parent=self)
+                self.refresh_callback() # 팝업 닫힘 및 메인 갱신
+                self.destroy()
+            else:
+                 messagebox.showerror("실패", f"저장 중 오류가 발생했습니다: {msg}", parent=self)
+
+        except Exception as e:
+            messagebox.showerror("오류", f"파일 업로드 중 오류 발생: {e}", parent=self)
 
     def open_file(self, path):
         if path and os.path.exists(path):

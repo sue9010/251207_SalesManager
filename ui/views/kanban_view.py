@@ -65,27 +65,59 @@ class KanbanView(ctk.CTkFrame):
         for status in self.column_frames:
             for w in self.column_frames[status]["frame"].winfo_children(): w.destroy()
             self.column_frames[status]["badge"].configure(text="0")
+            
         processing_statuses = ["납품완료/입금대기", "납품대기/입금완료", "납품대기"]
-        for idx, row in df.iterrows():
-            status = str(row['Status'])
-            target_col = None
-            if status in self.columns: target_col = status
-            else:
-                for ps in processing_statuses:
-                    if ps in status: target_col = "납품/입금"; break
-            if target_col and target_col in self.column_frames: self.create_card(target_col, row)
+        
+        # [변경] 관리번호 및 업체명 기준으로 그룹화
+        if "관리번호" in df.columns and "업체명" in df.columns:
+            grouped = df.groupby(["관리번호", "업체명"])
+            
+            for (mgmt_no, client_name), group in grouped:
+                # 대표 상태 결정 (빈도수 기준)
+                statuses = group["Status"].tolist()
+                main_status = max(set(statuses), key=statuses.count)
+                
+                target_col = None
+                if main_status in self.columns: target_col = main_status
+                else:
+                    for ps in processing_statuses:
+                        if ps in main_status: target_col = "납품/입금"; break
+                
+                if target_col and target_col in self.column_frames:
+                    # 카드 데이터 구성
+                    try: total_amt = group["합계금액"].sum()
+                    except: total_amt = 0
+                    
+                    item_count = len(group)
+                    first_model = group.iloc[0].get("모델명", "")
+                    
+                    model_display = first_model
+                    if item_count > 1:
+                        model_display = f"{first_model} 외 {item_count-1}건"
+                        
+                    card_data = {
+                        "mgmt_no": mgmt_no,
+                        "client_name": client_name,
+                        "model": model_display,
+                        "total_amt": total_amt,
+                        "status": main_status,
+                        "item_count": item_count
+                    }
+                    self.create_card(target_col, card_data)
+        
         for status in self.column_frames:
             cnt = len(self.column_frames[status]["frame"].winfo_children())
             self.column_frames[status]["badge"].configure(text=str(cnt))
 
-    def create_card(self, col_name, row):
+    def create_card(self, col_name, data):
         parent = self.column_frames[col_name]["frame"]
         card = ctk.CTkFrame(parent, fg_color=COLORS["bg_medium"], corner_radius=6)
         card.pack(fill="x", pady=4, padx=2)
         
-        comp = row['업체명']
-        model = row['모델명']
-        amt = row.get('합계금액', 0)
+        comp = data["client_name"]
+        model = data["model"]
+        amt = data["total_amt"]
+        
         try: amt_str = f"{float(amt):,.0f}"
         except: amt_str = str(amt)
         
@@ -93,9 +125,10 @@ class KanbanView(ctk.CTkFrame):
         ctk.CTkLabel(card, text=model, font=(FONT_FAMILY, 11)).pack(anchor="w", padx=8)
         ctk.CTkLabel(card, text=f"₩ {amt_str}", font=(FONT_FAMILY, 10), text_color=COLORS["text_dim"]).pack(anchor="e", padx=8, pady=(0,5))
         
-        mgmt_no = row['관리번호']
-        status = str(row['Status']) 
-        drag_text = f"[{mgmt_no}] {comp}"
+        mgmt_no = data["mgmt_no"]
+        status = data["status"]
+        count_str = f" ({data['item_count']} items)" if data['item_count'] > 1 else ""
+        drag_text = f"[{mgmt_no}] {comp}{count_str}"
         
         for w in [card] + card.winfo_children():
             w.bind("<Button-1>", lambda e, r=mgmt_no, s=col_name, t=drag_text, wi=card: self.start_drag(e, r, s, t, wi))
