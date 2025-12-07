@@ -218,9 +218,9 @@ class DeliveryPopup(BasePopup):
             "row_data": item_data
         }
 
-    # ==========================================================================
+
     # Helper Methods for Export
-    # ==========================================================================
+
     def _get_client_info(self):
         """고객사 정보를 가져오고 유효성을 검사합니다."""
         if not self.cached_client_name:
@@ -258,9 +258,9 @@ class DeliveryPopup(BasePopup):
             })
         return items
 
-    # ==========================================================================
+
     # Export Methods
-    # ==========================================================================
+
     def export_pi(self):
         client_info = self._get_client_info()
         if client_info is None: return
@@ -352,9 +352,8 @@ class DeliveryPopup(BasePopup):
             messagebox.showerror("실패", result, parent=self)
         self.attributes("-topmost", True)
 
-    # ==========================================================================
     # 저장 (납품 처리) 메서드
-    # ==========================================================================
+
     def save(self):
         delivery_date = self.entry_delivery_date.get()
         if not delivery_date:

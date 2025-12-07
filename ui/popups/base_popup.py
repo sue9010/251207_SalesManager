@@ -4,6 +4,7 @@ from tkinter import messagebox
 import os
 
 import customtkinter as ctk
+import pandas as pd # [추가]
 
 # [변경] 스타일 및 팝업 경로 수정
 from src.styles import COLORS, FONT_FAMILY, FONTS
@@ -34,14 +35,13 @@ class BasePopup(ctk.CTkToplevel):
         
         if self.mgmt_no:
             self._load_data()
-        else:
-            self._generate_new_id()
+        # else: 하위 클래스에서 처리함 (required args issue)
+
 
         self.transient(parent)
         self.grab_set()
         self.attributes("-topmost", True)
 
-    # ... (기존 _create_widgets, _create_header, _setup_info_panel 등은 변경 없음, 생략) ...
     def _create_widgets(self):
         """Standard Split View Layout: Header -> Split Content (Info + Items) -> Footer"""
         self.configure(fg_color=COLORS["bg_dark"])
@@ -91,9 +91,9 @@ class BasePopup(ctk.CTkToplevel):
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], text_color=COLORS["text"])
         self.btn_cancel.pack(side="right", padx=5)
 
-    # ==========================================================================
+
     # File & DnD Helpers (위임)
-    # ==========================================================================
+
     def create_file_input_row(self, parent, label, col_name, placeholder="파일을 드래그하거나 열기 버튼을 클릭하세요"):
         return self.file_manager.create_file_input_row(parent, label, col_name, placeholder)
 
@@ -156,9 +156,6 @@ class BasePopup(ctk.CTkToplevel):
         "delete": {"header": "삭제", "width": 40},
     }
 
-    # ... (기존 _create_widgets, _create_header, _setup_info_panel 등은 변경 없음, 생략) ...
-    # ... (중략) ...
-
     def _add_item_row(self, item_data=None):
         if not hasattr(self, 'scroll_items'): return None
         row_frame = ctk.CTkFrame(self.scroll_items, fg_color="transparent", height=35)
@@ -218,6 +215,70 @@ class BasePopup(ctk.CTkToplevel):
         frame.destroy()
         self._calculate_totals()
 
+    def _create_common_header(self, parent, title_text, id_text):
+        """공통 헤더 생성 로직"""
+        top_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        top_frame.pack(fill="x", padx=20, pady=(20, 10))
+        
+        # Title
+        ctk.CTkLabel(top_frame, text=title_text, font=FONTS["header"], text_color=COLORS["text"]).pack(side="left")
+        
+        # ID (우측)
+        valid_id = id_text if id_text else "신규 작성"
+        ctk.CTkLabel(top_frame, text=valid_id, font=FONTS["header"], text_color=COLORS["primary"]).pack(side="right")
+        
+        return top_frame
+
+    def _generate_new_id(self, prefix, date_col="작성일자"):
+        """신규 ID 생성 공통 로직"""
+        today_str = datetime.now().strftime("%y%m%d")
+        default_id = f"{prefix}{today_str}-001"
+        
+        if self.dm.df_data.empty:
+            return default_id
+            
+        # 해당 날짜의 데이터만 필터링 (접두사 포함)
+        # 관리번호 패턴: {prefix}{today_str}-{seq}
+        target_prefix = f"{prefix}{today_str}-"
+        
+        # 관리번호 컬럼에서 target_prefix로 시작하는 것들 추출
+        try:
+            # astype(str)로 확실하게 문자열 변환 후 검색
+            relevant_ids = self.dm.df_data[
+                self.dm.df_data["관리번호"].astype(str).str.startswith(target_prefix)
+            ]["관리번호"]
+            
+            if relevant_ids.empty:
+                return default_id
+                
+            # 뒷자리 3자리만 떼어서 max 값 찾기
+            suffixes = relevant_ids.apply(lambda x: int(str(x).split("-")[-1]))
+            max_suffix = suffixes.max()
+            return f"{target_prefix}{max_suffix + 1:03d}"
+        except:
+            return default_id
+
+    def delete(self):
+        """공통 삭제 로직"""
+        if messagebox.askyesno("삭제 확인", f"정말 이 {self.popup_title} 데이터를 삭제하시겠습니까?", parent=self):
+            def update_logic(dfs):
+                mask = dfs["data"]["관리번호"] == self.mgmt_no
+                if mask.any():
+                    dfs["data"] = dfs["data"][~mask]
+                    log_msg = f"{self.popup_title} 삭제: 번호 [{self.mgmt_no}]"
+                    new_log = self.dm._create_log_entry("삭제", log_msg)
+                    dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
+                    return True, ""
+                return False, "삭제할 데이터를 찾을 수 없습니다."
+
+            success, msg = self.dm._execute_transaction(update_logic)
+            if success:
+                messagebox.showinfo("삭제 완료", "데이터가 삭제되었습니다.", parent=self)
+                self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("실패", msg, parent=self)
+
     def on_price_change(self, event, widget, row_data):
         val = widget.get().replace(",", "")
         if val.isdigit():
@@ -264,7 +325,6 @@ class BasePopup(ctk.CTkToplevel):
         if hasattr(self, "lbl_total_amt"):
             self.lbl_total_amt.configure(text=f"총 합계: {total_amt:,.0f}")
 
-    def _generate_new_id(self): raise NotImplementedError
-    def _load_data(self): raise NotImplementedError
+
     def save(self): raise NotImplementedError
     def delete(self): raise NotImplementedError

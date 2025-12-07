@@ -35,22 +35,22 @@ class OrderPopup(BasePopup):
     
 
     def _create_header(self, parent):
-        header_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 10))
+        # 공통 헤더 사용
+        self._create_common_header(parent, "주문서 작성/수정", self.mgmt_no)
         
-        # 상단: ID 및 상태
-        top_row = ctk.CTkFrame(header_frame, fg_color="transparent")
-        top_row.pack(fill="x", anchor="w")
+        # 추가 헤더 (Status) - 별도 프레임에 구성
+        extra_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        extra_frame.pack(fill="x", padx=20, pady=(0, 10))
         
-        self.entry_id = ctk.CTkEntry(top_row, width=150, font=FONTS["main_bold"], text_color=COLORS["text_dim"])
-        self.entry_id.pack(side="left")
-        self.entry_id.insert(0, "NEW")
-        self.entry_id.configure(state="readonly")
-        
-        self.combo_status = ctk.CTkComboBox(top_row, values=["주문", "생산중", "완료", "취소", "보류"], 
+        ctk.CTkLabel(extra_frame, text="상태:", font=FONTS["main_bold"]).pack(side="left")
+        self.combo_status = ctk.CTkComboBox(extra_frame, values=["주문", "생산중", "완료", "취소", "보류"], 
                                           width=100, font=FONTS["main"], state="readonly")
-        self.combo_status.pack(side="left", padx=10)
+        self.combo_status.pack(side="left", padx=5)
         self.combo_status.set("주문")
+
+        # entry_id 호환성 유지 (Hidden Entry)
+        self.entry_id = ctk.CTkEntry(extra_frame, width=0)
+        self.entry_id.insert(0, self.mgmt_no if self.mgmt_no else "NEW")
 
     def _setup_items_panel(self, parent):
         # 타이틀 & 추가 버튼
@@ -411,48 +411,19 @@ class OrderPopup(BasePopup):
 
 
     # BasePopup 추상 메서드 구현 (사용 안함)
-    def _generate_new_id(self): 
-        # BasePopup에서 호출하는 경우를 대비해 구현
-        today_str = datetime.now().strftime("%y%m%d")
-        prefix = f"O{today_str}"
+    def _generate_new_id(self):
+        new_id = super()._generate_new_id("O", "수주일") # 주문일자 기준
         
-        df = self.dm.df_data
-        existing_ids = df[df["관리번호"].str.startswith(prefix)]["관리번호"].unique()
-        
-        if len(existing_ids) == 0: seq = 1
-        else:
-            max_seq = 0
-            for eid in existing_ids:
-                try:
-                    parts = eid.split("-")
-                    if len(parts) > 1:
-                        seq_num = int(parts[-1])
-                        if seq_num > max_seq: max_seq = seq_num
-                except: pass
-            seq = max_seq + 1
+        if hasattr(self, 'entry_id'):
+            self.entry_id.configure(state="normal")
+            self.entry_id.delete(0, "end")
+            self.entry_id.insert(0, new_id)
             
 
 
 
-    def delete(self):
-        if messagebox.askyesno("삭제 확인", f"정말 이 {self.popup_title} 데이터를 삭제하시겠습니까?", parent=self):
-            def update_logic(dfs):
-                mask = dfs["data"]["관리번호"] == self.mgmt_no
-                if mask.any():
-                    dfs["data"] = dfs["data"][~mask]
-                    log_msg = f"{self.popup_title} 삭제: 번호 [{self.mgmt_no}]"
-                    new_log = self.dm._create_log_entry("삭제", log_msg)
-                    dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-                    return True, ""
-                return False, "삭제할 데이터를 찾을 수 없습니다."
-
-            success, msg = self.dm._execute_transaction(update_logic)
-            if success:
-                messagebox.showinfo("삭제 완료", "데이터가 삭제되었습니다.", parent=self)
-                self.refresh_callback()
-                self.destroy()
-            else:
-                messagebox.showerror("실패", msg, parent=self)
+    # delete는 BasePopup 사용
+    # def delete(self): ...
 
     # ==========================================================================
     # Export

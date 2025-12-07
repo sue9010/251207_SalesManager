@@ -35,23 +35,35 @@ class QuotePopup(BasePopup):
     
 
     def _create_header(self, parent):
-        header_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 10))
+        # 공통 헤더 사용 (Title + ID)
+        header_frame = self._create_common_header(parent, "견적서 작성/수정", self.mgmt_no)
         
-        # 상단: ID 및 상태
-        top_row = ctk.CTkFrame(header_frame, fg_color="transparent")
-        top_row.pack(fill="x", anchor="w")
+        # ID 위젯 참조 가져오기 (BasePopup에서 생성한 라벨을 덮어쓰거나 별도 처리?)
+        # _create_common_header는 라벨만 생성하므로, ID Entry 기능을 쓰려면 커스텀해야 함.
+        # 하지만 QuotePopup은 ID가 'NEW'로 시작했다가 저장 시 바뀌고, Status 콤보도 있음.
+        # BasePopup의 공통 헤더는 단순 라벨용이므로 QuotePopup의 복잡한 헤더와 안 맞을 수 있음.
+        # 일단 Status 콤보박스를 위해 별도 프레임 추가
         
-        self.entry_id = ctk.CTkEntry(top_row, width=150, font=FONTS["main_bold"], text_color=COLORS["text_dim"])
-        self.entry_id.pack(side="left")
-        self.entry_id.insert(0, "NEW")
-        self.entry_id.configure(state="readonly")
+        extra_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        extra_frame.pack(fill="x", padx=20, pady=(0, 10))
         
-        # 상태 콤보박스
-        self.combo_status = ctk.CTkComboBox(top_row, values=["견적", "진행중", "완료", "취소"], 
+        ctk.CTkLabel(extra_frame, text="상태:", font=FONTS["main_bold"]).pack(side="left")
+        self.combo_status = ctk.CTkComboBox(extra_frame, values=["견적", "진행중", "완료", "취소"], 
                                           width=100, font=FONTS["main"], state="readonly")
-        self.combo_status.pack(side="left", padx=10)
+        self.combo_status.pack(side="left", padx=5)
         self.combo_status.set("견적")
+        
+        # ID는 _create_common_header에서 그려진 라벨로 대체하거나, 
+        # QuotePopup 특성상 Entry가 필요하다면 _create_common_header를 쓰지 말아야 할 수도 있음.
+        # 여기서는 self.entry_id 가 코드 곳곳에서 쓰이므로(저장 등), 이를 유지해야 함.
+        # 따라서 _create_common_header 사용 보다는 독자 구현 유지가 나을 수도 있으나, 
+        # 사용자 요청이 '중복 제거' 이므로 최대한 활용해봄.
+        
+        # BasePopup의 _create_common_header는 entry_id를 멤버변수로 만들지 않음.
+        # Hack: entry_id를 안 보이게(hidden) 만들어서 로직 호환성 유지
+        self.entry_id = ctk.CTkEntry(extra_frame, width=0) 
+        if self.mgmt_no: self.entry_id.insert(0, self.mgmt_no)
+        else: self.entry_id.insert(0, "NEW")
 
     def _setup_items_panel(self, parent):
         # 타이틀 & 추가 버튼
@@ -349,25 +361,8 @@ class QuotePopup(BasePopup):
         else:
             messagebox.showerror("실패", msg, parent=self)
 
-    def delete(self):
-        if messagebox.askyesno("삭제 확인", f"정말 이 {self.popup_title} 데이터를 삭제하시겠습니까?", parent=self):
-            def update_logic(dfs):
-                mask = dfs["data"]["관리번호"] == self.mgmt_no
-                if mask.any():
-                    dfs["data"] = dfs["data"][~mask]
-                    log_msg = f"{self.popup_title} 삭제: 번호 [{self.mgmt_no}]"
-                    new_log = self.dm._create_log_entry("삭제", log_msg)
-                    dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-                    return True, ""
-                return False, "삭제할 데이터를 찾을 수 없습니다."
-
-            success, msg = self.dm._execute_transaction(update_logic)
-            if success:
-                messagebox.showinfo("삭제 완료", "데이터가 삭제되었습니다.", parent=self)
-                self.refresh_callback()
-                self.destroy()
-            else:
-                messagebox.showerror("실패", msg, parent=self)
+    # delete는 BasePopup 사용 (필요 시 오버라이드)
+    # def delete(self): ...
 
     def export_quote(self):
         client_name = self.entry_client.get()
@@ -415,27 +410,11 @@ class QuotePopup(BasePopup):
         self.attributes("-topmost", True)
 
     def _generate_new_id(self):
-        # BasePopup에서 호출
-        today_str = datetime.now().strftime("%y%m%d")
-        prefix = f"Q{today_str}"
+        new_id = super()._generate_new_id("Q", "작성일자")
         
-        df = self.dm.df_data
-        existing_ids = df[df["관리번호"].str.startswith(prefix)]["관리번호"].unique()
-        
-        if len(existing_ids) == 0: seq = 1
-        else:
-            max_seq = 0
-            for eid in existing_ids:
-                try:
-                    parts = eid.split("-")
-                    if len(parts) > 1:
-                        seq_num = int(parts[-1])
-                        if seq_num > max_seq: max_seq = seq_num
-                except: pass
-            seq = max_seq + 1
-            
-        new_id = f"{prefix}-{seq:03d}"
-        self.entry_id.configure(state="normal")
-        self.entry_id.delete(0, "end")
-        self.entry_id.insert(0, new_id)
-        self.entry_id.configure(state="readonly")
+        # UI 업데이트 (entry_id가 존재한다면)
+        if hasattr(self, 'entry_id'):
+            self.entry_id.configure(state="normal")
+            self.entry_id.delete(0, "end")
+            self.entry_id.insert(0, new_id)
+            # self.entry_id.configure(state="readonly") # Entry가 hidden이거나 dummy일 수 있으므로 상태 제어 주의
