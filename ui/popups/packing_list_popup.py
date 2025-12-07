@@ -17,6 +17,9 @@ class PackingListPopup(ctk.CTkToplevel):
         self.geometry("1200x600")
         self.configure(fg_color=COLORS["bg_dark"])
         
+        # ESC 닫기
+        self.bind("<Escape>", lambda e: self.destroy())
+        
         self.transient(parent)
         self.attributes("-topmost", True)
         

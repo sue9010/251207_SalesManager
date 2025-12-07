@@ -41,6 +41,9 @@ class BasePopup(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
         self.attributes("-topmost", True)
+        
+        # ESC 닫기
+        self.bind("<Escape>", lambda e: self.destroy())
 
     def _create_widgets(self):
         """Standard Split View Layout: Header -> Split Content (Info + Items) -> Footer"""

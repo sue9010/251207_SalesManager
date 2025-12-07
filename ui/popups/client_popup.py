@@ -35,6 +35,9 @@ class ClientPopup(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
         self.attributes("-topmost", True)
+        
+        # ESC 닫기
+        self.bind("<Escape>", lambda e: self.destroy())
 
     def _create_widgets(self):
         # Main Container (No Scroll)

@@ -30,6 +30,9 @@ class SettingsPopup(ctk.CTkToplevel):
         self.lift()
         self.focus_force()
         self.attributes("-topmost", True)
+        
+        # ESC 닫기
+        self.bind("<Escape>", lambda e: self.destroy())
 
     def center_window(self, width, height):
         screen_width = self.winfo_screenwidth()
