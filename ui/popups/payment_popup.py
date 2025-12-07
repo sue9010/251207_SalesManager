@@ -244,7 +244,7 @@ class PaymentPopup(BasePopup):
             client_name = self.dm.df_data.loc[self.dm.df_data["관리번호"] == self.mgmt_nos[0], "업체명"].values[0]
         except: client_name = "Unknown"
         
-        info_text = f"{client_name}_{self.mgmt_nos[0]}"
+        info_text = f"{client_name}_{self.mgmt_nos[0]}_{int(payment_amount)}"
 
         file_inputs = [
             ("외화입금증빙경로", "외화 입금"),

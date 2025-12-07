@@ -177,12 +177,8 @@ class DeliveryPopup(BasePopup):
             path = str(first.get("운송장경로", "")).replace("nan", "")
             if path: self.update_file_entry("운송장경로", path)
 
-        # 출고번호
-        d_rows = self.dm.df_delivery[self.dm.df_delivery["관리번호"].isin(self.mgmt_nos)]
-        if not d_rows.empty:
-            self.current_delivery_no = d_rows.sort_values("일시", ascending=False).iloc[0].get("출고번호", "")
-        if not self.current_delivery_no or self.current_delivery_no == "-":
-            self.current_delivery_no = self.dm.generate_delivery_no()
+        # 출고번호 (항상 신규 생성)
+        self.current_delivery_no = self.dm.generate_delivery_no() # 신규 생성
             
         self.entry_delivery_no.configure(state="normal")
         self.entry_delivery_no.delete(0, "end")
@@ -402,7 +398,7 @@ class DeliveryPopup(BasePopup):
             
             # [변경] self.file_manager는 BasePopup에 정의됨 (이제 import 문제 없음)
             success, msg, new_path = self.file_manager.save_file(
-                "운송장경로", "운송장", "운송장", f"{safe_client}_{self.mgmt_nos[0]}"
+                "운송장경로", "운송장", "운송장", f"{safe_client}_{self.mgmt_nos[0]}_{self.current_delivery_no}"
             )
             
             if success and new_path:
@@ -426,7 +422,8 @@ class DeliveryPopup(BasePopup):
                     "관리번호": row_data.get("관리번호", ""), "품목명": row_data.get("품목명", ""),
                     "시리얼번호": req["serial_no"], "출고수량": deliver_qty,
                     "송장번호": self.entry_invoice_no.get(), "운송방법": self.entry_shipping_method.get(),
-                    "작업자": current_user, "비고": "일괄 납품 처리"
+                    "작업자": current_user, "비고": "일괄 납품 처리",
+                    "운송장경로": final_waybill_path # [추가] 운송장 경로는 이력에 저장
                 })
 
                 # 데이터 업데이트 (완전 출고 vs 부분 출고)
@@ -441,7 +438,7 @@ class DeliveryPopup(BasePopup):
                     dfs["data"].at[idx, "출고일"] = delivery_date
                     dfs["data"].at[idx, "송장번호"] = self.entry_invoice_no.get()
                     dfs["data"].at[idx, "운송방법"] = self.entry_shipping_method.get()
-                    dfs["data"].at[idx, "운송장경로"] = final_waybill_path
+                    # dfs["data"].at[idx, "운송장경로"] = final_waybill_path # [제거] Data 시트에 덮어쓰지 않음
                     dfs["data"].at[idx, "미수금액"] = float(str(row_data.get("합계금액", 0)).replace(",", ""))
                 else:
                     remain_qty = db_qty - deliver_qty
@@ -460,8 +457,10 @@ class DeliveryPopup(BasePopup):
                         "수량": deliver_qty, "공급가액": new_supply, "세액": new_tax, "합계금액": new_supply + new_tax,
                         "미수금액": new_supply + new_tax, "Status": new_status, "출고일": delivery_date,
                         "송장번호": self.entry_invoice_no.get(), "운송방법": self.entry_shipping_method.get(),
-                        "운송장경로": final_waybill_path
+                        # "운송장경로": final_waybill_path # [제거]
                     })
+                    # 운송장경로 컬럼값 초기화 (부분 출고된 남은 수량 행에는 운송장 없음)
+                    if "운송장경로" in new_row: new_row["운송장경로"] = ""
                     dfs["data"] = pd.concat([dfs["data"], pd.DataFrame([new_row])], ignore_index=True)
                 
                 processed_items.append(f"{row_data.get('품목명','')} ({deliver_qty}개)")

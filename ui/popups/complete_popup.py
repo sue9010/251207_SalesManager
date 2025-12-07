@@ -300,7 +300,19 @@ class CompletePopup(BasePopup):
                         has_files = True
                         added_paths.add(r_path)
 
-        # 5-3. 사업자등록증
+        # 5-3. Delivery 시트의 운송장
+        if not self.dm.df_delivery.empty:
+            d_rows = self.dm.df_delivery[self.dm.df_delivery["관리번호"].astype(str) == str(self.mgmt_no)]
+            for _, drow in d_rows.iterrows():
+                d_path = str(drow.get("운송장경로", "")).strip()
+                if d_path and d_path.lower() != "nan" and d_path != "-" and d_path not in added_paths:
+                    deliv_no = str(drow.get("출고번호", ""))
+                    label = f"운송장 ({deliv_no})" if deliv_no and deliv_no != "-" else "운송장"
+                    if self._add_file_row(label, d_path):
+                        has_files = True
+                        added_paths.add(d_path)
+
+        # 5-4. 사업자등록증
         client_name = str(first.get("업체명", ""))
         client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
         if not client_row.empty:

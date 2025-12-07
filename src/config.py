@@ -35,7 +35,7 @@ class Config:
     ]
     
     PAYMENT_COLUMNS = ["관리번호", "일시", "입금액", "비고"]
-    DELIVERY_COLUMNS = ["출고번호", "일시", "관리번호", "수량", "박스수량", "비고"]
+    DELIVERY_COLUMNS = ["출고번호", "일시", "관리번호", "수량", "박스수량", "비고", "운송장경로"]
     LOG_COLUMNS = ["일시", "작업자", "구분", "상세내용"]
     MEMO_COLUMNS = ["관리번호", "내용", "작성일"]
     MEMO_LOG_COLUMNS = ["일시", "작업자", "내용"]

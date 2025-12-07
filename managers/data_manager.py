@@ -74,11 +74,11 @@ class DataManager:
             with pd.ExcelFile(self.current_excel_path) as xls:
                 if Config.SHEET_CLIENTS in xls.sheet_names:
                     self.df_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
-                    self.df_clients.columns = self.df_clients.columns.str.strip()
+                    self.df_clients.columns = self.df_clients.columns.astype(str).str.strip()
                 
                 if Config.SHEET_DATA in xls.sheet_names:
                     self.df_data = pd.read_excel(xls, Config.SHEET_DATA)
-                    self.df_data.columns = self.df_data.columns.str.strip()
+                    self.df_data.columns = self.df_data.columns.astype(str).str.strip()
                 
                 if Config.SHEET_PAYMENT in xls.sheet_names:
                     self.df_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
@@ -128,12 +128,12 @@ class DataManager:
             with pd.ExcelFile(self.current_excel_path) as xls:
                 if Config.SHEET_CLIENTS in xls.sheet_names:
                     temp_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
-                    temp_clients.columns = temp_clients.columns.str.strip()
+                    temp_clients.columns = temp_clients.columns.astype(str).str.strip()
                 else: temp_clients = pd.DataFrame(columns=Config.CLIENT_COLUMNS)
 
                 if Config.SHEET_DATA in xls.sheet_names:
                     temp_data = pd.read_excel(xls, Config.SHEET_DATA)
-                    temp_data.columns = temp_data.columns.str.strip()
+                    temp_data.columns = temp_data.columns.astype(str).str.strip()
                 else: temp_data = pd.DataFrame(columns=Config.DATA_COLUMNS)
 
                 if Config.SHEET_PAYMENT in xls.sheet_names:
