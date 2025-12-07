@@ -27,7 +27,7 @@ class PaymentPopup(BasePopup):
             return
             
         super().__init__(parent, data_manager, refresh_callback, popup_title="수금", mgmt_no=self.mgmt_nos[0])
-        self.geometry("1500x850")
+        self.geometry("1300x850")
 
 
     def _create_header(self, parent):
