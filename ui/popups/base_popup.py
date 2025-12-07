@@ -8,12 +8,7 @@ import customtkinter as ctk
 # [변경] 스타일 및 팝업 경로 수정
 from src.styles import COLORS, FONT_FAMILY, FONTS
 from ui.popups.client_popup import ClientPopup 
-
-try:
-    from tkinterdnd2 import DND_FILES
-    DND_AVAILABLE = True
-except ImportError:
-    DND_AVAILABLE = False
+from utils.file_dnd import FileDnDManager
 
 class BasePopup(ctk.CTkToplevel):
     def __init__(self, parent, data_manager, refresh_callback, popup_title="Popup", mgmt_no=None):
@@ -32,8 +27,7 @@ class BasePopup(ctk.CTkToplevel):
         self.geometry("1100x750")
         
         self.item_rows = []
-        self.file_entries = {} # {col_name: entry_widget}
-        self.full_paths = {}   # {col_name: full_path}
+        self.file_manager = FileDnDManager(self)
         
         self._create_widgets()
 
@@ -98,109 +92,25 @@ class BasePopup(ctk.CTkToplevel):
         self.btn_cancel.pack(side="right", padx=5)
 
     # ==========================================================================
-    # File & DnD Helpers (tkinterdnd2 적용)
+    # File & DnD Helpers (위임)
     # ==========================================================================
     def create_file_input_row(self, parent, label, col_name, placeholder="파일을 드래그하거나 열기 버튼을 클릭하세요"):
-        if label:
-            ctk.CTkLabel(parent, text=label, font=FONTS["main"], text_color=COLORS["text_dim"]).pack(anchor="w", pady=(5, 0))
-        
-        row = ctk.CTkFrame(parent, fg_color="transparent")
-        row.pack(fill="x", pady=(2, 5))
-        
-        entry = ctk.CTkEntry(row, placeholder_text=placeholder, height=28)
-        entry.pack(side="left", fill="x", expand=True)
-        
-        btn_open = ctk.CTkButton(row, text="열기", width=50, height=28,
-                      command=lambda: self.open_file(entry, col_name),
-                      fg_color=COLORS["bg_light"], text_color=COLORS["text"])
-        btn_open.pack(side="left", padx=(5, 0))
-                      
-        btn_delete = ctk.CTkButton(row, text="삭제", width=50, height=28,
-                      command=lambda: self.clear_entry(entry, col_name),
-                      fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"])
-        btn_delete.pack(side="left", padx=(5, 0))
-        
-        self.file_entries[col_name] = entry
-        
-        if DND_AVAILABLE:
-            self._setup_dnd_hook(entry, col_name)
-        
-        return entry, btn_open, btn_delete
-
-    def _setup_dnd_hook(self, widget, col_name):
-        """[수정] tkinterdnd2 방식의 후킹"""
-        def hook_wait():
-            try:
-                if widget.winfo_exists():
-                    widget.drop_target_register(DND_FILES)
-                    widget.dnd_bind('<<Drop>>', lambda e: self.on_drop(e, col_name))
-                else:
-                    self.after(200, hook_wait)
-            except Exception as e:
-                self.after(200, hook_wait)
-        self.after(200, hook_wait)
-
-    def on_drop(self, event, col_name):
-        """[수정] tkinterdnd2 이벤트 핸들러"""
-        raw_data = event.data
-        if not raw_data: return
-
-        file_path = raw_data
-        if raw_data.startswith('{') and raw_data.endswith('}'):
-            file_path = raw_data[1:-1]
-        elif '} {' in raw_data:
-             file_path = raw_data.split('} {')[0].replace('{', '')
-             
-        self.update_file_entry(col_name, file_path)
+        return self.file_manager.create_file_input_row(parent, label, col_name, placeholder)
 
     def update_file_entry(self, col_name, full_path):
-        if not full_path: return
-        full_path = os.path.normpath(full_path)
-        self.full_paths[col_name] = full_path
-        if col_name in self.file_entries:
-            entry = self.file_entries[col_name]
-            try:
-                entry.delete(0, "end")
-                entry.insert(0, os.path.basename(full_path))
-            except: pass
+        self.file_manager.update_file_entry(col_name, full_path)
 
-    # ... (나머지 메서드들은 경로만 수정하여 유지) ...
     def open_file(self, entry_widget, col_name):
-        path = self.full_paths.get(col_name) if hasattr(self, "full_paths") else None
-        if not path: path = entry_widget.get().strip()
-        if path and os.path.exists(path):
-            try: os.startfile(path)
-            except Exception as e: messagebox.showerror("에러", f"파일을 열 수 없습니다.\n{e}", parent=self)
-        else:
-            messagebox.showwarning("경고", "파일 경로가 유효하지 않습니다.", parent=self)
+        self.file_manager.open_file(col_name)
 
     def clear_entry(self, entry_widget, col_name):
-        path = self.full_paths.get(col_name) if hasattr(self, "full_paths") else None
-        if not path: path = entry_widget.get().strip()
-        if not path: return
+        self.file_manager.clear_entry(col_name)
 
-        is_managed = False
-        try:
-            abs_path = os.path.abspath(path)
-            from src.config import Config
-            abs_root = os.path.abspath(Config.DEFAULT_ATTACHMENT_ROOT)
-            if abs_path.startswith(abs_root): is_managed = True
-        except: pass
-
-        if is_managed:
-            if messagebox.askyesno("파일 삭제", f"정말 파일을 삭제하시겠습니까?\n(영구 삭제됨)", parent=self):
-                try:
-                    if os.path.exists(path): os.remove(path)
-                except Exception as e:
-                    messagebox.showerror("오류", f"삭제 실패: {e}", parent=self)
-                    return
-                entry_widget.delete(0, "end")
-                if hasattr(self, "full_paths") and col_name in self.full_paths: 
-                    del self.full_paths[col_name]
-        else:
-            entry_widget.delete(0, "end")
-            if hasattr(self, "full_paths") and col_name in self.full_paths: 
-                del self.full_paths[col_name]
+    @property
+    def file_entries(self): return self.file_manager.file_entries
+    
+    @property
+    def full_paths(self): return self.file_manager.full_paths
 
     # ... (클라이언트 선택 로직 등 유지) ...
     def _on_client_select(self, client_name):

@@ -1,7 +1,10 @@
 import os
+import shutil
+from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
+from src.styles import COLORS, FONTS
 
 try:
     from tkinterdnd2 import DND_FILES
@@ -19,7 +22,7 @@ class FileDnDManager:
     def create_file_input_row(self, parent, label, key, placeholder="파일을 드래그하거나 열기 버튼을 클릭하세요", height=28):
         """Standard file input row creation"""
         if label:
-            ctk.CTkLabel(parent, text=label, text_color="gray").pack(anchor="w", pady=(5, 0))
+            ctk.CTkLabel(parent, text=label, font=FONTS["main"], text_color=COLORS["text_dim"]).pack(anchor="w", pady=(5, 0))
         
         row = ctk.CTkFrame(parent, fg_color="transparent")
         row.pack(fill="x", pady=(2, 5))
@@ -29,12 +32,12 @@ class FileDnDManager:
         
         btn_open = ctk.CTkButton(row, text="열기", width=50, height=height,
                       command=lambda: self.open_file(key),
-                      fg_color="gray", text_color="white")
+                      fg_color=COLORS["bg_light"], text_color=COLORS["text"])
         btn_open.pack(side="left", padx=(5, 0))
                       
         btn_delete = ctk.CTkButton(row, text="삭제", width=50, height=height,
                       command=lambda: self.clear_entry(key),
-                      fg_color="#C62828", hover_color="#B71C1C")
+                      fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"])
         btn_delete.pack(side="left", padx=(5, 0))
         
         self.file_entries[key] = entry
