@@ -13,7 +13,7 @@ from managers.export_manager import ExportManager
 
 class OrderPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no=None, copy_mode=False):
-        self.export_manager = ExportManager()
+        self.export_manager = ExportManager(data_manager)
         
         self.copy_mode = copy_mode
         self.copy_src_no = mgmt_no if copy_mode else None

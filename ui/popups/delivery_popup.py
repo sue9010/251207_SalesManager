@@ -25,7 +25,7 @@ class DeliveryPopup(BasePopup):
             return
 
         self.item_widgets_map = {}
-        self.export_manager = ExportManager() 
+        self.export_manager = ExportManager(data_manager) 
         self.current_delivery_no = ""
         self.cached_client_name = "" # UI Entry 대신 변수로 관리
         

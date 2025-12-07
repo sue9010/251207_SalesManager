@@ -7,8 +7,8 @@ import openpyxl
 from src.config import Config
 
 class ExportManager:
-    def __init__(self):
-        pass
+    def __init__(self, datamanager):
+        self.datamanager = datamanager
 
     def export_quote_to_pdf(self, client_info, quote_info, items):
         try:
@@ -67,47 +67,14 @@ class ExportManager:
             else:
                 pdf_filename = f"Quotation_{client_name}_{mgmt_no}.pdf"
             
-            temp_xlsx_name = f"temp_{mgmt_no}.xlsx"
-            temp_xlsx_path = os.path.join(desktop, temp_xlsx_name)
-            pdf_path = os.path.join(desktop, pdf_filename)
-            
-            wb.save(temp_xlsx_path)
-            # wb.close() -> finally에서 처리
-
-            pythoncom.CoInitialize()
-            excel = win32com.client.Dispatch("Excel.Application")
-            excel.Visible = False
-            excel.DisplayAlerts = False 
-            excel.ScreenUpdating = False
-
-            abs_xlsx_path = os.path.abspath(temp_xlsx_path)
-            wb_opened = excel.Workbooks.Open(abs_xlsx_path)
-            
-            try:
-                wb_opened.ExportAsFixedFormat(0, pdf_path)
-            except Exception as e:
-                return False, f"PDF 변환 실패 (엑셀 오류): {e}"
-            
-            wb_opened.Close(SaveChanges=False)
-            wb_opened = None
-            
-            return True, pdf_path
+            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name=None)
 
         except Exception as e:
             return False, f"오류 발생: {str(e)}"
-            
+        
         finally:
             if wb:
                 try: wb.close()
-                except: pass
-            if wb_opened:
-                try: wb_opened.Close(False)
-                except: pass
-            if excel:
-                try: excel.Quit(); del excel
-                except: pass
-            if temp_xlsx_path and os.path.exists(temp_xlsx_path):
-                try: os.remove(temp_xlsx_path)
                 except: pass
 
     def export_order_request_to_pdf(self, client_info, order_info, items):
@@ -123,7 +90,7 @@ class ExportManager:
         wb = None
 
         try:
-            template_path = Config.ORDER_REQUEST_FORM_PATH
+            template_path = os.path.join(Config.FORMS_DIR, "order_request_form.xlsx")
             if not os.path.exists(template_path):
                 return False, f"출고요청서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
 
@@ -155,44 +122,10 @@ class ExportManager:
             ws["B21"] = order_info.get('req_note', '')
             ws["B24"] = str(client_info.get("특이사항", ""))
 
-            target_dir = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "출고요청서")
-            if not os.path.exists(target_dir):
-                try: os.makedirs(target_dir)
-                except: pass
-
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_')]).strip()
             pdf_filename = f"출고요청서_{client_safe}_{order_info['mgmt_no']}.pdf"
-            
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            temp_xlsx_name = f"temp_req_{order_info['mgmt_no']}.xlsx"
-            temp_xlsx_path = os.path.join(desktop, temp_xlsx_name)
-            
-            if os.path.exists(target_dir):
-                pdf_path = os.path.join(target_dir, pdf_filename)
-            else:
-                pdf_path = os.path.join(desktop, pdf_filename)
 
-            wb.save(temp_xlsx_path)
-            # wb.close() -> finally에서 처리
-
-            pythoncom.CoInitialize()
-            excel = win32com.client.Dispatch("Excel.Application")
-            excel.Visible = False
-            excel.DisplayAlerts = False
-            excel.ScreenUpdating = False
-
-            abs_xlsx_path = os.path.abspath(temp_xlsx_path)
-            wb_opened = excel.Workbooks.Open(abs_xlsx_path)
-            
-            try:
-                wb_opened.ExportAsFixedFormat(0, pdf_path)
-            except Exception as e:
-                return False, f"PDF 변환 실패: {e}"
-            
-            wb_opened.Close(SaveChanges=False)
-            wb_opened = None
-            
-            return True, pdf_path
+            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="출고요청서")
 
         except Exception as e:
             return False, f"오류 발생: {str(e)}"
@@ -200,15 +133,6 @@ class ExportManager:
         finally:
             if wb:
                 try: wb.close()
-                except: pass
-            if wb_opened:
-                try: wb_opened.Close(False)
-                except: pass
-            if excel:
-                try: excel.Quit(); del excel
-                except: pass
-            if temp_xlsx_path and os.path.exists(temp_xlsx_path):
-                try: os.remove(temp_xlsx_path)
                 except: pass
 
     def export_pi_to_pdf(self, client_info, order_info, items):
@@ -254,55 +178,10 @@ class ExportManager:
                 ws[f"F{r_idx}"] = item.get('price', 0)
                 ws[f"G{r_idx}"] = item.get('amount', 0)
 
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            server_pi_folder = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "Proforma Invoice")
-            
-            if not os.path.exists(server_pi_folder):
-                try: os.makedirs(server_pi_folder)
-                except: pass
-
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_', '-')]).strip()
             pdf_filename = f"PI_{client_safe}_{order_info['mgmt_no']}.pdf"
             
-            temp_xlsx_name = f"temp_PI_{order_info['mgmt_no']}.xlsx"
-            temp_xlsx_path = os.path.join(desktop, temp_xlsx_name)
-            
-            desktop_pdf_path = os.path.join(desktop, pdf_filename)
-            server_pdf_path = os.path.join(server_pi_folder, pdf_filename)
-
-            wb.save(temp_xlsx_path)
-            # wb.close() -> finally에서 처리
-
-            pythoncom.CoInitialize()
-            excel = win32com.client.Dispatch("Excel.Application")
-            excel.Visible = False
-            excel.DisplayAlerts = False
-            excel.ScreenUpdating = False
-
-            abs_xlsx_path = os.path.abspath(temp_xlsx_path)
-            wb_opened = excel.Workbooks.Open(abs_xlsx_path)
-            
-            try:
-                wb_opened.ExportAsFixedFormat(0, desktop_pdf_path)
-            except Exception as e:
-                return False, f"PDF 변환 실패: {e}"
-            
-            wb_opened.Close(SaveChanges=False)
-            wb_opened = None
-            
-            copied_to_server = False
-            if os.path.exists(server_pi_folder):
-                try:
-                    shutil.copy2(desktop_pdf_path, server_pdf_path)
-                    copied_to_server = True
-                except Exception as e:
-                    print(f"서버 복사 실패: {e}")
-
-            msg = f"바탕화면에 저장되었습니다.\n{desktop_pdf_path}"
-            if copied_to_server:
-                msg += f"\n\n서버에도 저장되었습니다.\n{server_pdf_path}"
-
-            return True, msg
+            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Proforma Invoice")
 
         except Exception as e:
             return False, f"오류 발생: {str(e)}"
@@ -310,15 +189,6 @@ class ExportManager:
         finally:
             if wb:
                 try: wb.close()
-                except: pass
-            if wb_opened:
-                try: wb_opened.Close(False)
-                except: pass
-            if excel:
-                try: excel.Quit(); del excel
-                except: pass
-            if temp_xlsx_path and os.path.exists(temp_xlsx_path):
-                try: os.remove(temp_xlsx_path)
                 except: pass
 
     def export_ci_to_pdf(self, client_info, order_info, items):
@@ -393,55 +263,10 @@ class ExportManager:
             if serial_list:
                 safe_write("A32", ", ".join(serial_list))
 
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            server_ci_folder = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "Commercial Invoice")
-            
-            if not os.path.exists(server_ci_folder):
-                try: os.makedirs(server_ci_folder)
-                except: pass
-
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_', '-')]).strip()
             pdf_filename = f"CI_{client_safe}_{order_info['mgmt_no']}.pdf"
-            
-            temp_xlsx_name = f"temp_CI_{order_info['mgmt_no']}.xlsx"
-            temp_xlsx_path = os.path.join(desktop, temp_xlsx_name)
-            
-            desktop_pdf_path = os.path.join(desktop, pdf_filename)
-            server_pdf_path = os.path.join(server_ci_folder, pdf_filename)
 
-            wb.save(temp_xlsx_path)
-            # wb.close() -> finally에서 처리
-
-            pythoncom.CoInitialize()
-            excel = win32com.client.Dispatch("Excel.Application")
-            excel.Visible = False
-            excel.DisplayAlerts = False
-            excel.ScreenUpdating = False
-
-            abs_xlsx_path = os.path.abspath(temp_xlsx_path)
-            wb_opened = excel.Workbooks.Open(abs_xlsx_path)
-            
-            try:
-                wb_opened.ExportAsFixedFormat(0, desktop_pdf_path)
-            except Exception as e:
-                return False, f"PDF 변환 실패: {e}"
-            
-            wb_opened.Close(SaveChanges=False)
-            wb_opened = None
-            
-            copied_to_server = False
-            if os.path.exists(server_ci_folder):
-                try:
-                    shutil.copy2(desktop_pdf_path, server_pdf_path)
-                    copied_to_server = True
-                except Exception as e:
-                    print(f"서버 복사 실패: {e}")
-
-            msg = f"바탕화면에 저장되었습니다.\n{desktop_pdf_path}"
-            if copied_to_server:
-                msg += f"\n\n서버에도 저장되었습니다.\n{server_pdf_path}"
-
-            return True, msg
+            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Commercial Invoice")
 
         except Exception as e:
             return False, f"오류 발생: {str(e)}"
@@ -449,15 +274,6 @@ class ExportManager:
         finally:
             if wb:
                 try: wb.close()
-                except: pass
-            if wb_opened:
-                try: wb_opened.Close(False)
-                except: pass
-            if excel:
-                try: excel.Quit(); del excel
-                except: pass
-            if temp_xlsx_path and os.path.exists(temp_xlsx_path):
-                try: os.remove(temp_xlsx_path)
                 except: pass
 
     def export_pl_to_pdf(self, client_info, order_info, items):
@@ -557,25 +373,50 @@ class ExportManager:
             if serial_list:
                 safe_write("A36", ", ".join(serial_list))
 
-            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-            server_pl_folder = os.path.join(Config.DEFAULT_ATTACHMENT_ROOT, "Packing List")
-            
-            if not os.path.exists(server_pl_folder):
-                try: os.makedirs(server_pl_folder)
-                except: pass
-
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_', '-')]).strip()
             pdf_filename = f"PL_{client_safe}_{order_info['mgmt_no']}.pdf"
+
+            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Packing List")
+
+        except Exception as e:
+            return False, f"오류 발생: {str(e)}"
             
-            temp_xlsx_name = f"temp_PL_{order_info['mgmt_no']}.xlsx"
+        finally:
+            if wb:
+                try: wb.close()
+                except: pass
+
+    def _convert_and_save_pdf(self, wb, pdf_filename, server_folder_name=None):
+        """
+        공통 PDF 변환 및 저장 로직
+        1. 바탕화면에 임시 xlsx 저장
+        2. Excel로 PDF 변환 (바탕화면)
+        3. server_folder_name이 있으면 해당 서버 폴더로 복사
+        4. 임시 파일 삭제 및 정리
+        """
+        temp_xlsx_path = None
+        excel = None
+        wb_opened = None
+        
+        try:
+            import win32com.client
+            import pythoncom
+        except ImportError:
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다."
+
+        try:
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+            
+            # 임시 엑셀 파일명 (유니크하게)
+            import uuid
+            temp_xlsx_name = f"temp_{uuid.uuid4().hex[:8]}.xlsx"
             temp_xlsx_path = os.path.join(desktop, temp_xlsx_name)
             
-            desktop_pdf_path = os.path.join(desktop, pdf_filename)
-            server_pdf_path = os.path.join(server_pl_folder, pdf_filename)
-
             wb.save(temp_xlsx_path)
-            # wb.close() -> finally에서 처리
-
+            
+            desktop_pdf_path = os.path.join(desktop, pdf_filename)
+            
+            # PDF 변환
             pythoncom.CoInitialize()
             excel = win32com.client.Dispatch("Excel.Application")
             excel.Visible = False
@@ -593,27 +434,37 @@ class ExportManager:
             wb_opened.Close(SaveChanges=False)
             wb_opened = None
             
-            copied_to_server = False
-            if os.path.exists(server_pl_folder):
-                try:
-                    shutil.copy2(desktop_pdf_path, server_pdf_path)
-                    copied_to_server = True
-                except Exception as e:
-                    print(f"서버 복사 실패: {e}")
-
             msg = f"바탕화면에 저장되었습니다.\n{desktop_pdf_path}"
-            if copied_to_server:
-                msg += f"\n\n서버에도 저장되었습니다.\n{server_pdf_path}"
-
+            
+            # 서버 복사
+            if server_folder_name:
+                # [변경] DataManager에서 설정된 attachment_root 사용
+                server_dir = os.path.join(self.datamanager.attachment_root, server_folder_name)
+                server_pdf_path = os.path.join(server_dir, pdf_filename)
+                
+                copied_to_server = False
+                
+                # 서버 폴더 생성 시도
+                if not os.path.exists(server_dir):
+                    try: os.makedirs(server_dir)
+                    except: pass
+                
+                if os.path.exists(server_dir):
+                    try:
+                        shutil.copy2(desktop_pdf_path, server_pdf_path)
+                        copied_to_server = True
+                    except Exception as e:
+                        print(f"서버 복사 실패: {e}")
+                
+                if copied_to_server:
+                    msg += f"\n\n서버에도 저장되었습니다.\n{server_pdf_path}"
+            
             return True, msg
 
         except Exception as e:
-            return False, f"오류 발생: {str(e)}"
+            return False, f"PDF 처리 중 오류 발생: {str(e)}"
             
         finally:
-            if wb:
-                try: wb.close()
-                except: pass
             if wb_opened:
                 try: wb_opened.Close(False)
                 except: pass
