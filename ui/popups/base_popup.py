@@ -144,28 +144,46 @@ class BasePopup(ctk.CTkToplevel):
 
     def _load_clients(self): pass
 
+    COL_CONFIG = {
+        "item": {"header": "품명", "width": 120},
+        "model": {"header": "모델명", "width": 120},
+        "desc": {"header": "Description", "width": 150},
+        "qty": {"header": "수량", "width": 50},
+        "price": {"header": "단가", "width": 80},
+        "supply": {"header": "공급가액", "width": 80},
+        "tax": {"header": "세액", "width": 60},
+        "total": {"header": "합계", "width": 80},
+        "delete": {"header": "삭제", "width": 40},
+    }
+
+    # ... (기존 _create_widgets, _create_header, _setup_info_panel 등은 변경 없음, 생략) ...
+    # ... (중략) ...
+
     def _add_item_row(self, item_data=None):
         if not hasattr(self, 'scroll_items'): return None
         row_frame = ctk.CTkFrame(self.scroll_items, fg_color="transparent", height=35)
         row_frame.pack(fill="x", pady=2)
-        e_item = ctk.CTkEntry(row_frame, width=150)
+
+        conf = self.COL_CONFIG
+        
+        e_item = ctk.CTkEntry(row_frame, width=conf["item"]["width"])
         e_item.pack(side="left", padx=2)
-        e_model = ctk.CTkEntry(row_frame, width=150)
+        e_model = ctk.CTkEntry(row_frame, width=conf["model"]["width"])
         e_model.pack(side="left", padx=2)
-        e_desc = ctk.CTkEntry(row_frame, width=200)
+        e_desc = ctk.CTkEntry(row_frame, width=conf["desc"]["width"])
         e_desc.pack(side="left", padx=2)
-        e_qty = ctk.CTkEntry(row_frame, width=60, justify="center")
+        e_qty = ctk.CTkEntry(row_frame, width=conf["qty"]["width"], justify="center")
         e_qty.pack(side="left", padx=2)
-        e_price = ctk.CTkEntry(row_frame, width=100, justify="right")
+        e_price = ctk.CTkEntry(row_frame, width=conf["price"]["width"], justify="right")
         e_price.pack(side="left", padx=2)
-        e_supply = ctk.CTkEntry(row_frame, width=100, justify="right", state="readonly")
+        e_supply = ctk.CTkEntry(row_frame, width=conf["supply"]["width"], justify="right", state="readonly")
         e_supply.pack(side="left", padx=2)
-        e_tax = ctk.CTkEntry(row_frame, width=80, justify="right", state="readonly")
+        e_tax = ctk.CTkEntry(row_frame, width=conf["tax"]["width"], justify="right", state="readonly")
         e_tax.pack(side="left", padx=2)
-        e_total = ctk.CTkEntry(row_frame, width=100, justify="right", state="readonly")
+        e_total = ctk.CTkEntry(row_frame, width=conf["total"]["width"], justify="right", state="readonly")
         e_total.pack(side="left", padx=2)
         
-        btn_del = ctk.CTkButton(row_frame, text="X", width=40, fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"],
+        btn_del = ctk.CTkButton(row_frame, text="X", width=conf["delete"]["width"], fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"],
                                 command=lambda f=row_frame: self._delete_item_row(f))
         btn_del.pack(side="left", padx=5)
 

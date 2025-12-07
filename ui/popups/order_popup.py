@@ -62,15 +62,18 @@ class OrderPopup(BasePopup):
         ctk.CTkButton(title_frame, text="+ 품목 추가", command=self._add_item_row, width=100, height=30,
                       fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"]).pack(side="right")
         
-        # 헤더
-        headers = ["품명", "모델명", "Description", "수량", "단가", "공급가액", "세액", "합계", "삭제"]
-        widths = [120, 120, 150, 50, 80, 80, 60, 80, 40]
+        # 헤더 (BasePopup.COL_CONFIG 사용)
+        configs = [
+            self.COL_CONFIG["item"], self.COL_CONFIG["model"], self.COL_CONFIG["desc"],
+            self.COL_CONFIG["qty"], self.COL_CONFIG["price"], self.COL_CONFIG["supply"],
+            self.COL_CONFIG["tax"], self.COL_CONFIG["total"], self.COL_CONFIG["delete"]
+        ]
         
         header_frame = ctk.CTkFrame(parent, height=35, fg_color=COLORS["bg_dark"])
         header_frame.pack(fill="x", padx=15)
         
-        for h, w in zip(headers, widths):
-            ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
+        for conf in configs:
+            ctk.CTkLabel(header_frame, text=conf["header"], width=conf["width"], font=FONTS["main_bold"]).pack(side="left", padx=2)
             
         self.scroll_items = ctk.CTkScrollableFrame(parent, fg_color="transparent")
         self.scroll_items.pack(fill="both", expand=True, padx=10, pady=5)

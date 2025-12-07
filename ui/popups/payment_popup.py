@@ -116,15 +116,18 @@ class PaymentPopup(BasePopup):
         
         ctk.CTkLabel(top_frame, text="관련 품목 리스트 (Read Only)", font=FONTS["header"]).pack(side="left")
         
-        # 헤더
-        headers = ["품명", "모델명", "Description", "수량", "단가", "공급가액", "세액", "합계"]
-        widths = [150,150,200,60,100,100,80,100]
+        # 헤더 (BasePopup.COL_CONFIG 사용 - 삭제 제외)
+        configs = [
+            self.COL_CONFIG["item"], self.COL_CONFIG["model"], self.COL_CONFIG["desc"],
+            self.COL_CONFIG["qty"], self.COL_CONFIG["price"], self.COL_CONFIG["supply"],
+            self.COL_CONFIG["tax"], self.COL_CONFIG["total"]
+        ]
         
         header_frame = ctk.CTkFrame(parent, height=35, fg_color=COLORS["bg_dark"])
         header_frame.pack(fill="x", padx=15)
         
-        for h, w in zip(headers, widths):
-            ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
+        for conf in configs:
+            ctk.CTkLabel(header_frame, text=conf["header"], width=conf["width"], font=FONTS["main_bold"]).pack(side="left", padx=2)
             
         # 스크롤 리스트
         self.scroll_items = ctk.CTkScrollableFrame(parent, fg_color="transparent")
