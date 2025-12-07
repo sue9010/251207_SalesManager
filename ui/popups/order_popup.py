@@ -29,6 +29,7 @@ class OrderPopup(BasePopup):
         if not real_mgmt_no:
             self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.combo_status.set("주문")
+            self._generate_new_id()
             
         if self.copy_mode and self.copy_src_no:
             self._load_copied_data()

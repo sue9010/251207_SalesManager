@@ -28,6 +28,7 @@ class QuotePopup(BasePopup):
         if not real_mgmt_no:
             self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.combo_status.set("견적")
+            self._generate_new_id()
             
         # [신규] 복사 모드라면 원본 데이터 로드하여 필드 채우기
         if self.copy_mode and self.copy_src_no:
