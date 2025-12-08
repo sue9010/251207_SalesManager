@@ -1,15 +1,14 @@
 import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox
-
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
 from src.config import Config
 from managers.export_manager import ExportManager
+from ui.widgets.autocomplete_entry import AutocompleteEntry
 
 class OrderPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no=None, copy_mode=False):
@@ -52,6 +51,69 @@ class OrderPopup(BasePopup):
         # entry_id 호환성 유지 (Hidden Entry)
         self.entry_id = ctk.CTkEntry(extra_frame, width=0)
         self.entry_id.insert(0, self.mgmt_no if self.mgmt_no else "NEW")
+
+    def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
+        # Row 0: Date, Type
+        self.entry_date = self.create_grid_input(parent, 0, 0, "수주일", placeholder="YYYY-MM-DD")
+        self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
+
+        # Row 1: Client (Autocomplete) - Full Width
+        f_client = ctk.CTkFrame(parent, fg_color="transparent")
+        f_client.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_client, text="업체명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        
+        client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
+        self.entry_client = AutocompleteEntry(f_client, completevalues=client_names, command=self._on_client_select,
+                                              height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_client.pack(side="left", fill="x", expand=True)
+
+        # Row 2: Project - Full Width
+        f_project = ctk.CTkFrame(parent, fg_color="transparent")
+        f_project.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_project.pack(side="left", fill="x", expand=True)
+
+        # Row 3: PO No, Currency
+        self.entry_po_no = self.create_grid_input(parent, 3, 0, "발주서 No.")
+        self.combo_currency = self.create_grid_combo(parent, 3, 1, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+
+        # Row 4: Tax Rate
+        self.entry_tax_rate = self.create_grid_input(parent, 4, 0, "세율(%)")
+        
+        # Row 5: Order File (Full Width)
+        f_file = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_order_file, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
+
+        # Row 6: Request Note
+        f_req = ctk.CTkFrame(parent, fg_color="transparent")
+        f_req.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_req, text="주문요청", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_req = ctk.CTkEntry(f_req, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_req.pack(side="left", fill="x", expand=True)
+
+        # Row 7: Note (Multiline)
+        f_note = ctk.CTkFrame(parent, fg_color="transparent")
+        f_note.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
+        self.entry_note = ctk.CTkTextbox(f_note, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_note.pack(side="left", fill="x", expand=True)
+
+        # Row 8: Export Buttons
+        f_btn = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        
+        ctk.CTkButton(f_btn, text="📄 출고요청서 (PDF)", command=self.export_order_request, height=30, width=140,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      
+        ctk.CTkButton(f_btn, text="📄 PI 발행 (PDF)", command=self.export_pi, height=30, width=140,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
 
     def _setup_items_panel(self, parent):
         # 타이틀 & 추가 버튼
@@ -109,7 +171,7 @@ class OrderPopup(BasePopup):
         self.entry_id.configure(state="normal")
         self.entry_id.delete(0, "end")
         self.entry_id.insert(0, str(first["관리번호"]))
-        self.entry_id.configure(state="readonly")
+        # self.entry_id.configure(state="readonly") # Hidden entry
         
         date_val = str(first.get("수주일", ""))
         self.entry_date.delete(0, "end"); self.entry_date.insert(0, date_val)
@@ -133,7 +195,11 @@ class OrderPopup(BasePopup):
 
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
         self.entry_req.delete(0, "end"); self.entry_req.insert(0, str(first.get("주문요청사항", "")).replace("nan", ""))
-        self.entry_note.delete(0, "end"); self.entry_note.insert(0, str(first.get("비고", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
         
         if self.entry_order_file:
             path = str(first.get("발주서경로", "")).replace("nan", "")
@@ -173,7 +239,11 @@ class OrderPopup(BasePopup):
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, f"{original_proj} (Copy)")
         
         self.entry_req.delete(0, "end"); self.entry_req.insert(0, str(first.get("주문요청사항", "")).replace("nan", ""))
-        self.entry_note.delete(0, "end"); self.entry_note.insert(0, str(first.get("비고", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
         
         self._on_client_select(client_name)
         for _, row in rows.iterrows(): self._add_item_row(row)
@@ -230,7 +300,7 @@ class OrderPopup(BasePopup):
             "환율": 1, 
             "세율(%)": tax_rate_val,
             "주문요청사항": req_note_val,
-            "비고": self.entry_note.get(),
+            "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
             "Status": self.combo_status.get(),
             "발주서경로": order_file_path,
             "수주일": self.entry_date.get(),

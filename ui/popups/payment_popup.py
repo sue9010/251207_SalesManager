@@ -9,7 +9,6 @@ import getpass
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from src.config import Config
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
@@ -47,14 +46,35 @@ class PaymentPopup(BasePopup):
         self.entry_id.pack(side="left")
         self.entry_id.insert(0, id_text)
         self.entry_id.configure(state="readonly")
-        
-        self.entry_file_foreign, _, _ = self.create_file_input_row(parent, "외화입금증빙", "외화입금증빙경로")
-        
-        # 송금상세
-        self.entry_file_remit, _, _ = self.create_file_input_row(parent, "송금상세(Remittance)", "송금상세경로")
-        
-        # DnD Setup
 
+    def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
+        # Row 0: Payment Date
+        self.entry_pay_date = self.create_grid_input(parent, 0, 0, "입금일", placeholder="YYYY-MM-DD")
+        self.entry_pay_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+
+        # Row 1: Payment Amount
+        self.entry_payment = self.create_grid_input(parent, 1, 0, "입금액(KRW)")
+
+        # Row 2: Foreign Remittance File
+        f_file1 = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file1.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_file_foreign, _, _ = self.create_file_input_row(f_file1, "외화입금증빙", "외화입금증빙경로")
+
+        # Row 3: Remittance Detail File
+        f_file2 = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file2.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_file_remit, _, _ = self.create_file_input_row(f_file2, "송금상세(Remittance)", "송금상세경로")
+
+        # Row 4: Totals Display
+        f_totals = ctk.CTkFrame(parent, fg_color="transparent")
+        f_totals.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=15)
+        
+        self.lbl_total_amount = self._add_summary_row(f_totals, "총 청구금액:", "0", 0)
+        self.lbl_paid_amount = self._add_summary_row(f_totals, "기수금액:", "0", 1)
+        self.lbl_unpaid_amount = self._add_summary_row(f_totals, "미수금액 (잔액):", "0", 2)
 
     def _setup_items_panel(self, parent):
         # 타이틀

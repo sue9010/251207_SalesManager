@@ -5,7 +5,6 @@ import getpass
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from src.config import Config
 from ui.popups.base_popup import BasePopup
 from ui.popups.packing_list_popup import PackingListPopup 
@@ -68,6 +67,42 @@ class DeliveryPopup(BasePopup):
         self.lbl_order_note = ctk.CTkLabel(note_row, text="주문 요청사항: -", font=FONTS["main"], text_color=COLORS["text"], anchor="w")
         self.lbl_order_note.pack(side="left", padx=10)
 
+    def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
+        # Row 0: Delivery Date
+        self.entry_delivery_date = self.create_grid_input(parent, 0, 0, "출고일", placeholder="YYYY-MM-DD")
+        self.entry_delivery_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        
+        # Row 1: Delivery No (Auto)
+        self.entry_delivery_no = self.create_grid_input(parent, 1, 0, "출고번호")
+        self.entry_delivery_no.configure(state="readonly")
+
+        # Row 2: Invoice No
+        self.entry_invoice_no = self.create_grid_input(parent, 2, 0, "Invoice No.")
+
+        # Row 3: Shipping Method, Shipping Account
+        self.entry_shipping_method = self.create_grid_input(parent, 3, 0, "운송방법")
+        self.entry_shipping_account = self.create_grid_input(parent, 3, 1, "운송계정")
+
+        # Row 4: Waybill File (Full Width)
+        f_file = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_waybill_file, _, _ = self.create_file_input_row(f_file, "운송장 파일", "운송장경로")
+
+        # Row 5: Export Buttons
+        f_btn = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        
+        ctk.CTkButton(f_btn, text="📄 CI 발행 (PDF)", command=self.export_ci, height=30, width=140,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      
+        ctk.CTkButton(f_btn, text="📄 PL 발행 (PDF)", command=self.export_pl, height=30, width=140,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+
     def _setup_items_panel(self, parent):
         ctk.CTkLabel(parent, text="납품 품목 리스트", font=FONTS["header"]).pack(anchor="w", padx=15, pady=15)
         
@@ -77,6 +112,15 @@ class DeliveryPopup(BasePopup):
         header_frame = ctk.CTkFrame(parent, height=35, fg_color=COLORS["bg_dark"])
         header_frame.pack(fill="x", padx=15)
         
+        for h, w in zip(headers, widths):
+            ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
+            
+        self.scroll_items = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        self.scroll_items.pack(fill="both", expand=True, padx=10, pady=5)
+        
+    def _create_footer(self, parent):
+        footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
         
         ctk.CTkButton(footer_frame, text="닫기", command=self.destroy, width=100, height=45,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], 
