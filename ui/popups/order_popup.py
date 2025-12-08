@@ -70,38 +70,42 @@ class OrderPopup(BasePopup):
                                               height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_client.pack(side="left", fill="x", expand=True)
 
-        # Row 2: Project - Full Width
+        # Row 2: Currency, Tax Rate
+        self.combo_currency = self.create_grid_combo(parent, 2, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        self.entry_tax_rate = self.create_grid_input(parent, 2, 1, "세율(%)")
+
+        # Row 3: Project - Full Width
         f_project = ctk.CTkFrame(parent, fg_color="transparent")
-        f_project.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_project.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_project.pack(side="left", fill="x", expand=True)
 
-        # Row 3: PO No, Currency
-        self.entry_po_no = self.create_grid_input(parent, 3, 0, "발주서 No.")
-        self.combo_currency = self.create_grid_combo(parent, 3, 1, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        # Row 4: PO No - Full Width
+        f_po = ctk.CTkFrame(parent, fg_color="transparent")
+        f_po.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_po, text="발주서 No.", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_po_no = ctk.CTkEntry(f_po, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_po_no.pack(side="left", fill="x", expand=True)
 
-        # Row 4: Tax Rate
-        self.entry_tax_rate = self.create_grid_input(parent, 4, 0, "세율(%)")
-        
-        # Row 5: Order File (Full Width)
-        f_file = ctk.CTkFrame(parent, fg_color="transparent")
-        f_file.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_order_file, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
-
-        # Row 6: Request Note
+        # Row 5: Request Note
         f_req = ctk.CTkFrame(parent, fg_color="transparent")
-        f_req.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_req.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_req, text="주문요청", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         self.entry_req = ctk.CTkEntry(f_req, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_req.pack(side="left", fill="x", expand=True)
 
-        # Row 7: Note (Multiline)
+        # Row 6: Note (Multiline)
         f_note = ctk.CTkFrame(parent, fg_color="transparent")
-        f_note.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_note.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
         self.entry_note = ctk.CTkTextbox(f_note, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_note.pack(side="left", fill="x", expand=True)
+
+        # Row 7: Order File (Full Width)
+        f_file = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_order_file, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
 
         # Row 8: Export Buttons
         f_btn = ctk.CTkFrame(parent, fg_color="transparent")
