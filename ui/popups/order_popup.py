@@ -48,9 +48,12 @@ class OrderPopup(BasePopup):
         self.combo_status.pack(side="left", padx=5)
         self.combo_status.set("주문")
 
-        # entry_id 호환성 유지 (Hidden Entry)
-        self.entry_id = ctk.CTkEntry(extra_frame, width=0)
+        # ID Display (Visible)
+        ctk.CTkLabel(extra_frame, text="관리번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
+        self.entry_id = ctk.CTkEntry(extra_frame, width=120, font=FONTS["main"], state="normal")
         self.entry_id.insert(0, self.mgmt_no if self.mgmt_no else "NEW")
+        self.entry_id.configure(state="readonly")
+        self.entry_id.pack(side="left")
 
     def _setup_info_panel(self, parent):
         parent.grid_columnconfigure(0, weight=1)
@@ -175,7 +178,7 @@ class OrderPopup(BasePopup):
         self.entry_id.configure(state="normal")
         self.entry_id.delete(0, "end")
         self.entry_id.insert(0, str(first["관리번호"]))
-        # self.entry_id.configure(state="readonly") # Hidden entry
+        self.entry_id.configure(state="readonly")
         
         date_val = str(first.get("수주일", ""))
         self.entry_date.delete(0, "end"); self.entry_date.insert(0, date_val)
@@ -440,3 +443,4 @@ class OrderPopup(BasePopup):
             self.entry_id.configure(state="normal")
             self.entry_id.delete(0, "end")
             self.entry_id.insert(0, new_id)
+            self.entry_id.configure(state="readonly")

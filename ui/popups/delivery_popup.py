@@ -71,35 +71,42 @@ class DeliveryPopup(BasePopup):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
 
-        # Row 0: Delivery Date
+        # Row 0: Delivery Date, Delivery No
         self.entry_delivery_date = self.create_grid_input(parent, 0, 0, "출고일", placeholder="YYYY-MM-DD")
         self.entry_delivery_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
         
-        # Row 1: Delivery No (Auto)
-        self.entry_delivery_no = self.create_grid_input(parent, 1, 0, "출고번호")
+        self.entry_delivery_no = self.create_grid_input(parent, 0, 1, "출고번호")
         self.entry_delivery_no.configure(state="readonly")
 
-        # Row 2: Invoice No
-        self.entry_invoice_no = self.create_grid_input(parent, 2, 0, "Invoice No.")
+        # Row 1: Invoice No (Full Width)
+        f_inv = ctk.CTkFrame(parent, fg_color="transparent")
+        f_inv.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_inv, text="송장번호", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_invoice_no = ctk.CTkEntry(f_inv, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_invoice_no.pack(side="left", fill="x", expand=True)
 
-        # Row 3: Shipping Method, Shipping Account
-        self.entry_shipping_method = self.create_grid_input(parent, 3, 0, "운송방법")
-        self.entry_shipping_account = self.create_grid_input(parent, 3, 1, "운송계정")
+        # Row 2: Shipping Method, Shipping Account
+        self.entry_shipping_method = self.create_grid_input(parent, 2, 0, "운송방법")
+        self.entry_shipping_account = self.create_grid_input(parent, 2, 1, "운송계정")
 
-        # Row 4: Waybill File (Full Width)
+        # Row 3: Waybill File (Full Width)
         f_file = ctk.CTkFrame(parent, fg_color="transparent")
-        f_file.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_file.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         self.entry_waybill_file, _, _ = self.create_file_input_row(f_file, "운송장 파일", "운송장경로")
 
-        # Row 5: Export Buttons
+        # Row 4: Export Buttons
         f_btn = ctk.CTkFrame(parent, fg_color="transparent")
-        f_btn.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        f_btn.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
         
-        ctk.CTkButton(f_btn, text="📄 CI 발행 (PDF)", command=self.export_ci, height=30, width=140,
+        ctk.CTkButton(f_btn, text="📄 PI 발행 (PDF)", command=self.export_pi, height=30, width=110,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+
+        ctk.CTkButton(f_btn, text="📄 CI 발행 (PDF)", command=self.export_ci, height=30, width=110,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
                       text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
                       
-        ctk.CTkButton(f_btn, text="📄 PL 발행 (PDF)", command=self.export_pl, height=30, width=140,
+        ctk.CTkButton(f_btn, text="📄 PL 발행 (PDF)", command=self.export_pl, height=30, width=110,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
                       text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
 
