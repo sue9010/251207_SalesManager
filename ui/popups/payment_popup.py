@@ -47,16 +47,38 @@ class PaymentPopup(BasePopup):
         self.entry_id.insert(0, id_text)
         self.entry_id.configure(state="readonly")
 
+        # Status (Readonly)
+        ctk.CTkLabel(top_row, text="상태:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
+        self.combo_status = ctk.CTkComboBox(top_row, values=["주문", "생산중", "완료", "취소", "보류"], 
+                                          width=100, font=FONTS["main"], state="readonly")
+        self.combo_status.pack(side="left")
+
     def _setup_info_panel(self, parent):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
 
-        # Row 0: Payment Date
-        self.entry_pay_date = self.create_grid_input(parent, 0, 0, "입금일", placeholder="YYYY-MM-DD")
+        # Row 0: Payment Date (Full Width)
+        f_date = ctk.CTkFrame(parent, fg_color="transparent")
+        f_date.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_date, text="입금일", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_pay_date = ctk.CTkEntry(f_date, height=28, placeholder_text="YYYY-MM-DD",
+                                           fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_pay_date.pack(side="left", fill="x", expand=True)
         self.entry_pay_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
 
-        # Row 1: Payment Amount
-        self.entry_payment = self.create_grid_input(parent, 1, 0, "입금액(KRW)")
+        # Row 1: Payment Amount (Currency + Amount)
+        f_amt = ctk.CTkFrame(parent, fg_color="transparent")
+        f_amt.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        
+        ctk.CTkLabel(f_amt, text="입금액", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        
+        self.combo_currency = ctk.CTkComboBox(f_amt, values=["KRW", "USD", "EUR", "CNY", "JPY"], width=80,
+                                              font=FONTS["main"], state="readonly")
+        self.combo_currency.pack(side="left", padx=(0, 5))
+        self.combo_currency.set("KRW")
+        
+        self.entry_payment = ctk.CTkEntry(f_amt, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_payment.pack(side="left", fill="x", expand=True)
 
         # Row 2: Foreign Remittance File
         f_file1 = ctk.CTkFrame(parent, fg_color="transparent")
@@ -205,6 +227,7 @@ class PaymentPopup(BasePopup):
             return
 
         payment_date = self.entry_pay_date.get()
+        currency = self.combo_currency.get()
 
         # File Saving Logic
         saved_paths = {}
@@ -226,9 +249,14 @@ class PaymentPopup(BasePopup):
             elif not success and msg:
                 print(f"File save warning ({col}): {msg}") 
 
-        def confirm_fee(item_name, diff, currency):
+        def confirm_fee(item_name, diff, curr):
+            # Use the currency from the popup if not provided or to override?
+            # Actually the callback uses 'curr' passed from DataManager, which might be from the data.
+            # But here we are processing payment in a specific currency.
+            # If the payment currency differs from item currency, that's complex.
+            # For now, we assume the user knows what they are doing.
             return messagebox.askyesno("수수료 처리 확인", 
-                                       f"[{item_name}] 항목의 잔액이 {diff:,.0f} ({currency}) 남습니다.\n"
+                                       f"[{item_name}] 항목의 잔액이 {diff:,.0f} ({curr}) 남습니다.\n"
                                        f"이를 수수료로 처리하여 '완납' 하시겠습니까?", parent=self)
 
         success, msg = self.dm.process_payment(
