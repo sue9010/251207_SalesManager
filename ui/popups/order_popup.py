@@ -191,9 +191,6 @@ class OrderPopup(BasePopup):
         # 발주서 파일 입력 (Standardized UI)
         self.entry_order_file, _, _ = self.create_file_input_row(main_frame, "발주서 파일", "발주서경로")
 
-
-
-        
         # Update row calcs if tax rate changed
         # (Optional: iterate and recalculate all rows if tax rate changed globally)
 
@@ -316,9 +313,6 @@ class OrderPopup(BasePopup):
         new_rows = []
         req_note_val = self.entry_req.get()
         
-        new_rows = []
-        req_note_val = self.entry_req.get()
-        
         # File Save Logic
         order_file_path = ""
         success, msg, new_path = self.file_manager.save_file(
@@ -327,17 +321,13 @@ class OrderPopup(BasePopup):
         if success:
              order_file_path = new_path
         else:
-             messagebox.showwarning("파일 저장 실패", f"파일 저장에 실패했습니다. 기존 경로를 유지합니다.\n{msg}", parent=self)
-             # If save failed, maybe still proceed but with warning? or abort?
-             # For now, if failed, we assume path is empty or original path if it was open error.
-             # Actually save_file returns info_text as path if "Already in place".
-             # If "File not found", it returns false.
-             # If we proceed without file, maybe that's intended if file was optional.
-             # But if user provided a file and it failed, they should know.
-             if self.entry_order_file.get().strip(): # Attempted to provide file
-                  pass # Warning shown.
+             # If save failed, we might want to stop or warn. 
+             # Original code warned but proceeded if I recall correctly or just showed warning.
+             # Here we show warning.
+             if self.entry_order_file.get().strip():
+                 messagebox.showwarning("파일 저장 실패", f"파일 저장에 실패했습니다. 기존 경로를 유지하거나 저장되지 않을 수 있습니다.\n{msg}", parent=self)
 
-        if not order_file_path: # Fallback to existing or entry if save failed (though save_file handles most)
+        if not order_file_path: 
              order_file_path = self.full_paths.get("발주서경로", "")
              if not order_file_path and self.entry_order_file:
                   order_file_path = self.entry_order_file.get().strip()
@@ -371,37 +361,11 @@ class OrderPopup(BasePopup):
             })
             new_rows.append(row_data)
 
-        def update_logic(dfs):
-            if self.mgmt_no:
-                mask = dfs["data"]["관리번호"] == self.mgmt_no
-                existing_rows = dfs["data"][mask]
-                if not existing_rows.empty:
-                    first_exist = existing_rows.iloc[0]
-                    # Preserve columns that are NOT edited in this popup but might exist
-                    preserve_cols = ["출고예정일", "출고일", "입금완료일", 
-                                     "세금계산서발행일", "계산서번호", "수출신고번호"]
-                    for row in new_rows:
-                        for col in preserve_cols:
-                            row[col] = first_exist.get(col, "-")
-                        
-                dfs["data"] = dfs["data"][~mask]
-            
-            new_df = pd.DataFrame(new_rows)
-            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
-            
-            if self.copy_mode:
-                action = "복사 등록"
-                log_msg = f"주문 복사: [{self.copy_src_no}] -> [{mgmt_no}] / 업체 [{client}]"
-            else:
-                action = "수정" if self.mgmt_no else "등록"
-                log_msg = f"주문 {action}: 번호 [{mgmt_no}] / 업체 [{client}]"
-                
-            new_log = self.dm._create_log_entry(f"주문 {action}", log_msg)
-            dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-            
-            return True, ""
-
-        success, msg = self.dm._execute_transaction(update_logic)
+        if self.mgmt_no and not self.copy_mode:
+            success, msg = self.dm.update_order(mgmt_no, new_rows, client)
+        else:
+            # Copy mode or New
+            success, msg = self.dm.add_order(new_rows, mgmt_no, client)
         
         if success:
             messagebox.showinfo("완료", "저장되었습니다.", parent=self)
@@ -410,25 +374,16 @@ class OrderPopup(BasePopup):
         else:
             messagebox.showerror("실패", msg, parent=self)
 
+    def delete(self):
+        if messagebox.askyesno("삭제 확인", f"정말 이 주문({self.mgmt_no})을 삭제하시겠습니까?", parent=self):
+            success, msg = self.dm.delete_order(self.mgmt_no)
+            if success:
+                messagebox.showinfo("삭제 완료", "삭제되었습니다.", parent=self)
+                self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("실패", msg, parent=self)
 
-    # BasePopup 추상 메서드 구현 (사용 안함)
-    def _generate_new_id(self):
-        new_id = super()._generate_new_id("O", "수주일") # 주문일자 기준
-        
-        if hasattr(self, 'entry_id'):
-            self.entry_id.configure(state="normal")
-            self.entry_id.delete(0, "end")
-            self.entry_id.insert(0, new_id)
-            
-
-
-
-    # delete는 BasePopup 사용
-    # def delete(self): ...
-
-    # ==========================================================================
-    # Export
-    # ==========================================================================
     def export_order_request(self):
         client_name = self.entry_client.get()
         if not client_name:
@@ -515,3 +470,10 @@ class OrderPopup(BasePopup):
         else:
             messagebox.showerror("실패", result, parent=self)
         self.attributes("-topmost", True)
+
+    def _generate_new_id(self):
+        new_id = self.dm.get_next_order_id()
+        if hasattr(self, 'entry_id'):
+            self.entry_id.configure(state="normal")
+            self.entry_id.delete(0, "end")
+            self.entry_id.insert(0, new_id)

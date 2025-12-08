@@ -2,11 +2,9 @@ import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox
 import os
-
 import customtkinter as ctk
-import pandas as pd # [추가]
+import pandas as pd
 
-# [변경] 스타일 및 팝업 경로 수정
 from src.styles import COLORS, FONT_FAMILY, FONTS
 from ui.popups.client_popup import ClientPopup 
 from utils.file_dnd import FileDnDManager
@@ -31,47 +29,36 @@ class BasePopup(ctk.CTkToplevel):
         self.file_manager = FileDnDManager(self)
         
         self._create_widgets()
-
         
         if self.mgmt_no:
             self._load_data()
-        # else: 하위 클래스에서 처리함 (required args issue)
-
-
+        
         self.transient(parent)
         self.grab_set()
         self.attributes("-topmost", True)
         
-        # ESC 닫기
         self.bind("<Escape>", lambda e: self.destroy())
 
     def _create_widgets(self):
-        """Standard Split View Layout: Header -> Split Content (Info + Items) -> Footer"""
         self.configure(fg_color=COLORS["bg_dark"])
         
-        # Main Container
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=20, pady=20)
         
-        # 1. Header
         self._create_header(self.main_container)
         
-        # 2. Main Content (Split View)
         self.content_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
         self.content_frame.pack(fill="both", expand=True, pady=10)
         
-        # Left Panel (Info)
         self.info_panel = ctk.CTkFrame(self.content_frame, fg_color=COLORS["bg_medium"], corner_radius=10, width=400)
         self.info_panel.pack(side="left", fill="y", padx=(0, 10))
         self.info_panel.pack_propagate(False)
         self._setup_info_panel(self.info_panel)
         
-        # Right Panel (Items)
         self.items_panel = ctk.CTkFrame(self.content_frame, fg_color=COLORS["bg_medium"], corner_radius=10)
         self.items_panel.pack(side="right", fill="both", expand=True)
         self._setup_items_panel(self.items_panel)
         
-        # 3. Footer
         self._create_footer(self.main_container)
 
     def _create_header(self, parent):
@@ -94,28 +81,19 @@ class BasePopup(ctk.CTkToplevel):
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], text_color=COLORS["text"])
         self.btn_cancel.pack(side="right", padx=5)
 
-
-    # File & DnD Helpers (위임)
-
     def create_file_input_row(self, parent, label, col_name, placeholder="파일을 드래그하거나 열기 버튼을 클릭하세요"):
         return self.file_manager.create_file_input_row(parent, label, col_name, placeholder)
-
     def update_file_entry(self, col_name, full_path):
         self.file_manager.update_file_entry(col_name, full_path)
-
     def open_file(self, entry_widget, col_name):
         self.file_manager.open_file(col_name)
-
     def clear_entry(self, entry_widget, col_name):
         self.file_manager.clear_entry(col_name)
-
     @property
     def file_entries(self): return self.file_manager.file_entries
-    
     @property
     def full_paths(self): return self.file_manager.full_paths
 
-    # ... (클라이언트 선택 로직 등 유지) ...
     def _on_client_select(self, client_name):
         if not client_name: return
         df = self.dm.df_clients
@@ -132,7 +110,6 @@ class BasePopup(ctk.CTkToplevel):
             else:
                 self.attributes("-topmost", True)
             return
-
         row = df[df["업체명"] == client_name]
         if not row.empty:
             currency = row.iloc[0].get("통화", "KRW")
@@ -163,7 +140,6 @@ class BasePopup(ctk.CTkToplevel):
         if not hasattr(self, 'scroll_items'): return None
         row_frame = ctk.CTkFrame(self.scroll_items, fg_color="transparent", height=35)
         row_frame.pack(fill="x", pady=2)
-
         conf = self.COL_CONFIG
         
         e_item = ctk.CTkEntry(row_frame, width=conf["item"]["width"])
@@ -186,7 +162,6 @@ class BasePopup(ctk.CTkToplevel):
         btn_del = ctk.CTkButton(row_frame, text="X", width=conf["delete"]["width"], fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"],
                                 command=lambda f=row_frame: self._delete_item_row(f))
         btn_del.pack(side="left", padx=5)
-
         row_widgets = {
             "frame": row_frame, "item": e_item, "model": e_model, "desc": e_desc,
             "qty": e_qty, "price": e_price, "supply": e_supply, "tax": e_tax, "total": e_total
@@ -226,61 +201,13 @@ class BasePopup(ctk.CTkToplevel):
         # Title
         ctk.CTkLabel(top_frame, text=title_text, font=FONTS["header"], text_color=COLORS["text"]).pack(side="left")
         
-        # ID (우측)
-        valid_id = id_text if id_text else "신규 작성"
-        ctk.CTkLabel(top_frame, text=valid_id, font=FONTS["header"], text_color=COLORS["primary"]).pack(side="right")
-        
+        # ID (Right)
+        if id_text:
+            id_frame = ctk.CTkFrame(top_frame, fg_color="transparent")
+            id_frame.pack(side="right")
+            ctk.CTkLabel(id_frame, text=f"No. {id_text}", font=FONTS["main_bold"], text_color=COLORS["primary"]).pack()
+            
         return top_frame
-
-    def _generate_new_id(self, prefix, date_col="작성일자"):
-        """신규 ID 생성 공통 로직"""
-        today_str = datetime.now().strftime("%y%m%d")
-        default_id = f"{prefix}{today_str}-001"
-        
-        if self.dm.df_data.empty:
-            return default_id
-            
-        # 해당 날짜의 데이터만 필터링 (접두사 포함)
-        # 관리번호 패턴: {prefix}{today_str}-{seq}
-        target_prefix = f"{prefix}{today_str}-"
-        
-        # 관리번호 컬럼에서 target_prefix로 시작하는 것들 추출
-        try:
-            # astype(str)로 확실하게 문자열 변환 후 검색
-            relevant_ids = self.dm.df_data[
-                self.dm.df_data["관리번호"].astype(str).str.startswith(target_prefix)
-            ]["관리번호"]
-            
-            if relevant_ids.empty:
-                return default_id
-                
-            # 뒷자리 3자리만 떼어서 max 값 찾기
-            suffixes = relevant_ids.apply(lambda x: int(str(x).split("-")[-1]))
-            max_suffix = suffixes.max()
-            return f"{target_prefix}{max_suffix + 1:03d}"
-        except:
-            return default_id
-
-    def delete(self):
-        """공통 삭제 로직"""
-        if messagebox.askyesno("삭제 확인", f"정말 이 {self.popup_title} 데이터를 삭제하시겠습니까?", parent=self):
-            def update_logic(dfs):
-                mask = dfs["data"]["관리번호"] == self.mgmt_no
-                if mask.any():
-                    dfs["data"] = dfs["data"][~mask]
-                    log_msg = f"{self.popup_title} 삭제: 번호 [{self.mgmt_no}]"
-                    new_log = self.dm._create_log_entry("삭제", log_msg)
-                    dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-                    return True, ""
-                return False, "삭제할 데이터를 찾을 수 없습니다."
-
-            success, msg = self.dm._execute_transaction(update_logic)
-            if success:
-                messagebox.showinfo("삭제 완료", "데이터가 삭제되었습니다.", parent=self)
-                self.refresh_callback()
-                self.destroy()
-            else:
-                messagebox.showerror("실패", msg, parent=self)
 
     def on_price_change(self, event, widget, row_data):
         val = widget.get().replace(",", "")
@@ -327,7 +254,6 @@ class BasePopup(ctk.CTkToplevel):
             self.lbl_total_qty.configure(text=f"총 수량: {total_qty:,.0f}")
         if hasattr(self, "lbl_total_amt"):
             self.lbl_total_amt.configure(text=f"총 합계: {total_amt:,.0f}")
-
 
     def save(self): raise NotImplementedError
     def delete(self): raise NotImplementedError

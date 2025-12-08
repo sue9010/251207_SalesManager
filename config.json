@@ -1,6 +1,7 @@
 {
-    "excel_path": "C:/Users/sue/Desktop/임시/Saleslist.xlsx",
+    "excel_path": "//cox_biz/business/SalesManager/SalesList.xlsx",
     "theme": "Dark",
-    "attachment_root": "C:/Users/sue/Desktop/테스트",
-    "production_request_path": "C:/Users/sue/Desktop/임시/생산 요청.xlsx"
+    "attachment_root": "//cox_biz/business/SalesManager/attachments",
+    "production_request_path": "//cox_biz/business/SalesManager/생산 요청.xlsx",
+    "order_request_dir": "order_requests"
 }

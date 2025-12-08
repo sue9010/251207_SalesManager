@@ -208,30 +208,20 @@ class ClientPopup(ctk.CTkToplevel):
             messagebox.showwarning("경고", "업체명은 필수입니다.", parent=self)
             return
 
-        def update_logic(dfs):
-            # File Save Logic
-            success, msg, new_path = self.file_manager.save_file(
-                "사업자등록증경로", "사업자등록증", f"사업자등록증_{data['업체명']}", ""
-            )
-            if success and new_path:
-                data["사업자등록증경로"] = new_path
-            elif not success:
-                return False, msg
+        # File Save Logic
+        success, msg, new_path = self.file_manager.save_file(
+            "사업자등록증경로", "사업자등록증", f"사업자등록증_{data['업체명']}", ""
+        )
+        if success and new_path:
+            data["사업자등록증경로"] = new_path
+        elif not success:
+            messagebox.showerror("파일 저장 실패", msg, parent=self)
+            return
 
-            df = dfs["clients"]
-            if self.client_name: # Edit
-                idx = df[df["업체명"] == self.client_name].index
-                if len(idx) > 0:
-                    for k, v in data.items(): df.at[idx[0], k] = v
-            else: # New
-                if data["업체명"] in df["업체명"].values:
-                    return False, "이미 존재하는 업체명입니다."
-                new_row = pd.DataFrame([data])
-                dfs["clients"] = pd.concat([dfs["clients"], new_row], ignore_index=True)
-            
-            return True, ""
-
-        success, msg = self.dm._execute_transaction(update_logic)
+        if self.client_name: # Edit
+            success, msg = self.dm.update_client(self.client_name, data)
+        else: # New
+            success, msg = self.dm.add_client(data)
         
         if success:
             messagebox.showinfo("성공", "저장되었습니다.", parent=self)
@@ -242,11 +232,7 @@ class ClientPopup(ctk.CTkToplevel):
 
     def delete(self):
         if messagebox.askyesno("삭제 확인", f"정말 '{self.client_name}' 업체를 삭제하시겠습니까?", parent=self):
-            def update_logic(dfs):
-                dfs["clients"] = dfs["clients"][dfs["clients"]["업체명"] != self.client_name]
-                return True, ""
-
-            success, msg = self.dm._execute_transaction(update_logic)
+            success, msg = self.dm.delete_client(self.client_name)
             if success:
                 messagebox.showinfo("삭제", "삭제되었습니다.", parent=self)
                 self.refresh_callback()

@@ -178,7 +178,7 @@ class DeliveryPopup(BasePopup):
             if path: self.update_file_entry("운송장경로", path)
 
         # 출고번호 (항상 신규 생성)
-        self.current_delivery_no = self.dm.generate_delivery_no() # 신규 생성
+        self.current_delivery_no = self.dm.get_next_delivery_id() # 신규 생성
             
         self.entry_delivery_no.configure(state="normal")
         self.entry_delivery_no.delete(0, "end")
@@ -386,93 +386,28 @@ class DeliveryPopup(BasePopup):
             path = self.full_paths.get("운송장경로", "")
             waybill_path = path if path else self.entry_waybill_file.get().strip()
 
-        def update_logic(dfs):
-            processed_items = []
-            new_delivery_records = []
-            final_waybill_path = "" 
+        # 운송장 파일 저장
+        final_waybill_path = ""
+        safe_client = "".join([c for c in self.cached_client_name if c.isalnum() or c in (' ', '_')]).strip()
+        
+        success, msg, new_path = self.file_manager.save_file(
+            "운송장경로", "운송장", "운송장", f"{safe_client}_{self.mgmt_nos[0]}_{self.current_delivery_no}"
+        )
+        
+        if success and new_path:
+             final_waybill_path = new_path
+        elif not success and waybill_path: # Failed to save but had path
+             pass
 
-            # 운송장 파일 처리
-            final_waybill_path = ""
-            safe_client = "".join([c for c in self.cached_client_name if c.isalnum() or c in (' ', '_')]).strip()
-            
-            # [변경] self.file_manager는 BasePopup에 정의됨 (이제 import 문제 없음)
-            success, msg, new_path = self.file_manager.save_file(
-                "운송장경로", "운송장", "운송장", f"{safe_client}_{self.mgmt_nos[0]}_{self.current_delivery_no}"
-            )
-            
-            if success and new_path:
-                 final_waybill_path = new_path
-            elif not success and waybill_path: # Failed to save but had path
-                 pass
+        success, msg = self.dm.process_delivery(
+            self.current_delivery_no,
+            delivery_date,
+            self.entry_invoice_no.get(),
+            self.entry_shipping_method.get(),
+            final_waybill_path,
+            update_requests
+        )
 
-            current_user = getpass.getuser()
-            
-            for req in update_requests:
-                idx = req["idx"]
-                if idx not in dfs["data"].index: continue
-                
-                row_data = dfs["data"].loc[idx]
-                db_qty = float(str(row_data["수량"]).replace(",", "") or 0)
-                deliver_qty = min(req["deliver_qty"], db_qty)
-                
-                new_delivery_records.append({
-                    "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "출고번호": self.current_delivery_no, "출고일": delivery_date,
-                    "관리번호": row_data.get("관리번호", ""), "품목명": row_data.get("품목명", ""),
-                    "시리얼번호": req["serial_no"], "출고수량": deliver_qty,
-                    "송장번호": self.entry_invoice_no.get(), "운송방법": self.entry_shipping_method.get(),
-                    "작업자": current_user, "비고": "일괄 납품 처리",
-                    "운송장경로": final_waybill_path # [추가] 운송장 경로는 이력에 저장
-                })
-
-                # 데이터 업데이트 (완전 출고 vs 부분 출고)
-                is_full = abs(deliver_qty - db_qty) < 0.000001
-                new_status = "완료" if row_data.get("Status") == "납품대기/입금완료" else "납품완료/입금대기"
-                
-                price = float(str(row_data.get("단가", 0)).replace(",", "") or 0)
-                tax_rate = float(str(row_data.get("세율(%)", 0)).replace(",", "") or 0) / 100
-
-                if is_full:
-                    dfs["data"].at[idx, "Status"] = new_status
-                    dfs["data"].at[idx, "출고일"] = delivery_date
-                    dfs["data"].at[idx, "송장번호"] = self.entry_invoice_no.get()
-                    dfs["data"].at[idx, "운송방법"] = self.entry_shipping_method.get()
-                    # dfs["data"].at[idx, "운송장경로"] = final_waybill_path # [제거] Data 시트에 덮어쓰지 않음
-                    dfs["data"].at[idx, "미수금액"] = float(str(row_data.get("합계금액", 0)).replace(",", ""))
-                else:
-                    remain_qty = db_qty - deliver_qty
-                    supply = remain_qty * price
-                    tax = supply * tax_rate
-                    dfs["data"].at[idx, "수량"] = remain_qty
-                    dfs["data"].at[idx, "공급가액"] = supply
-                    dfs["data"].at[idx, "세액"] = tax
-                    dfs["data"].at[idx, "합계금액"] = supply + tax
-                    dfs["data"].at[idx, "미수금액"] = supply + tax
-                    
-                    new_supply = deliver_qty * price
-                    new_tax = new_supply * tax_rate
-                    new_row = row_data.copy()
-                    new_row.update({
-                        "수량": deliver_qty, "공급가액": new_supply, "세액": new_tax, "합계금액": new_supply + new_tax,
-                        "미수금액": new_supply + new_tax, "Status": new_status, "출고일": delivery_date,
-                        "송장번호": self.entry_invoice_no.get(), "운송방법": self.entry_shipping_method.get(),
-                        # "운송장경로": final_waybill_path # [제거]
-                    })
-                    # 운송장경로 컬럼값 초기화 (부분 출고된 남은 수량 행에는 운송장 없음)
-                    if "운송장경로" in new_row: new_row["운송장경로"] = ""
-                    dfs["data"] = pd.concat([dfs["data"], pd.DataFrame([new_row])], ignore_index=True)
-                
-                processed_items.append(f"{row_data.get('품목명','')} ({deliver_qty}개)")
-
-            if new_delivery_records:
-                dfs["delivery"] = pd.concat([dfs["delivery"], pd.DataFrame(new_delivery_records)], ignore_index=True)
-
-            log_msg = f"번호 [{self.mgmt_nos[0]}...] 납품 처리(출고번호: {self.current_delivery_no}) / {', '.join(processed_items)}"
-            new_log = self.dm._create_log_entry("납품 처리", log_msg)
-            dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-            return True, ""
-
-        success, msg = self.dm._execute_transaction(update_logic)
         if success:
             messagebox.showinfo("성공", "납품 처리가 완료되었습니다.\n(CI/PL 발행 가능)", parent=self)
             self.refresh_callback()

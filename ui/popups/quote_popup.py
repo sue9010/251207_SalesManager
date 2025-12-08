@@ -324,36 +324,11 @@ class QuotePopup(BasePopup):
             })
             new_rows.append(row_data)
 
-        def update_logic(dfs):
-            if self.mgmt_no:
-                mask = dfs["data"]["관리번호"] == self.mgmt_no
-                existing_rows = dfs["data"][mask]
-                if not existing_rows.empty:
-                    first_exist = existing_rows.iloc[0]
-                    preserve_cols = ["수주일", "출고예정일", "출고일", "입금완료일", 
-                                     "세금계산서발행일", "계산서번호", "수출신고번호", "발주서경로"]
-                    for row in new_rows:
-                        for col in preserve_cols:
-                            row[col] = first_exist.get(col, "-")
-                        
-                dfs["data"] = dfs["data"][~mask]
-            
-            new_df = pd.DataFrame(new_rows)
-            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
-            
-            if self.copy_mode:
-                action = "복사 등록"
-                log_msg = f"견적 복사: [{self.copy_src_no}] -> [{mgmt_no}] / 업체 [{client}]"
-            else:
-                action = "수정" if self.mgmt_no else "등록"
-                log_msg = f"견적 {action}: 번호 [{mgmt_no}] / 업체 [{client}]"
-                
-            new_log = self.dm._create_log_entry(f"견적 {action}", log_msg)
-            dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-            
-            return True, ""
-
-        success, msg = self.dm._execute_transaction(update_logic)
+        if self.mgmt_no and not self.copy_mode:
+            success, msg = self.dm.update_quote(mgmt_no, new_rows, client)
+        else:
+            # Copy mode or New
+            success, msg = self.dm.add_quote(new_rows, mgmt_no, client)
         
         if success:
             messagebox.showinfo("완료", "저장되었습니다.", parent=self)
@@ -362,8 +337,15 @@ class QuotePopup(BasePopup):
         else:
             messagebox.showerror("실패", msg, parent=self)
 
-    # delete는 BasePopup 사용 (필요 시 오버라이드)
-    # def delete(self): ...
+    def delete(self):
+        if messagebox.askyesno("삭제 확인", f"정말 이 견적({self.mgmt_no})을 삭제하시겠습니까?", parent=self):
+            success, msg = self.dm.delete_quote(self.mgmt_no)
+            if success:
+                messagebox.showinfo("삭제 완료", "삭제되었습니다.", parent=self)
+                self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("실패", msg, parent=self)
 
     def export_quote(self):
         client_name = self.entry_client.get()
@@ -411,7 +393,7 @@ class QuotePopup(BasePopup):
         self.attributes("-topmost", True)
 
     def _generate_new_id(self):
-        new_id = super()._generate_new_id("Q", "작성일자")
+        new_id = self.dm.get_next_quote_id()
         
         # UI 업데이트 (entry_id가 존재한다면)
         if hasattr(self, 'entry_id'):
