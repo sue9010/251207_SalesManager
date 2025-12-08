@@ -95,7 +95,7 @@ class BasePopup(ctk.CTkToplevel):
 
     def create_input_row(self, parent, label, readonly=False, placeholder=""):
         f = ctk.CTkFrame(parent, fg_color="transparent")
-        f.pack(fill="x", pady=2)
+        f.pack(fill="x", pady=5)
         ctk.CTkLabel(f, text=label, width=100, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         entry = ctk.CTkEntry(f, height=30, placeholder_text=placeholder,
                              fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
@@ -105,7 +105,7 @@ class BasePopup(ctk.CTkToplevel):
 
     def create_combo_row(self, parent, label, values, command=None):
         f = ctk.CTkFrame(parent, fg_color="transparent")
-        f.pack(fill="x", pady=2)
+        f.pack(fill="x", pady=5)
         ctk.CTkLabel(f, text=label, width=100, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         combo = ctk.CTkComboBox(f, values=values, command=command, height=30,
                                 fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, button_color=COLORS["entry_border"])
@@ -114,7 +114,7 @@ class BasePopup(ctk.CTkToplevel):
 
     def create_grid_input(self, parent, row, col, label, placeholder="", width=None):
         f = ctk.CTkFrame(parent, fg_color="transparent")
-        f.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
+        f.grid(row=row, column=col, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         entry = ctk.CTkEntry(f, height=28, placeholder_text=placeholder,
                              fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
@@ -123,7 +123,7 @@ class BasePopup(ctk.CTkToplevel):
 
     def create_grid_combo(self, parent, row, col, label, values, command=None):
         f = ctk.CTkFrame(parent, fg_color="transparent")
-        f.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
+        f.grid(row=row, column=col, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         combo = ctk.CTkComboBox(f, values=values, command=command, height=28,
                                 fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, button_color=COLORS["entry_border"])

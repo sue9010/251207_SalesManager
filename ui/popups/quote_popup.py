@@ -4,10 +4,10 @@ from tkinter import messagebox
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
 from managers.export_manager import ExportManager
+from ui.widgets.autocomplete_entry import AutocompleteEntry
 
 class QuotePopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no=None, copy_mode=False):
@@ -22,7 +22,7 @@ class QuotePopup(BasePopup):
         self.item_rows = [] # 데이터 추적용 (BasePopup 호환)
 
         super().__init__(parent, data_manager, refresh_callback, popup_title="견적", mgmt_no=real_mgmt_no)
-        self.geometry("1350x650")
+        self.geometry("1350x700") # Height increased for multiline note
 
         # 신규 등록(또는 복사)일 때 기본값 설정
         if not real_mgmt_no:
@@ -33,17 +33,10 @@ class QuotePopup(BasePopup):
         # [신규] 복사 모드라면 원본 데이터 로드하여 필드 채우기
         if self.copy_mode and self.copy_src_no:
             self._load_copied_data()
-    
 
     def _create_header(self, parent):
         # 공통 헤더 사용 (Title + ID)
         header_frame = self._create_common_header(parent, "견적서 작성/수정", self.mgmt_no)
-        
-        # ID 위젯 참조 가져오기 (BasePopup에서 생성한 라벨을 덮어쓰거나 별도 처리?)
-        # _create_common_header는 라벨만 생성하므로, ID Entry 기능을 쓰려면 커스텀해야 함.
-        # 하지만 QuotePopup은 ID가 'NEW'로 시작했다가 저장 시 바뀌고, Status 콤보도 있음.
-        # BasePopup의 공통 헤더는 단순 라벨용이므로 QuotePopup의 복잡한 헤더와 안 맞을 수 있음.
-        # 일단 Status 콤보박스를 위해 별도 프레임 추가
         
         extra_frame = ctk.CTkFrame(parent, fg_color="transparent")
         extra_frame.pack(fill="x", padx=20, pady=(0, 10))
@@ -54,17 +47,57 @@ class QuotePopup(BasePopup):
         self.combo_status.pack(side="left", padx=5)
         self.combo_status.set("견적")
         
-        # ID는 _create_common_header에서 그려진 라벨로 대체하거나, 
-        # QuotePopup 특성상 Entry가 필요하다면 _create_common_header를 쓰지 말아야 할 수도 있음.
-        # 여기서는 self.entry_id 가 코드 곳곳에서 쓰이므로(저장 등), 이를 유지해야 함.
-        # 따라서 _create_common_header 사용 보다는 독자 구현 유지가 나을 수도 있으나, 
-        # 사용자 요청이 '중복 제거' 이므로 최대한 활용해봄.
-        
-        # BasePopup의 _create_common_header는 entry_id를 멤버변수로 만들지 않음.
-        # Hack: entry_id를 안 보이게(hidden) 만들어서 로직 호환성 유지
-        self.entry_id = ctk.CTkEntry(extra_frame, width=0) 
+        # 견적번호 표시
+        ctk.CTkLabel(extra_frame, text="견적번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
+        self.entry_id = ctk.CTkEntry(extra_frame, width=120) 
+        self.entry_id.pack(side="left")
         if self.mgmt_no: self.entry_id.insert(0, self.mgmt_no)
         else: self.entry_id.insert(0, "NEW")
+        self.entry_id.configure(state="readonly")
+
+    def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
+        # Row 0: Date, Type
+        self.entry_date = self.create_grid_input(parent, 0, 0, "견적일", placeholder="YYYY-MM-DD")
+        self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
+
+        # Row 1: Client (Autocomplete) - Full Width
+        f_client = ctk.CTkFrame(parent, fg_color="transparent")
+        f_client.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_client, text="업체명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        
+        client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
+        self.entry_client = AutocompleteEntry(f_client, completevalues=client_names, command=self._on_client_select,
+                                              height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_client.pack(side="left", fill="x", expand=True)
+
+        # Row 2: Project - Full Width
+        f_project = ctk.CTkFrame(parent, fg_color="transparent")
+        f_project.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_project.pack(side="left", fill="x", expand=True)
+
+        # Row 3: Currency, Tax Rate
+        self.combo_currency = self.create_grid_combo(parent, 3, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        self.entry_tax_rate = self.create_grid_input(parent, 3, 1, "세율(%)")
+
+        # Row 4: Note (Multiline)
+        f_note = ctk.CTkFrame(parent, fg_color="transparent")
+        f_note.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
+        self.entry_note = ctk.CTkTextbox(f_note, height=80, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_note.pack(side="left", fill="x", expand=True)
+
+        # Row 5: PDF Export Button
+        f_btn = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        
+        ctk.CTkButton(f_btn, text="📄 견적서 발행 (PDF)", command=self.export_quote, height=30,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(fill="x")
 
     def _setup_items_panel(self, parent):
         # 타이틀 & 추가 버튼
@@ -95,15 +128,6 @@ class QuotePopup(BasePopup):
         # 합계 표시 영역
         total_frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
         total_frame.pack(fill="x", padx=20, pady=10)
-        
-        doc_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        doc_frame.pack(fill="x")
-        
-        ctk.CTkButton(doc_frame, text="📄 견적서 발행 (PDF)", command=self.export_quote, height=30,
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", fill="x", expand=True)
-
-
 
     def on_type_change(self, type_val): self._calculate_totals()
 
@@ -120,7 +144,6 @@ class QuotePopup(BasePopup):
         
         # Recalculate all rows
         for row in self.item_rows: self.calculate_row(row)
-
 
     def _load_data(self):
         df = self.dm.df_data
@@ -151,7 +174,11 @@ class QuotePopup(BasePopup):
         self.entry_tax_rate.delete(0, "end"); self.entry_tax_rate.insert(0, tax_rate)
 
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
-        self.entry_note.delete(0, "end"); self.entry_note.insert(0, str(first.get("비고", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
         
         current_status = str(first.get("Status", "견적"))
         self.combo_status.set(current_status)
@@ -183,7 +210,10 @@ class QuotePopup(BasePopup):
         original_proj = str(first.get("프로젝트명", ""))
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, f"{original_proj} (Copy)")
         
-        self.entry_note.delete(0, "end"); self.entry_note.insert(0, str(first.get("비고", "")))
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
         
         self._on_client_select(client_name)
         for _, row in rows.iterrows(): self._add_item_row(row)
@@ -215,7 +245,7 @@ class QuotePopup(BasePopup):
             "환율": 1, 
             "세율(%)": tax_rate_val,
             "주문요청사항": "", # 견적은 주문요청사항 없음
-            "비고": self.entry_note.get(),
+            "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
             "Status": self.combo_status.get(),
             "견적일": self.entry_date.get()
         }
@@ -276,7 +306,7 @@ class QuotePopup(BasePopup):
             "mgmt_no": self.entry_id.get(),
             "date": self.entry_date.get(),
             "req_note": "",
-            "note": self.entry_note.get()
+            "note": self.entry_note.get("1.0", "end-1c") # Multiline get
         }
         
         items = []
