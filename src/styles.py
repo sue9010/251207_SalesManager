@@ -33,7 +33,11 @@ COLORS = {
     
     # 테두리 및 기타
     "border": ("#9E9E9E", "#444444"),
-    "transparent": "transparent"
+    "transparent": "transparent",
+    
+    # 입력 필드 (CTkEntry 기본 스타일 매칭)
+    "entry_bg": ("#F9F9FA", "#343638"),
+    "entry_border": ("#979DA2", "#565B5E")
 }
 
 # ==========================================

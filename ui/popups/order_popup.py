@@ -1,15 +1,14 @@
 import tkinter as tk
 from datetime import datetime
 from tkinter import messagebox
-
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
 from src.config import Config
 from managers.export_manager import ExportManager
+from ui.widgets.autocomplete_entry import AutocompleteEntry
 
 class OrderPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no=None, copy_mode=False):
@@ -49,9 +48,79 @@ class OrderPopup(BasePopup):
         self.combo_status.pack(side="left", padx=5)
         self.combo_status.set("주문")
 
-        # entry_id 호환성 유지 (Hidden Entry)
-        self.entry_id = ctk.CTkEntry(extra_frame, width=0)
+        # ID Display (Visible)
+        ctk.CTkLabel(extra_frame, text="관리번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
+        self.entry_id = ctk.CTkEntry(extra_frame, width=120, font=FONTS["main"], state="normal")
         self.entry_id.insert(0, self.mgmt_no if self.mgmt_no else "NEW")
+        self.entry_id.configure(state="readonly")
+        self.entry_id.pack(side="left")
+
+    def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
+        # Row 0: Date, Type
+        self.entry_date = self.create_grid_input(parent, 0, 0, "수주일", placeholder="YYYY-MM-DD")
+        self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
+
+        # Row 1: Client (Autocomplete) - Full Width
+        f_client = ctk.CTkFrame(parent, fg_color="transparent")
+        f_client.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_client, text="업체명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        
+        client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
+        self.entry_client = AutocompleteEntry(f_client, completevalues=client_names, command=self._on_client_select,
+                                              height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_client.pack(side="left", fill="x", expand=True)
+
+        # Row 2: Currency, Tax Rate
+        self.combo_currency = self.create_grid_combo(parent, 2, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        self.entry_tax_rate = self.create_grid_input(parent, 2, 1, "세율(%)")
+
+        # Row 3: Project - Full Width
+        f_project = ctk.CTkFrame(parent, fg_color="transparent")
+        f_project.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_project.pack(side="left", fill="x", expand=True)
+
+        # Row 4: PO No - Full Width
+        f_po = ctk.CTkFrame(parent, fg_color="transparent")
+        f_po.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_po, text="발주서 No.", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_po_no = ctk.CTkEntry(f_po, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_po_no.pack(side="left", fill="x", expand=True)
+
+        # Row 5: Request Note
+        f_req = ctk.CTkFrame(parent, fg_color="transparent")
+        f_req.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_req, text="주문요청", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_req = ctk.CTkEntry(f_req, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_req.pack(side="left", fill="x", expand=True)
+
+        # Row 6: Note (Multiline)
+        f_note = ctk.CTkFrame(parent, fg_color="transparent")
+        f_note.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
+        self.entry_note = ctk.CTkTextbox(f_note, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_note.pack(side="left", fill="x", expand=True)
+
+        # Row 7: Order File (Full Width)
+        f_file = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_order_file, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
+
+        # Row 8: Export Buttons
+        f_btn = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        
+        ctk.CTkButton(f_btn, text="📄 출고요청서 (PDF)", command=self.export_order_request, height=30, width=140,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      
+        ctk.CTkButton(f_btn, text="📄 PI 발행 (PDF)", command=self.export_pi, height=30, width=140,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
 
     def _setup_items_panel(self, parent):
         # 타이틀 & 추가 버튼
@@ -83,120 +152,6 @@ class OrderPopup(BasePopup):
         total_frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
         total_frame.pack(fill="x", padx=20, pady=10)
         
-        self.lbl_total_qty = ctk.CTkLabel(total_frame, text="총 수량: 0", font=FONTS["main_bold"])
-        self.lbl_total_qty.pack(side="right", padx=10)
-        
-        self.lbl_total_amt = ctk.CTkLabel(total_frame, text="총 합계: 0", font=FONTS["header"], text_color=COLORS["primary"])
-        self.lbl_total_amt.pack(side="right", padx=20)
-
-    def _setup_info_panel(self, parent):
-        # 스크롤 제거하고 일반 프레임 사용 (공간 최적화)
-        main_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # 1. 기본 정보 (2열 그리드)
-        ctk.CTkLabel(main_frame, text="기본 정보", font=FONTS["header"]).pack(anchor="w", pady=(0, 5))
-        
-        info_grid = ctk.CTkFrame(main_frame, fg_color="transparent")
-        info_grid.pack(fill="x", pady=(0, 10))
-        
-        # Helper to create labeled entry in grid
-        def create_grid_input(parent, row, col, label, var_name, placeholder="", width=None):
-            f = ctk.CTkFrame(parent, fg_color="transparent")
-            f.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
-            ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-            entry = ctk.CTkEntry(f, height=28, placeholder_text=placeholder) # 높이 약간 줄임
-            entry.pack(side="left", fill="x", expand=True)
-            setattr(self, var_name, entry)
-            return entry
-
-        # Helper for ComboBox in grid
-        def create_grid_combo(parent, row, col, label, values, cmd=None):
-            f = ctk.CTkFrame(parent, fg_color="transparent")
-            f.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
-            ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-            combo = ctk.CTkComboBox(f, values=values, command=cmd, height=28)
-            combo.pack(side="left", fill="x", expand=True)
-            return combo
-
-        info_grid.columnconfigure(0, weight=1)
-        info_grid.columnconfigure(1, weight=1)
-        # Row 0: 고객사 (Full Width)
-        f_client = ctk.CTkFrame(info_grid, fg_color="transparent")
-        f_client.grid(row=0, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
-        ctk.CTkLabel(f_client, text="고객사", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        
-        # [변경] 위젯 경로 수정
-        from ui.widgets.autocomplete_entry import AutocompleteEntry
-        
-        self.entry_client = AutocompleteEntry(f_client, font=FONTS["main"], height=28,
-                                            completevalues=self.dm.df_clients["업체명"].unique().tolist(),
-                                            command=self._on_client_select,
-                                            on_focus_out=self._on_client_select)
-        self.entry_client.pack(side="left", fill="x", expand=True)
-        self.entry_client.set_completion_list(self.dm.df_clients["업체명"].unique().tolist())
-        
-        # 직접 입력 후 엔터 시에도 업데이트 (FocusOut은 AutocompleteEntry 내부에서 처리)
-        self.entry_client.bind("<Return>", lambda e: self._on_client_select(self.entry_client.get()))
-
-        # Row 1: 프로젝트 (Full Width)
-        create_grid_input(info_grid, 1, 0, "프로젝트", "entry_project").master.grid(columnspan=2)
-        
-        # Row 2: 주문일자 | 발주서No
-        date_entry = create_grid_input(info_grid, 2, 0, "주문일자", "entry_date")
-        # date_entry.insert(0, datetime.now().strftime("%Y-%m-%d")) # __init__에서 처리됨
-        create_grid_input(info_grid, 2, 1, "발주서No", "entry_po_no")
-        
-        # Row 3: 구분 | 통화
-        self.combo_type = create_grid_combo(info_grid, 3, 0, "구분", ["내수", "수출"], self.on_type_change)
-        self.combo_type.set("내수")
-        self.combo_currency = create_grid_combo(info_grid, 3, 1, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], self.on_currency_change)
-        self.combo_currency.set("KRW")
-        
-        # Row 4: 세율 | (Empty)
-        tax_entry = create_grid_input(info_grid, 4, 0, "세율(%)", "entry_tax_rate")
-        tax_entry.insert(0, "10")
-        tax_entry.bind("<KeyRelease>", lambda e: self._calculate_totals())
-
-        ctk.CTkFrame(main_frame, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=5)
-
-        # 2. 추가 정보
-        self.lbl_client_note = ctk.CTkLabel(main_frame, text="업체 특이사항: -", font=FONTS["main"], text_color=COLORS["danger"], anchor="w")
-        self.lbl_client_note.pack(fill="x", pady=(0, 2))
-        
-        note_grid = ctk.CTkFrame(main_frame, fg_color="transparent")
-        note_grid.pack(fill="x", pady=(0, 5))
-        note_grid.columnconfigure(0, weight=1)
-        
-        create_grid_input(note_grid, 0, 0, "주문요청", "entry_req")
-        create_grid_input(note_grid, 1, 0, "비고", "entry_note")
-
-        ctk.CTkFrame(main_frame, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=5)
-
-        # 3. 서류 발행 (가로 배치)
-        ctk.CTkLabel(main_frame, text="서류 발행", font=FONTS["header"]).pack(anchor="w", pady=(0, 5))
-        doc_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        doc_frame.pack(fill="x")
-        
-        ctk.CTkButton(doc_frame, text="📄 PI", command=self.export_pi, height=30, width=80,
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", fill="x", expand=True, padx=(0, 2))
-                      
-        ctk.CTkButton(doc_frame, text="📄 출고요청서", command=self.export_order_request, height=30, width=80,
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", fill="x", expand=True, padx=(2, 0))
-
-        ctk.CTkFrame(main_frame, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=10)
-
-        # 발주서 파일 입력 (Standardized UI)
-        self.entry_order_file, _, _ = self.create_file_input_row(main_frame, "발주서 파일", "발주서경로")
-
-
-
-        
-        # Update row calcs if tax rate changed
-        # (Optional: iterate and recalculate all rows if tax rate changed globally)
-
     def on_type_change(self, type_val): self._calculate_totals()
 
     def on_currency_change(self, currency):
@@ -247,7 +202,11 @@ class OrderPopup(BasePopup):
 
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
         self.entry_req.delete(0, "end"); self.entry_req.insert(0, str(first.get("주문요청사항", "")).replace("nan", ""))
-        self.entry_note.delete(0, "end"); self.entry_note.insert(0, str(first.get("비고", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
         
         if self.entry_order_file:
             path = str(first.get("발주서경로", "")).replace("nan", "")
@@ -287,7 +246,11 @@ class OrderPopup(BasePopup):
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, f"{original_proj} (Copy)")
         
         self.entry_req.delete(0, "end"); self.entry_req.insert(0, str(first.get("주문요청사항", "")).replace("nan", ""))
-        self.entry_note.delete(0, "end"); self.entry_note.insert(0, str(first.get("비고", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
         
         self._on_client_select(client_name)
         for _, row in rows.iterrows(): self._add_item_row(row)
@@ -316,9 +279,6 @@ class OrderPopup(BasePopup):
         new_rows = []
         req_note_val = self.entry_req.get()
         
-        new_rows = []
-        req_note_val = self.entry_req.get()
-        
         # File Save Logic
         order_file_path = ""
         success, msg, new_path = self.file_manager.save_file(
@@ -327,17 +287,13 @@ class OrderPopup(BasePopup):
         if success:
              order_file_path = new_path
         else:
-             messagebox.showwarning("파일 저장 실패", f"파일 저장에 실패했습니다. 기존 경로를 유지합니다.\n{msg}", parent=self)
-             # If save failed, maybe still proceed but with warning? or abort?
-             # For now, if failed, we assume path is empty or original path if it was open error.
-             # Actually save_file returns info_text as path if "Already in place".
-             # If "File not found", it returns false.
-             # If we proceed without file, maybe that's intended if file was optional.
-             # But if user provided a file and it failed, they should know.
-             if self.entry_order_file.get().strip(): # Attempted to provide file
-                  pass # Warning shown.
+             # If save failed, we might want to stop or warn. 
+             # Original code warned but proceeded if I recall correctly or just showed warning.
+             # Here we show warning.
+             if self.entry_order_file.get().strip():
+                 messagebox.showwarning("파일 저장 실패", f"파일 저장에 실패했습니다. 기존 경로를 유지하거나 저장되지 않을 수 있습니다.\n{msg}", parent=self)
 
-        if not order_file_path: # Fallback to existing or entry if save failed (though save_file handles most)
+        if not order_file_path: 
              order_file_path = self.full_paths.get("발주서경로", "")
              if not order_file_path and self.entry_order_file:
                   order_file_path = self.entry_order_file.get().strip()
@@ -351,7 +307,7 @@ class OrderPopup(BasePopup):
             "환율": 1, 
             "세율(%)": tax_rate_val,
             "주문요청사항": req_note_val,
-            "비고": self.entry_note.get(),
+            "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
             "Status": self.combo_status.get(),
             "발주서경로": order_file_path,
             "수주일": self.entry_date.get(),
@@ -371,37 +327,11 @@ class OrderPopup(BasePopup):
             })
             new_rows.append(row_data)
 
-        def update_logic(dfs):
-            if self.mgmt_no:
-                mask = dfs["data"]["관리번호"] == self.mgmt_no
-                existing_rows = dfs["data"][mask]
-                if not existing_rows.empty:
-                    first_exist = existing_rows.iloc[0]
-                    # Preserve columns that are NOT edited in this popup but might exist
-                    preserve_cols = ["출고예정일", "출고일", "입금완료일", 
-                                     "세금계산서발행일", "계산서번호", "수출신고번호"]
-                    for row in new_rows:
-                        for col in preserve_cols:
-                            row[col] = first_exist.get(col, "-")
-                        
-                dfs["data"] = dfs["data"][~mask]
-            
-            new_df = pd.DataFrame(new_rows)
-            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
-            
-            if self.copy_mode:
-                action = "복사 등록"
-                log_msg = f"주문 복사: [{self.copy_src_no}] -> [{mgmt_no}] / 업체 [{client}]"
-            else:
-                action = "수정" if self.mgmt_no else "등록"
-                log_msg = f"주문 {action}: 번호 [{mgmt_no}] / 업체 [{client}]"
-                
-            new_log = self.dm._create_log_entry(f"주문 {action}", log_msg)
-            dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-            
-            return True, ""
-
-        success, msg = self.dm._execute_transaction(update_logic)
+        if self.mgmt_no and not self.copy_mode:
+            success, msg = self.dm.update_order(mgmt_no, new_rows, client)
+        else:
+            # Copy mode or New
+            success, msg = self.dm.add_order(new_rows, mgmt_no, client)
         
         if success:
             messagebox.showinfo("완료", "저장되었습니다.", parent=self)
@@ -410,25 +340,16 @@ class OrderPopup(BasePopup):
         else:
             messagebox.showerror("실패", msg, parent=self)
 
+    def delete(self):
+        if messagebox.askyesno("삭제 확인", f"정말 이 주문({self.mgmt_no})을 삭제하시겠습니까?", parent=self):
+            success, msg = self.dm.delete_order(self.mgmt_no)
+            if success:
+                messagebox.showinfo("삭제 완료", "삭제되었습니다.", parent=self)
+                self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("실패", msg, parent=self)
 
-    # BasePopup 추상 메서드 구현 (사용 안함)
-    def _generate_new_id(self):
-        new_id = super()._generate_new_id("O", "수주일") # 주문일자 기준
-        
-        if hasattr(self, 'entry_id'):
-            self.entry_id.configure(state="normal")
-            self.entry_id.delete(0, "end")
-            self.entry_id.insert(0, new_id)
-            
-
-
-
-    # delete는 BasePopup 사용
-    # def delete(self): ...
-
-    # ==========================================================================
-    # Export
-    # ==========================================================================
     def export_order_request(self):
         client_name = self.entry_client.get()
         if not client_name:
@@ -515,3 +436,11 @@ class OrderPopup(BasePopup):
         else:
             messagebox.showerror("실패", result, parent=self)
         self.attributes("-topmost", True)
+
+    def _generate_new_id(self):
+        new_id = self.dm.get_next_order_id()
+        if hasattr(self, 'entry_id'):
+            self.entry_id.configure(state="normal")
+            self.entry_id.delete(0, "end")
+            self.entry_id.insert(0, new_id)
+            self.entry_id.configure(state="readonly")

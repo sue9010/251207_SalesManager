@@ -64,51 +64,140 @@ class DataManager:
         except Exception as e:
             print(f"설정 저장 실패: {e}")
 
-    def load_data(self):
+    # ==========================================================================
+    # Helper Methods (Task 1-A)
+    # ==========================================================================
+    def _get_columns_for_key(self, key):
+        if key == "clients": return Config.CLIENT_COLUMNS
+        elif key == "data": return Config.DATA_COLUMNS
+        elif key == "payment": return Config.PAYMENT_COLUMNS
+        elif key == "delivery": return Config.DELIVERY_COLUMNS
+        elif key == "log": return Config.LOG_COLUMNS
+        elif key == "memo": return Config.MEMO_COLUMNS
+        elif key == "memo_log": return Config.MEMO_LOG_COLUMNS
+        return []
+
+    def _generate_sequential_id(self, df, id_col, prefix):
+        today = datetime.now().strftime("%y%m%d")
+        prefix_date = f"{prefix}-{today}-"
+        
+        max_seq = 0
+        if not df.empty and id_col in df.columns:
+            def extract_seq(val):
+                s = str(val)
+                if s.startswith(prefix_date):
+                    try: return int(s.split("-")[-1])
+                    except: return 0
+                return 0
+            
+            seqs = df[id_col].apply(extract_seq)
+            if not seqs.empty: max_seq = seqs.max()
+        
+        next_seq = max_seq + 1
+        return f"{prefix_date}{next_seq:03d}"
+
+    def _read_all_sheets(self) -> dict[str, pd.DataFrame]:
+        dfs = {}
         if not os.path.exists(self.current_excel_path):
-            return False, "파일이 존재하지 않습니다."
+            keys = ["clients", "data", "payment", "delivery", "log", "memo", "memo_log"]
+            for key in keys:
+                dfs[key] = pd.DataFrame(columns=self._get_columns_for_key(key))
+            return dfs
 
         try:
-            current_mtime = os.path.getmtime(self.current_excel_path)
-            
             with open(self.current_excel_path, "rb") as f:
                 with pd.ExcelFile(f, engine="openpyxl") as xls:
-                    if Config.SHEET_CLIENTS in xls.sheet_names:
-                        self.df_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
-                        self.df_clients.columns = self.df_clients.columns.astype(str).str.strip()
+                    sheet_names = xls.sheet_names
                     
-                    if Config.SHEET_DATA in xls.sheet_names:
-                        self.df_data = pd.read_excel(xls, Config.SHEET_DATA)
-                        self.df_data.columns = self.df_data.columns.astype(str).str.strip()
+                    sheet_map = {
+                        Config.SHEET_CLIENTS: "clients",
+                        Config.SHEET_DATA: "data",
+                        Config.SHEET_PAYMENT: "payment",
+                        Config.SHEET_DELIVERY: "delivery",
+                        Config.SHEET_LOG: "log",
+                        Config.SHEET_MEMO: "memo",
+                        Config.SHEET_MEMO_LOG: "memo_log"
+                    }
                     
-                    if Config.SHEET_PAYMENT in xls.sheet_names:
-                        self.df_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
-                    else:
-                        self.df_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
+                    for sheet_name, key in sheet_map.items():
+                        if sheet_name in sheet_names:
+                            df = pd.read_excel(xls, sheet_name)
+                            if key in ["clients", "data"]:
+                                df.columns = df.columns.astype(str).str.strip()
+                            dfs[key] = df
+                        else:
+                            dfs[key] = pd.DataFrame(columns=self._get_columns_for_key(key))
+                            
+            return dfs
+        except Exception as e:
+            print(f"Error reading sheets: {e}")
+            return {}
 
-                    if Config.SHEET_DELIVERY in xls.sheet_names:
-                        self.df_delivery = pd.read_excel(xls, Config.SHEET_DELIVERY)
-                    else:
-                        self.df_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
+    def _normalize_all(self, dfs: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+        keys = ["clients", "data", "payment", "delivery", "log", "memo", "memo_log"]
+        for key in keys:
+            if key not in dfs:
+                dfs[key] = pd.DataFrame(columns=self._get_columns_for_key(key))
 
-                    if Config.SHEET_LOG in xls.sheet_names:
-                        self.df_log = pd.read_excel(xls, Config.SHEET_LOG)
-                    else:
-                        self.df_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
-
-                    if Config.SHEET_MEMO in xls.sheet_names:
-                        self.df_memo = pd.read_excel(xls, Config.SHEET_MEMO)
-                    else:
-                        self.df_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
-
-                    if Config.SHEET_MEMO_LOG in xls.sheet_names:
-                        self.df_memo_log = pd.read_excel(xls, Config.SHEET_MEMO_LOG)
-                    else:
-                        self.df_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
-
-            self._preprocess_data()
-            self.last_file_timestamp = current_mtime
+        if "data" in dfs:
+            for col in Config.DATA_COLUMNS:
+                if col not in dfs["data"].columns: dfs["data"][col] = "-"
+            dfs["data"] = dfs["data"].fillna("-")
             
+            num_cols = ["수량", "단가", "환율", "세율(%)", "공급가액", "세액", "합계금액", "기수금액", "미수금액"]
+            for col in num_cols:
+                if col in dfs["data"].columns:
+                    dfs["data"][col] = pd.to_numeric(dfs["data"][col], errors='coerce').fillna(0)
+
+            date_cols = ["견적일", "수주일", "출고예정일", "출고일", "선적일", "입금완료일", "세금계산서발행일"]
+            for col in date_cols:
+                if col in dfs["data"].columns:
+                    dfs["data"][col] = pd.to_datetime(dfs["data"][col], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d")
+                    dfs["data"][col] = dfs["data"][col].fillna("-")
+
+        if "clients" in dfs:
+            dfs["clients"] = dfs["clients"].fillna("-")
+
+        if "delivery" in dfs:
+            if "출고번호" not in dfs["delivery"].columns:
+                dfs["delivery"]["출고번호"] = "-"
+            for col in Config.DELIVERY_COLUMNS:
+                 if col not in dfs["delivery"].columns: dfs["delivery"][col] = "-"
+            dfs["delivery"] = dfs["delivery"].fillna("-")
+
+        return dfs
+
+    def _write_all_sheets(self, dfs: dict[str, pd.DataFrame]) -> None:
+        with pd.ExcelWriter(self.current_excel_path, engine="openpyxl") as writer:
+            sheet_map = {
+                "clients": Config.SHEET_CLIENTS,
+                "data": Config.SHEET_DATA,
+                "payment": Config.SHEET_PAYMENT,
+                "delivery": Config.SHEET_DELIVERY,
+                "log": Config.SHEET_LOG,
+                "memo": Config.SHEET_MEMO,
+                "memo_log": Config.SHEET_MEMO_LOG
+            }
+            for key, sheet_name in sheet_map.items():
+                if key in dfs:
+                    dfs[key].to_excel(writer, sheet_name=sheet_name, index=False)
+
+    def load_data(self):
+        try:
+            dfs = self._read_all_sheets()
+            dfs = self._normalize_all(dfs)
+            
+            self.df_clients = dfs["clients"]
+            self.df_data = dfs["data"]
+            self.df_payment = dfs["payment"]
+            self.df_delivery = dfs["delivery"]
+            self.df_log = dfs["log"]
+            self.df_memo = dfs["memo"]
+            self.df_memo_log = dfs["memo_log"]
+            
+            if os.path.exists(self.current_excel_path):
+                self.last_file_timestamp = os.path.getmtime(self.current_excel_path)
+                
             return True, "데이터 로드 완료"
         except Exception as e:
             return False, f"오류 발생: {e}"
@@ -126,66 +215,13 @@ class DataManager:
             return False, "엑셀 파일이 존재하지 않습니다."
 
         try:
-            with open(self.current_excel_path, "rb") as f:
-                with pd.ExcelFile(f, engine="openpyxl") as xls:
-                    if Config.SHEET_CLIENTS in xls.sheet_names:
-                        temp_clients = pd.read_excel(xls, Config.SHEET_CLIENTS)
-                        temp_clients.columns = temp_clients.columns.astype(str).str.strip()
-                    else: temp_clients = pd.DataFrame(columns=Config.CLIENT_COLUMNS)
-
-                    if Config.SHEET_DATA in xls.sheet_names:
-                        temp_data = pd.read_excel(xls, Config.SHEET_DATA)
-                        temp_data.columns = temp_data.columns.astype(str).str.strip()
-                    else: temp_data = pd.DataFrame(columns=Config.DATA_COLUMNS)
-
-                    if Config.SHEET_PAYMENT in xls.sheet_names:
-                        temp_payment = pd.read_excel(xls, Config.SHEET_PAYMENT)
-                    else: temp_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
-
-                    if Config.SHEET_DELIVERY in xls.sheet_names:
-                        temp_delivery = pd.read_excel(xls, Config.SHEET_DELIVERY)
-                    else: temp_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
-
-                    if Config.SHEET_LOG in xls.sheet_names:
-                        temp_log = pd.read_excel(xls, Config.SHEET_LOG)
-                    else: temp_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
-
-                    if Config.SHEET_MEMO in xls.sheet_names:
-                        temp_memo = pd.read_excel(xls, Config.SHEET_MEMO)
-                    else: temp_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
-                    
-                    if Config.SHEET_MEMO_LOG in xls.sheet_names:
-                        temp_memo_log = pd.read_excel(xls, Config.SHEET_MEMO_LOG)
-                    else: temp_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
-
-            # 컬럼 보정
-            for col in Config.DATA_COLUMNS:
-                if col not in temp_data.columns: temp_data[col] = "-"
-            temp_data = temp_data.fillna("-")
-            temp_clients = temp_clients.fillna("-")
-            
-            for col in Config.DELIVERY_COLUMNS:
-                if col not in temp_delivery.columns: temp_delivery[col] = "-"
-            temp_delivery = temp_delivery.fillna("-")
-
-            dfs = {
-                "clients": temp_clients, "data": temp_data, 
-                "payment": temp_payment, "delivery": temp_delivery,
-                "log": temp_log, "memo": temp_memo, "memo_log": temp_memo_log
-            }
+            dfs = self._read_all_sheets()
+            dfs = self._normalize_all(dfs)
             
             success, msg = update_logic_func(dfs)
             if not success: return False, msg
 
-            with pd.ExcelWriter(self.current_excel_path, engine="openpyxl") as writer:
-                dfs["clients"].to_excel(writer, sheet_name=Config.SHEET_CLIENTS, index=False)
-                dfs["data"].to_excel(writer, sheet_name=Config.SHEET_DATA, index=False)
-                dfs["payment"].to_excel(writer, sheet_name=Config.SHEET_PAYMENT, index=False)
-                dfs["delivery"].to_excel(writer, sheet_name=Config.SHEET_DELIVERY, index=False)
-                dfs["log"].to_excel(writer, sheet_name=Config.SHEET_LOG, index=False)
-                dfs["memo"].to_excel(writer, sheet_name=Config.SHEET_MEMO, index=False)
-                dfs["memo_log"].to_excel(writer, sheet_name=Config.SHEET_MEMO_LOG, index=False)
-
+            self._write_all_sheets(dfs)
             self.load_data()
             return True, "저장되었습니다."
 
@@ -264,28 +300,6 @@ class DataManager:
             "구분": action,
             "상세내용": details
         }
-
-    def _preprocess_data(self):
-        for col in Config.DATA_COLUMNS:
-            if col not in self.df_data.columns: self.df_data[col] = "-"
-        
-        self.df_data = self.df_data.fillna("-")
-        self.df_clients = self.df_clients.fillna("-")
-        
-        if "출고번호" not in self.df_delivery.columns:
-            self.df_delivery["출고번호"] = "-"
-        self.df_delivery = self.df_delivery.fillna("-")
-        
-        num_cols = ["수량", "단가", "환율", "세율(%)", "공급가액", "세액", "합계금액", "기수금액", "미수금액"]
-        for col in num_cols:
-            if col in self.df_data.columns:
-                self.df_data[col] = pd.to_numeric(self.df_data[col], errors='coerce').fillna(0)
-
-        date_cols = ["견적일", "수주일", "출고예정일", "출고일", "선적일", "입금완료일", "세금계산서발행일"]
-        for col in date_cols:
-            if col in self.df_data.columns:
-                self.df_data[col] = pd.to_datetime(self.df_data[col], errors='coerce', format='mixed').dt.strftime("%Y-%m-%d")
-                self.df_data[col] = self.df_data[col].fillna("-")
 
     def save_to_excel(self):
         try:
@@ -556,28 +570,339 @@ class DataManager:
             return str(val).strip() if str(val).lower() != "nan" else ""
         return ""
 
-    def generate_delivery_no(self, delivery_df=None):
-        today_str = datetime.now().strftime("%y%m%d")
-        prefix = f"CX{today_str}"
-        
-        target_df = self.df_delivery if delivery_df is None else delivery_df
-        
-        if "출고번호" not in target_df.columns:
-            existing_ids = []
-        else:
-            existing_ids = target_df[target_df["출고번호"].astype(str).str.startswith(prefix)]["출고번호"].unique()
-        
-        if len(existing_ids) == 0:
-            seq = 1
-        else:
-            max_seq = 0
-            for eid in existing_ids:
-                try:
-                    parts = str(eid).split("-")
-                    if len(parts) > 1:
-                        seq_num = int(parts[-1])
-                        if seq_num > max_seq: max_seq = seq_num
-                except: pass
-            seq = max_seq + 1
+    def get_next_quote_id(self):
+        return self._generate_sequential_id(self.df_data, "관리번호", "QT")
+
+    def get_next_order_id(self):
+        return self._generate_sequential_id(self.df_data, "관리번호", "OD")
+
+    def _add_log_to_dfs(self, dfs, action, details):
+        new_log = self._create_log_entry(action, details)
+        if "log" in dfs:
+            dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
+
+    def get_next_delivery_id(self):
+        return self._generate_sequential_id(self.df_delivery, "출고번호", "CX")
+
+    def add_client(self, client_data: dict) -> tuple[bool, str]:
+        def update(dfs):
+            if client_data.get("업체명") in dfs["clients"]["업체명"].values:
+                return False, "이미 존재하는 업체명입니다."
             
-        return f"{prefix}-{seq:03d}"
+            new_df = pd.DataFrame([client_data])
+            dfs["clients"] = pd.concat([dfs["clients"], new_df], ignore_index=True)
+            self._add_log_to_dfs(dfs, "업체 등록", f"업체명: {client_data.get('업체명')}")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def update_client(self, original_name, client_data: dict) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["clients"]["업체명"] == original_name
+            if not mask.any(): return False, "업체를 찾을 수 없습니다."
+            
+            idx = dfs["clients"][mask].index[0]
+            for k, v in client_data.items():
+                dfs["clients"].at[idx, k] = v
+                
+            self._add_log_to_dfs(dfs, "업체 수정", f"업체명: {original_name}")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def delete_client(self, client_name) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["clients"]["업체명"] == client_name
+            if not mask.any(): return False, "업체를 찾을 수 없습니다."
+            
+            dfs["clients"] = dfs["clients"][~mask]
+            self._add_log_to_dfs(dfs, "업체 삭제", f"업체명: {client_name}")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def add_order(self, order_rows: list[dict], mgmt_no: str, client_name: str) -> tuple[bool, str]:
+        def update(dfs):
+            new_df = pd.DataFrame(order_rows)
+            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
+            self._add_log_to_dfs(dfs, "주문 등록", f"번호 [{mgmt_no}] / 업체 [{client_name}]")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def update_order(self, mgmt_no: str, order_rows: list[dict], client_name: str, is_copy=False) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            existing_rows = dfs["data"][mask]
+            
+            if not existing_rows.empty:
+                first_exist = existing_rows.iloc[0]
+                preserve_cols = ["출고예정일", "출고일", "입금완료일", "세금계산서발행일", "계산서번호", "수출신고번호"]
+                for row in order_rows:
+                    for col in preserve_cols:
+                        if col not in row:
+                            row[col] = first_exist.get(col, "-")
+            
+            dfs["data"] = dfs["data"][~mask]
+            
+            new_df = pd.DataFrame(order_rows)
+            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
+            
+            action = "복사 등록" if is_copy else "수정"
+            self._add_log_to_dfs(dfs, f"주문 {action}", f"번호 [{mgmt_no}] / 업체 [{client_name}]")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def delete_order(self, mgmt_no: str) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            if not mask.any(): return False, "데이터를 찾을 수 없습니다."
+            
+            dfs["data"] = dfs["data"][~mask]
+            self._add_log_to_dfs(dfs, "삭제", f"주문 삭제: 번호 [{mgmt_no}]")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def add_payment(self, payment_data: dict) -> tuple[bool, str]:
+        def update(dfs):
+            new_df = pd.DataFrame([payment_data])
+            dfs["payment"] = pd.concat([dfs["payment"], new_df], ignore_index=True)
+            
+            mgmt_no = payment_data.get("관리번호")
+            if mgmt_no:
+                self.recalc_payment_status(dfs, mgmt_no)
+                
+            self._add_log_to_dfs(dfs, "입금 등록", f"관리번호: {mgmt_no}, 금액: {payment_data.get('입금액')}")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def add_delivery(self, delivery_data: dict) -> tuple[bool, str]:
+        def update(dfs):
+            new_df = pd.DataFrame([delivery_data])
+            dfs["delivery"] = pd.concat([dfs["delivery"], new_df], ignore_index=True)
+            self._add_log_to_dfs(dfs, "출고 등록", f"출고번호: {delivery_data.get('출고번호')}")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def add_quote(self, quote_rows: list[dict], mgmt_no: str, client_name: str) -> tuple[bool, str]:
+        def update(dfs):
+            new_df = pd.DataFrame(quote_rows)
+            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
+            self._add_log_to_dfs(dfs, "견적 등록", f"번호 [{mgmt_no}] / 업체 [{client_name}]")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def update_quote(self, mgmt_no: str, quote_rows: list[dict], client_name: str, is_copy=False) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            existing_rows = dfs["data"][mask]
+            
+            if not existing_rows.empty:
+                first_exist = existing_rows.iloc[0]
+                preserve_cols = ["수주일", "출고예정일", "출고일", "입금완료일", 
+                                 "세금계산서발행일", "계산서번호", "수출신고번호", "발주서경로"]
+                for row in quote_rows:
+                    for col in preserve_cols:
+                        if col not in row:
+                            row[col] = first_exist.get(col, "-")
+            
+            dfs["data"] = dfs["data"][~mask]
+            
+            new_df = pd.DataFrame(quote_rows)
+            dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
+            
+            action = "복사 등록" if is_copy else "수정"
+            self._add_log_to_dfs(dfs, f"견적 {action}", f"번호 [{mgmt_no}] / 업체 [{client_name}]")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def delete_quote(self, mgmt_no: str) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            if not mask.any(): return False, "데이터를 찾을 수 없습니다."
+            
+            dfs["data"] = dfs["data"][~mask]
+            self._add_log_to_dfs(dfs, "삭제", f"견적 삭제: 번호 [{mgmt_no}]")
+            return True, ""
+        return self._execute_transaction(update)
+
+    def process_delivery(self, delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests):
+        def update(dfs):
+            processed_items = []
+            new_delivery_records = []
+            
+            try: current_user = getpass.getuser()
+            except: current_user = "Unknown"
+            
+            for req in update_requests:
+                idx = req["idx"]
+                if idx not in dfs["data"].index: continue
+                
+                row_data = dfs["data"].loc[idx]
+                db_qty = float(str(row_data["수량"]).replace(",", "") or 0)
+                deliver_qty = min(req["deliver_qty"], db_qty)
+                
+                new_delivery_records.append({
+                    "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "출고번호": delivery_no, "출고일": delivery_date,
+                    "관리번호": row_data.get("관리번호", ""), "품목명": row_data.get("품목명", ""),
+                    "시리얼번호": req["serial_no"], "출고수량": deliver_qty,
+                    "송장번호": invoice_no, "운송방법": shipping_method,
+                    "작업자": current_user, "비고": "일괄 납품 처리",
+                    "운송장경로": waybill_path
+                })
+
+                # 데이터 업데이트 (완전 출고 vs 부분 출고)
+                is_full = abs(deliver_qty - db_qty) < 0.000001
+                new_status = "완료" if row_data.get("Status") == "납품대기/입금완료" else "납품완료/입금대기"
+                
+                price = float(str(row_data.get("단가", 0)).replace(",", "") or 0)
+                tax_rate = float(str(row_data.get("세율(%)", 0)).replace(",", "") or 0) / 100
+
+                if is_full:
+                    dfs["data"].at[idx, "Status"] = new_status
+                    dfs["data"].at[idx, "출고일"] = delivery_date
+                    dfs["data"].at[idx, "송장번호"] = invoice_no
+                    dfs["data"].at[idx, "운송방법"] = shipping_method
+                    dfs["data"].at[idx, "미수금액"] = float(str(row_data.get("합계금액", 0)).replace(",", ""))
+                else:
+                    remain_qty = db_qty - deliver_qty
+                    supply = remain_qty * price
+                    tax = supply * tax_rate
+                    dfs["data"].at[idx, "수량"] = remain_qty
+                    dfs["data"].at[idx, "공급가액"] = supply
+                    dfs["data"].at[idx, "세액"] = tax
+                    dfs["data"].at[idx, "합계금액"] = supply + tax
+                    dfs["data"].at[idx, "미수금액"] = supply + tax
+                    
+                    new_supply = deliver_qty * price
+                    new_tax = new_supply * tax_rate
+                    new_row = row_data.copy()
+                    new_row.update({
+                        "수량": deliver_qty, "공급가액": new_supply, "세액": new_tax, "합계금액": new_supply + new_tax,
+                        "미수금액": new_supply + new_tax, "Status": new_status, "출고일": delivery_date,
+                        "송장번호": invoice_no, "운송방법": shipping_method,
+                    })
+                    if "운송장경로" in new_row: new_row["운송장경로"] = ""
+                    dfs["data"] = pd.concat([dfs["data"], pd.DataFrame([new_row])], ignore_index=True)
+                
+                processed_items.append(f"{row_data.get('품목명','')} ({deliver_qty}개)")
+
+            if new_delivery_records:
+                dfs["delivery"] = pd.concat([dfs["delivery"], pd.DataFrame(new_delivery_records)], ignore_index=True)
+
+            log_msg = f"번호 [{row_data.get('관리번호', '')}...] 납품 처리(출고번호: {delivery_no}) / {', '.join(processed_items)}"
+            self._add_log_to_dfs(dfs, "납품 처리", log_msg)
+            return True, ""
+            
+        return self._execute_transaction(update)
+
+    def process_payment(self, mgmt_nos, payment_amount, payment_date, file_paths, confirm_fee_callback=None):
+        def update(dfs):
+            mask = dfs["data"]["관리번호"].isin(mgmt_nos)
+            if not mask.any(): return False, "데이터를 찾을 수 없습니다."
+
+            indices = dfs["data"][mask].index
+            
+            # 1. 강제 재계산
+            for mgmt_no in mgmt_nos:
+                self.recalc_payment_status(dfs, mgmt_no)
+
+            # 2. 배치 처리용 집계
+            batch_summary = {}
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            try: current_user = getpass.getuser()
+            except: current_user = "Unknown"
+
+            remaining_payment = payment_amount
+
+            # 3. 미수금 차감 시뮬레이션
+            for idx in indices:
+                if remaining_payment <= 0: break
+                
+                mgmt_no = dfs["data"].at[idx, "관리번호"]
+                currency = str(dfs["data"].at[idx, "통화"]).upper()
+                threshold = 200 if currency != "KRW" else 5000
+                
+                if mgmt_no not in batch_summary:
+                    batch_summary[mgmt_no] = {'deposit': 0, 'fee': 0, 'currency': currency}
+
+                try: unpaid = float(dfs["data"].at[idx, "미수금액"])
+                except: unpaid = 0
+                
+                if unpaid > 0:
+                    actual_pay = 0
+                    fee_pay = 0
+                    
+                    if remaining_payment >= unpaid:
+                        actual_pay = unpaid
+                    else:
+                        diff = unpaid - remaining_payment
+                        if diff <= threshold:
+                            item_name = str(dfs["data"].at[idx, "품목명"])
+                            is_fee = False
+                            if confirm_fee_callback:
+                                is_fee = confirm_fee_callback(item_name, diff, currency)
+                            
+                            if is_fee:
+                                actual_pay = remaining_payment
+                                fee_pay = diff
+                            else:
+                                actual_pay = remaining_payment
+                        else:
+                            actual_pay = remaining_payment
+
+                    batch_summary[mgmt_no]['deposit'] += actual_pay
+                    batch_summary[mgmt_no]['fee'] += fee_pay
+                    
+                    remaining_payment -= actual_pay
+
+            # 4. Payment 시트에 이력 기록
+            new_payment_records = []
+            
+            for mgmt_no, summary in batch_summary.items():
+                if summary['deposit'] > 0:
+                    record = {
+                        "일시": now_str,
+                        "관리번호": mgmt_no,
+                        "구분": "입금",
+                        "입금액": summary['deposit'],
+                        "통화": summary['currency'],
+                        "작업자": current_user,
+                        "비고": f"일괄 입금 ({payment_date})"
+                    }
+                    if "외화입금증빙경로" in file_paths:
+                        record["외화입금증빙경로"] = file_paths["외화입금증빙경로"]
+                    if "송금상세경로" in file_paths:
+                        record["송금상세경로"] = file_paths["송금상세경로"]
+                        
+                    new_payment_records.append(record)
+                
+                if summary['fee'] > 0:
+                    new_payment_records.append({
+                        "일시": now_str,
+                        "관리번호": mgmt_no,
+                        "구분": "수수료/조정",
+                        "입금액": summary['fee'],
+                        "통화": summary['currency'],
+                        "작업자": current_user,
+                        "비고": "잔액 탕감 처리"
+                    })
+
+            if new_payment_records:
+                payment_df_new = pd.DataFrame(new_payment_records)
+                dfs["payment"] = pd.concat([dfs["payment"], payment_df_new], ignore_index=True)
+
+            # 5. 최종 재계산
+            for mgmt_no in mgmt_nos:
+                self.recalc_payment_status(dfs, mgmt_no)
+
+            mgmt_str = mgmt_nos[0]
+            if len(mgmt_nos) > 1: mgmt_str += f" 외 {len(mgmt_nos)-1}건"
+            
+            file_log = ""
+            if file_paths.get("외화입금증빙경로"): file_log += " / 외화증빙"
+            if file_paths.get("송금상세경로"): file_log += " / 송금상세"
+            
+            log_msg = f"번호 [{mgmt_str}] / 입금액 [{payment_amount:,.0f}] 처리{file_log} (재계산 완료)"
+            self._add_log_to_dfs(dfs, "수금 처리", log_msg)
+
+            return True, ""
+            
+        return self._execute_transaction(update)

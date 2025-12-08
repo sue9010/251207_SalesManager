@@ -9,7 +9,6 @@ import getpass
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from src.config import Config
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
@@ -47,67 +46,57 @@ class PaymentPopup(BasePopup):
         self.entry_id.pack(side="left")
         self.entry_id.insert(0, id_text)
         self.entry_id.configure(state="readonly")
-        
-        # 상태 콤보박스 (헤더에 배치)
+
+        # Status (Readonly)
+        ctk.CTkLabel(top_row, text="상태:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
         self.combo_status = ctk.CTkComboBox(top_row, values=["주문", "생산중", "완료", "취소", "보류"], 
                                           width=100, font=FONTS["main"], state="readonly")
-        self.combo_status.pack(side="left", padx=10)
-        self.combo_status.set("주문")
+        self.combo_status.pack(side="left")
 
     def _setup_info_panel(self, parent):
-        # 스크롤 없이 고정된 패널 사용
-        
-        # 1. 수금 요약
-        ctk.CTkLabel(parent, text="수금 요약", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(10, 5))
-        
-        summary_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        summary_frame.pack(fill="x", padx=10, pady=5)
-        
-        self.lbl_total_amount = self._add_summary_row(summary_frame, "총 합계금액", "0", 0)
-        self.lbl_paid_amount = self._add_summary_row(summary_frame, "기수금액", "0", 1)
-        
-        line = ctk.CTkFrame(summary_frame, height=2, fg_color=COLORS["border"])
-        line.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
-        
-        ctk.CTkLabel(summary_frame, text="남은 미수금", font=FONTS["header"], text_color=COLORS["danger"]).grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        self.lbl_unpaid_amount = ctk.CTkLabel(summary_frame, text="0", font=FONTS["title"], text_color=COLORS["danger"])
-        self.lbl_unpaid_amount.grid(row=3, column=1, padx=5, pady=5, sticky="e")
-        
-        summary_frame.columnconfigure(1, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkFrame(parent, height=2, fg_color=COLORS["border"]).pack(fill="x", padx=10, pady=10)
-
-        # 2. 입금 정보 입력
-        ctk.CTkLabel(parent, text="입금 정보", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(0, 5))
-        
-        input_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        input_frame.pack(fill="x", padx=10)
-        input_frame.columnconfigure(1, weight=1)
-        
-        # 입금액
-        ctk.CTkLabel(input_frame, text="입금액", font=FONTS["main_bold"]).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.entry_payment = ctk.CTkEntry(input_frame, height=35, font=FONTS["header"])
-        self.entry_payment.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        
-        # 입금일
-        ctk.CTkLabel(input_frame, text="입금일", font=FONTS["main_bold"]).grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.entry_pay_date = ctk.CTkEntry(input_frame, height=30)
-        self.entry_pay_date.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        # Row 0: Payment Date (Full Width)
+        f_date = ctk.CTkFrame(parent, fg_color="transparent")
+        f_date.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_date, text="입금일", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_pay_date = ctk.CTkEntry(f_date, height=28, placeholder_text="YYYY-MM-DD",
+                                           fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_pay_date.pack(side="left", fill="x", expand=True)
         self.entry_pay_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
 
-        ctk.CTkFrame(parent, height=2, fg_color=COLORS["border"]).pack(fill="x", padx=10, pady=10)
+        # Row 1: Payment Amount (Currency + Amount)
+        f_amt = ctk.CTkFrame(parent, fg_color="transparent")
+        f_amt.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        
+        ctk.CTkLabel(f_amt, text="입금액", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        
+        self.combo_currency = ctk.CTkComboBox(f_amt, values=["KRW", "USD", "EUR", "CNY", "JPY"], width=80,
+                                              font=FONTS["main"], state="readonly")
+        self.combo_currency.pack(side="left", padx=(0, 5))
+        self.combo_currency.set("KRW")
+        
+        self.entry_payment = ctk.CTkEntry(f_amt, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_payment.pack(side="left", fill="x", expand=True)
 
-        # 3. 증빙 파일 (DnD)
-        ctk.CTkLabel(parent, text="증빙 파일", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(0, 5))
-        
-        # 외화입금증빙
-        self.entry_file_foreign, _, _ = self.create_file_input_row(parent, "외화입금증빙", "외화입금증빙경로")
-        
-        # 송금상세
-        self.entry_file_remit, _, _ = self.create_file_input_row(parent, "송금상세(Remittance)", "송금상세경로")
-        
-        # DnD Setup
+        # Row 2: Foreign Remittance File
+        f_file1 = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file1.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_file_foreign, _, _ = self.create_file_input_row(f_file1, "외화입금증빙", "외화입금증빙경로")
 
+        # Row 3: Remittance Detail File
+        f_file2 = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file2.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_file_remit, _, _ = self.create_file_input_row(f_file2, "송금상세(Remittance)", "송금상세경로")
+
+        # Row 4: Totals Display
+        f_totals = ctk.CTkFrame(parent, fg_color="transparent")
+        f_totals.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=15)
+        
+        self.lbl_total_amount = self._add_summary_row(f_totals, "총 청구금액:", "0", 0)
+        self.lbl_paid_amount = self._add_summary_row(f_totals, "기수금액:", "0", 1)
+        self.lbl_unpaid_amount = self._add_summary_row(f_totals, "미수금액 (잔액):", "0", 2)
 
     def _setup_items_panel(self, parent):
         # 타이틀
@@ -238,8 +227,7 @@ class PaymentPopup(BasePopup):
             return
 
         payment_date = self.entry_pay_date.get()
-        try: current_user = getpass.getuser()
-        except: current_user = "Unknown"
+        currency = self.combo_currency.get()
 
         # File Saving Logic
         saved_paths = {}
@@ -261,116 +249,23 @@ class PaymentPopup(BasePopup):
             elif not success and msg:
                 print(f"File save warning ({col}): {msg}") 
 
-        def update_logic(dfs):
-            mask = dfs["data"]["관리번호"].isin(self.mgmt_nos)
-            if not mask.any():
-                return False, "데이터를 찾을 수 없습니다."
+        def confirm_fee(item_name, diff, curr):
+            # Use the currency from the popup if not provided or to override?
+            # Actually the callback uses 'curr' passed from DataManager, which might be from the data.
+            # But here we are processing payment in a specific currency.
+            # If the payment currency differs from item currency, that's complex.
+            # For now, we assume the user knows what they are doing.
+            return messagebox.askyesno("수수료 처리 확인", 
+                                       f"[{item_name}] 항목의 잔액이 {diff:,.0f} ({curr}) 남습니다.\n"
+                                       f"이를 수수료로 처리하여 '완납' 하시겠습니까?", parent=self)
 
-            indices = dfs["data"][mask].index
-            
-            # 1. 강제 재계산
-            for mgmt_no in self.mgmt_nos:
-                self.dm.recalc_payment_status(dfs, mgmt_no)
-
-            # 2. 배치 처리용 집계
-            batch_summary = {}
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            remaining_payment = payment_amount
-
-            # 3. 미수금 차감 시뮬레이션
-            for idx in indices:
-                if remaining_payment <= 0: break
-                
-                mgmt_no = dfs["data"].at[idx, "관리번호"]
-                currency = str(dfs["data"].at[idx, "통화"]).upper()
-                threshold = 200 if currency != "KRW" else 5000
-                
-                if mgmt_no not in batch_summary:
-                    batch_summary[mgmt_no] = {'deposit': 0, 'fee': 0, 'currency': currency}
-
-                try: unpaid = float(dfs["data"].at[idx, "미수금액"])
-                except: unpaid = 0
-                
-                if unpaid > 0:
-                    actual_pay = 0
-                    fee_pay = 0
-                    
-                    if remaining_payment >= unpaid:
-                        actual_pay = unpaid
-                    else:
-                        diff = unpaid - remaining_payment
-                        if diff <= threshold:
-                            item_name = str(dfs["data"].at[idx, "품목명"])
-                            if messagebox.askyesno("수수료 처리 확인", 
-                                                   f"[{item_name}] 항목의 잔액이 {diff:,.0f} ({currency}) 남습니다.\n"
-                                                   f"이를 수수료로 처리하여 '완납' 하시겠습니까?"):
-                                actual_pay = remaining_payment
-                                fee_pay = diff
-                            else:
-                                actual_pay = remaining_payment
-                        else:
-                            actual_pay = remaining_payment
-
-                    batch_summary[mgmt_no]['deposit'] += actual_pay
-                    batch_summary[mgmt_no]['fee'] += fee_pay
-                    
-                    remaining_payment -= actual_pay
-
-            # 4. Payment 시트에 이력 기록
-            new_payment_records = []
-            
-            for mgmt_no, summary in batch_summary.items():
-                if summary['deposit'] > 0:
-                    record = {
-                        "일시": now_str,
-                        "관리번호": mgmt_no,
-                        "구분": "입금",
-                        "입금액": summary['deposit'],
-                        "통화": summary['currency'],
-                        "작업자": current_user,
-                        "비고": f"일괄 입금 ({payment_date})"
-                    }
-                    if "외화입금증빙경로" in saved_paths:
-                        record["외화입금증빙경로"] = saved_paths["외화입금증빙경로"]
-                    if "송금상세경로" in saved_paths:
-                        record["송금상세경로"] = saved_paths["송금상세경로"]
-                        
-                    new_payment_records.append(record)
-                
-                if summary['fee'] > 0:
-                    new_payment_records.append({
-                        "일시": now_str,
-                        "관리번호": mgmt_no,
-                        "구분": "수수료/조정",
-                        "입금액": summary['fee'],
-                        "통화": summary['currency'],
-                        "작업자": current_user,
-                        "비고": "잔액 탕감 처리"
-                    })
-
-            if new_payment_records:
-                payment_df_new = pd.DataFrame(new_payment_records)
-                dfs["payment"] = pd.concat([dfs["payment"], payment_df_new], ignore_index=True)
-
-            # 5. 최종 재계산
-            for mgmt_no in self.mgmt_nos:
-                self.dm.recalc_payment_status(dfs, mgmt_no)
-
-            mgmt_str = self.mgmt_nos[0]
-            if len(self.mgmt_nos) > 1: mgmt_str += f" 외 {len(self.mgmt_nos)-1}건"
-            
-            file_log = ""
-            if saved_paths.get("외화입금증빙경로"): file_log += " / 외화증빙"
-            if saved_paths.get("송금상세경로"): file_log += " / 송금상세"
-            
-            log_msg = f"번호 [{mgmt_str}] / 입금액 [{payment_amount:,.0f}] 처리{file_log} (재계산 완료)"
-            new_log = self.dm._create_log_entry("수금 처리", log_msg)
-            dfs["log"] = pd.concat([dfs["log"], pd.DataFrame([new_log])], ignore_index=True)
-
-            return True, ""
-
-        success, msg = self.dm._execute_transaction(update_logic)
+        success, msg = self.dm.process_payment(
+            self.mgmt_nos,
+            payment_amount,
+            payment_date,
+            saved_paths,
+            confirm_fee
+        )
 
         if success:
             self.attributes("-topmost", False)
