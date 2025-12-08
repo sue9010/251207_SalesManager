@@ -77,59 +77,6 @@ class DeliveryPopup(BasePopup):
         header_frame = ctk.CTkFrame(parent, height=35, fg_color=COLORS["bg_dark"])
         header_frame.pack(fill="x", padx=15)
         
-        for h, w in zip(headers, widths):
-            ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
-            
-        self.scroll_items = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        self.scroll_items.pack(fill="both", expand=True, padx=10, pady=5)
-
-    def _setup_info_panel(self, parent):
-        scroll_container = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        scroll_container.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # 1. 배송 정보
-        ctk.CTkLabel(scroll_container, text="배송 정보", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(10, 5))
-        input_frame = ctk.CTkFrame(scroll_container, fg_color="transparent")
-        input_frame.pack(fill="x", padx=10)
-        
-        def create_input(label, var_name, readonly=False):
-            f = ctk.CTkFrame(input_frame, fg_color="transparent")
-            f.pack(fill="x", pady=2)
-            ctk.CTkLabel(f, text=label, width=80, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-            entry = ctk.CTkEntry(f, height=30)
-            entry.pack(side="left", fill="x", expand=True)
-            if readonly: entry.configure(state="readonly")
-            setattr(self, var_name, entry)
-            return entry
-
-        create_input("출고번호", "entry_delivery_no", readonly=True)
-        create_input("출고일", "entry_delivery_date").insert(0, datetime.now().strftime("%Y-%m-%d"))
-        create_input("송장번호", "entry_invoice_no")
-        create_input("운송방법", "entry_shipping_method")
-        create_input("운송계정", "entry_shipping_account")
-        
-        ctk.CTkFrame(scroll_container, height=2, fg_color=COLORS["border"]).pack(fill="x", padx=10, pady=15)
-
-        # 2. 서류 발행
-        ctk.CTkLabel(scroll_container, text="서류 발행", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(0, 5))
-        doc_frame = ctk.CTkFrame(scroll_container, fg_color="transparent")
-        doc_frame.pack(fill="x", padx=10)
-        
-        for text, cmd in [("📄 PI (Proforma Invoice)", self.export_pi), 
-                          ("📄 CI (Commercial Invoice)", self.export_ci), 
-                          ("📄 PL (Packing List)", self.export_pl)]:
-            ctk.CTkButton(doc_frame, text=text, command=cmd, height=35,
-                          fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                          text_color=COLORS["text"], font=FONTS["main_bold"]).pack(fill="x", pady=3)
-        
-        ctk.CTkFrame(scroll_container, height=2, fg_color=COLORS["border"]).pack(fill="x", padx=10, pady=15)
-
-        # 3. 운송장 첨부
-        self.entry_waybill_file, _, _ = self.create_file_input_row(scroll_container, "운송장 파일", "운송장경로")
-
-    def _create_footer(self, parent):
-        footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        footer_frame.pack(fill="x", pady=(10, 0))
         
         ctk.CTkButton(footer_frame, text="닫기", command=self.destroy, width=100, height=45,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], 

@@ -40,7 +40,7 @@ class CompletePopup(BasePopup):
         # 5. 닫기 버튼
         self._create_action_buttons_custom(self.main_container)
 
-        self.geometry("1200x1000")
+        self.geometry("1200x920")
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")

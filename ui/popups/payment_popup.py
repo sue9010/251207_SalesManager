@@ -48,59 +48,6 @@ class PaymentPopup(BasePopup):
         self.entry_id.insert(0, id_text)
         self.entry_id.configure(state="readonly")
         
-        # 상태 콤보박스 (헤더에 배치)
-        self.combo_status = ctk.CTkComboBox(top_row, values=["주문", "생산중", "완료", "취소", "보류"], 
-                                          width=100, font=FONTS["main"], state="readonly")
-        self.combo_status.pack(side="left", padx=10)
-        self.combo_status.set("주문")
-
-    def _setup_info_panel(self, parent):
-        # 스크롤 없이 고정된 패널 사용
-        
-        # 1. 수금 요약
-        ctk.CTkLabel(parent, text="수금 요약", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(10, 5))
-        
-        summary_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        summary_frame.pack(fill="x", padx=10, pady=5)
-        
-        self.lbl_total_amount = self._add_summary_row(summary_frame, "총 합계금액", "0", 0)
-        self.lbl_paid_amount = self._add_summary_row(summary_frame, "기수금액", "0", 1)
-        
-        line = ctk.CTkFrame(summary_frame, height=2, fg_color=COLORS["border"])
-        line.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=10)
-        
-        ctk.CTkLabel(summary_frame, text="남은 미수금", font=FONTS["header"], text_color=COLORS["danger"]).grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        self.lbl_unpaid_amount = ctk.CTkLabel(summary_frame, text="0", font=FONTS["title"], text_color=COLORS["danger"])
-        self.lbl_unpaid_amount.grid(row=3, column=1, padx=5, pady=5, sticky="e")
-        
-        summary_frame.columnconfigure(1, weight=1)
-
-        ctk.CTkFrame(parent, height=2, fg_color=COLORS["border"]).pack(fill="x", padx=10, pady=10)
-
-        # 2. 입금 정보 입력
-        ctk.CTkLabel(parent, text="입금 정보", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(0, 5))
-        
-        input_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        input_frame.pack(fill="x", padx=10)
-        input_frame.columnconfigure(1, weight=1)
-        
-        # 입금액
-        ctk.CTkLabel(input_frame, text="입금액", font=FONTS["main_bold"]).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.entry_payment = ctk.CTkEntry(input_frame, height=35, font=FONTS["header"])
-        self.entry_payment.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        
-        # 입금일
-        ctk.CTkLabel(input_frame, text="입금일", font=FONTS["main_bold"]).grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.entry_pay_date = ctk.CTkEntry(input_frame, height=30)
-        self.entry_pay_date.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-        self.entry_pay_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
-
-        ctk.CTkFrame(parent, height=2, fg_color=COLORS["border"]).pack(fill="x", padx=10, pady=10)
-
-        # 3. 증빙 파일 (DnD)
-        ctk.CTkLabel(parent, text="증빙 파일", font=FONTS["header"]).pack(anchor="w", padx=10, pady=(0, 5))
-        
-        # 외화입금증빙
         self.entry_file_foreign, _, _ = self.create_file_input_row(parent, "외화입금증빙", "외화입금증빙경로")
         
         # 송금상세

@@ -6,7 +6,6 @@ import customtkinter as ctk
 import pandas as pd
 
 from src.styles import COLORS, FONT_FAMILY, FONTS
-from ui.popups.client_popup import ClientPopup 
 from utils.file_dnd import FileDnDManager
 
 class BasePopup(ctk.CTkToplevel):
@@ -94,8 +93,46 @@ class BasePopup(ctk.CTkToplevel):
     @property
     def full_paths(self): return self.file_manager.full_paths
 
+    def create_input_row(self, parent, label, readonly=False, placeholder=""):
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.pack(fill="x", pady=2)
+        ctk.CTkLabel(f, text=label, width=100, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        entry = ctk.CTkEntry(f, height=30, placeholder_text=placeholder,
+                             fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        entry.pack(side="left", fill="x", expand=True)
+        if readonly: entry.configure(state="readonly")
+        return entry
+
+    def create_combo_row(self, parent, label, values, command=None):
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.pack(fill="x", pady=2)
+        ctk.CTkLabel(f, text=label, width=100, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        combo = ctk.CTkComboBox(f, values=values, command=command, height=30,
+                                fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, button_color=COLORS["entry_border"])
+        combo.pack(side="left", fill="x", expand=True)
+        return combo
+
+    def create_grid_input(self, parent, row, col, label, placeholder="", width=None):
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
+        ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        entry = ctk.CTkEntry(f, height=28, placeholder_text=placeholder,
+                             fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        entry.pack(side="left", fill="x", expand=True)
+        return entry
+
+    def create_grid_combo(self, parent, row, col, label, values, command=None):
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.grid(row=row, column=col, sticky="ew", padx=2, pady=2)
+        ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        combo = ctk.CTkComboBox(f, values=values, command=command, height=28,
+                                fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, button_color=COLORS["entry_border"])
+        combo.pack(side="left", fill="x", expand=True)
+        return combo
+
     def _on_client_select(self, client_name):
         if not client_name: return
+        from ui.popups.client_popup import ClientPopup
         df = self.dm.df_clients
         if client_name not in df["업체명"].values:
             self.attributes("-topmost", False)

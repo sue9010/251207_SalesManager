@@ -10,165 +10,114 @@ from src.config import Config
 from src.styles import COLORS, FONT_FAMILY, FONTS
 from utils.file_dnd import FileDnDManager
 
-class ClientPopup(ctk.CTkToplevel):
+from ui.popups.base_popup import BasePopup
+from src.styles import COLORS, FONTS
+
+class ClientPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, client_name=None):
-        super().__init__(parent)
-        self.dm = data_manager
-        self.refresh_callback = refresh_callback
-        self.client_name = client_name # None이면 신규, 있으면 수정
-        
-        title = "업체 신규 등록" if client_name is None else f"업체 정보 수정 - {client_name}"
-        self.title(title)
-        
-        # Compact Size
-        self.geometry("900x660")
-        self.configure(fg_color=COLORS["bg_dark"])
-        
+        self.client_name = client_name
         self.entries = {}
-        self.file_manager = FileDnDManager(self)
         
-        self._create_widgets()
+        # BasePopup expects mgmt_no for title logic, but ClientPopup uses client_name.
+        # We'll pass None for mgmt_no and handle title manually or override _create_header if needed.
+        # Actually BasePopup logic: if mgmt_no: "Edit", else "New". 
+        # We can treat client_name as mgmt_no for the purpose of title generation if we want, 
+        # but BasePopup uses it for ID display too.
+        # Let's pass mgmt_no=client_name so BasePopup sets title to "업체 상세 정보 수정" or "신규 업체 등록".
         
-        if self.client_name:
-            self._load_data()
+        super().__init__(parent, data_manager, refresh_callback, popup_title="업체", mgmt_no=client_name)
+        
+        # Override geometry if needed, BasePopup is 1100x750, ClientPopup was 900x660
+        self.geometry("900x660")
 
-        self.transient(parent)
-        self.grab_set()
-        self.attributes("-topmost", True)
+    def _setup_items_panel(self, parent):
+        # ClientPopup does not have an items list (products), so we hide or destroy the items panel
+        # BasePopup creates self.items_panel. We can destroy it or just leave it empty.
+        # Better: Hide the items panel and expand the info panel.
         
-        # ESC 닫기
-        self.bind("<Escape>", lambda e: self.destroy())
+        # Accessing parent's parent (content_frame) to adjust layout
+        # self.items_panel is 'parent' here.
+        parent.pack_forget()
+        
+        # Expand info_panel to fill
+        if hasattr(self, 'info_panel'):
+            self.info_panel.configure(width=None) # Allow expansion
+            self.info_panel.pack(side="left", fill="both", expand=True, padx=10)
 
-    def _create_widgets(self):
-        # Main Container (No Scroll)
-        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_container.pack(fill="both", expand=True, padx=20, pady=20)
+    def _setup_info_panel(self, parent):
+        # Parent is self.info_panel
+        parent.pack_propagate(True) # Re-enable propagation to let children dictate size if needed, though we expand it.
         
-        # 1. Header
-        header_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 15))
+        # Use two columns within the info panel
+        parent.columnconfigure(0, weight=1)
+        parent.columnconfigure(1, weight=1)
+        parent.rowconfigure(0, weight=1) # Columns row
+        parent.rowconfigure(1, weight=0) # Notes row
         
-        title_text = "NEW CLIENT" if not self.client_name else "EDIT CLIENT"
-        ctk.CTkLabel(header_frame, text=title_text, font=FONTS["title"], text_color=COLORS["text"]).pack(side="left")
+        left_col = ctk.CTkFrame(parent, fg_color="transparent")
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=10)
         
-        # 2. Content Area (2 Columns)
-        content_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        content_frame.pack(fill="both", expand=True)
-        content_frame.columnconfigure(0, weight=1)
-        content_frame.columnconfigure(1, weight=1)
+        right_col = ctk.CTkFrame(parent, fg_color="transparent")
+        right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
         
-        # Left Column
-        left_col = ctk.CTkFrame(content_frame, fg_color="transparent")
-        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        
-        # Right Column
-        right_col = ctk.CTkFrame(content_frame, fg_color="transparent")
-        right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        
-        # --- Left Column Content (Basic + Contact) ---
-        
-        # Group 1: Basic Info
-        self._create_group_header(left_col, "기본 정보")
+        # --- Left Column ---
+        ctk.CTkLabel(left_col, text="기본 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         basic_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         basic_frame.pack(fill="x", pady=(0, 15))
         
-        self._add_input_row(basic_frame, "업체명", "업체명")
-        self._add_input_row(basic_frame, "국가", "국가")
-        self._add_combo_row(basic_frame, "통화", "통화", ["KRW", "USD", "EUR", "CNY", "JPY"])
-        self._add_input_row(basic_frame, "주소", "주소")
+        self.entries["업체명"] = self.create_input_row(basic_frame, "업체명")
+        self.entries["국가"] = self.create_input_row(basic_frame, "국가")
+        self.entries["통화"] = self.create_combo_row(basic_frame, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"])
+        self.entries["주소"] = self.create_input_row(basic_frame, "주소")
 
-        # Group 2: Contact Info
-        self._create_group_header(left_col, "담당자 정보")
+        ctk.CTkLabel(left_col, text="담당자 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         contact_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         contact_frame.pack(fill="x", pady=(0, 15))
         
-        self._add_input_row(contact_frame, "담당자", "담당자")
-        self._add_input_row(contact_frame, "전화번호", "전화번호")
-        self._add_input_row(contact_frame, "이메일", "이메일")
+        self.entries["담당자"] = self.create_input_row(contact_frame, "담당자")
+        self.entries["전화번호"] = self.create_input_row(contact_frame, "전화번호")
+        self.entries["이메일"] = self.create_input_row(contact_frame, "이메일")
 
-        # --- Right Column Content (Logistics + Docs) ---
-        
-        # Group 3: Logistics Info
-        self._create_group_header(right_col, "수출/물류 정보")
+        # --- Right Column ---
+        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         logistics_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         logistics_frame.pack(fill="x", pady=(0, 15))
         
-        self._add_input_row(logistics_frame, "수출허가구분", "수출허가구분")
-        self._add_input_row(logistics_frame, "수출허가번호", "수출허가번호")
-        self._add_input_row(logistics_frame, "만료일", "수출허가만료일", placeholder="YYYY-MM-DD")
-        self._add_input_row(logistics_frame, "운송계정", "운송계정")
-        self._add_input_row(logistics_frame, "운송방법", "운송방법")
-        
-        # Group 4: Documents
-        self._create_group_header(right_col, "증빙 서류")
+        self.entries["수출허가구분"] = self.create_input_row(logistics_frame, "수출허가구분")
+        self.entries["수출허가번호"] = self.create_input_row(logistics_frame, "수출허가번호")
+        self.entries["수출허가만료일"] = self.create_input_row(logistics_frame, "만료일", placeholder="YYYY-MM-DD")
+        self.entries["운송계정"] = self.create_input_row(logistics_frame, "운송계정")
+        self.entries["운송방법"] = self.create_input_row(logistics_frame, "운송방법")
+
+        ctk.CTkLabel(right_col, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         doc_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         doc_frame.pack(fill="x", pady=(0, 5))
         
-        # [수정] height 파라미터 전달
-        entry, _, _ = self.file_manager.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로", height=38)
+        entry, _, _ = self.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로")
         self.entries["사업자등록증경로"] = entry
 
-        # --- Bottom Section (Notes) ---
-        bottom_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        bottom_frame.pack(fill="x", pady=(5, 0))
+        # --- Bottom (Notes) ---
+        # We need to add this to the parent (info_panel) below the columns, 
+        # but we used grid for columns.
+        # Let's put columns in a container frame first? 
+        # Actually, parent is info_panel. We can use grid row 1 for notes.
         
-        self._create_group_header(bottom_frame, "기타 특이사항")
-        note_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
+        note_container = ctk.CTkFrame(parent, fg_color="transparent")
+        note_container.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        
+        ctk.CTkLabel(note_container, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+        note_frame = ctk.CTkFrame(note_container, fg_color=COLORS["bg_medium"], corner_radius=6)
         note_frame.pack(fill="x")
         
-        self.entry_note = ctk.CTkTextbox(note_frame, height=100) # Multiline
-        self.entry_note.pack(fill="x", padx=10, pady=10)
+        # Match CTkEntry style using centralized styles
+        self.entry_note = ctk.CTkTextbox(note_frame, height=100, border_width=2, 
+                                         border_color=COLORS["entry_border"], fg_color=COLORS["entry_bg"])
+        self.entry_note.pack(fill="x", padx=5, pady=5)
         self.entries["특이사항"] = self.entry_note
 
-        # 3. Footer (Action Buttons)
-        footer_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
-        
-        if self.client_name:
-            ctk.CTkButton(footer_frame, text="삭제", command=self.delete, width=100, height=40,
-                          fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"]).pack(side="left")
-
-        ctk.CTkButton(footer_frame, text="저장", command=self.save, width=150, height=40,
-                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], 
-                      font=FONTS["main_bold"]).pack(side="right")
-                      
-        ctk.CTkButton(footer_frame, text="취소", command=self.destroy, width=100, height=40,
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], 
-                      text_color=COLORS["text"]).pack(side="right", padx=10)
-
-    # --- Helper Methods for UI Construction ---
-    
-    def _create_group_header(self, parent, text, **kwargs):
-        # [수정] kwargs 지원 (height 등)
-        ctk.CTkLabel(parent, text=text, font=FONTS["header"], text_color=COLORS["primary"], **kwargs).pack(anchor="w", pady=(0, 5))
-
-    def _add_input_row(self, parent, label, key, placeholder=""):
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(frame, text=label, width=90, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        entry = ctk.CTkEntry(frame, height=28, placeholder_text=placeholder, font=FONTS["main"])
-        entry.pack(side="left", fill="x", expand=True)
-        
-        self.entries[key] = entry
-        return entry
-
-    def _add_combo_row(self, parent, label, key, values):
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(frame, text=label, width=90, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        combo = ctk.CTkComboBox(frame, values=values, height=28, font=FONTS["main"])
-        combo.pack(side="left", fill="x", expand=True)
-        
-        self.entries[key] = combo
-        return combo
-
-
-
-    # --- Logic Methods ---
-
     def _load_data(self):
+        # BasePopup calls this if mgmt_no is set.
+        # Here mgmt_no is client_name.
         df = self.dm.df_clients
         row = df[df["업체명"] == self.client_name].iloc[0]
         
@@ -177,7 +126,7 @@ class ClientPopup(ctk.CTkToplevel):
             if val == "nan": val = ""
             
             if key == "사업자등록증경로" and val:
-                self.file_manager.update_file_entry(key, val)
+                self.update_file_entry(key, val)
             else:
                 if isinstance(widget, ctk.CTkComboBox):
                     widget.set(val)
@@ -188,17 +137,14 @@ class ClientPopup(ctk.CTkToplevel):
                     widget.delete(0, "end")
                     widget.insert(0, val)
                     
-        # 업체명 수정 불가
         if "업체명" in self.entries:
             self.entries["업체명"].configure(state="disabled")
-
-
 
     def save(self):
         data = {}
         for key, widget in self.entries.items():
             if key == "사업자등록증경로":
-                data[key] = self.file_manager.full_paths.get(key, "").strip()
+                data[key] = self.full_paths.get(key, "").strip()
             elif isinstance(widget, ctk.CTkTextbox):
                 data[key] = widget.get("1.0", "end-1c").strip()
             else:
