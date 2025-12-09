@@ -133,9 +133,17 @@ class TableView(ctk.CTkFrame):
             command=self.refresh_data,
             width=150,
             dropdown_height=280,
-            dropdown_width=150
+            dropdown_width=200
         )
         self.status_filter.pack(side="left", padx=5)
+        
+        # Search Entry
+        self.search_entry = ctk.CTkEntry(header_frame, placeholder_text="검색 (관리번호, 업체명, 모델명)", width=250, font=FONTS["main"])
+        self.search_entry.pack(side="left", padx=5)
+        self.search_entry.bind("<Return>", lambda e: self.refresh_data())
+        
+        ctk.CTkButton(header_frame, text="검색", command=self.refresh_data, width=60, 
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main"]).pack(side="left", padx=5)
         
         ctk.CTkButton(header_frame, text="새로고침", command=self.refresh_data, width=80, 
                       fg_color=COLORS["bg_medium"], hover_color=COLORS["bg_light"], text_color=COLORS["text"], font=FONTS["main"]).pack(side="right")
@@ -207,12 +215,27 @@ class TableView(ctk.CTkFrame):
         if df.empty: return
         
         selected_statuses = self.status_filter.get_selected()
+        search_text = self.search_entry.get().lower().strip()
         
         filtered_rows = []
         for _, row in df.iterrows():
+            # Status Filter
             status = str(row.get("Status", "")).strip()
-            if status in selected_statuses:
-                filtered_rows.append(row)
+            if status not in selected_statuses:
+                continue
+                
+            # Search Filter
+            if search_text:
+                mgmt_no = str(row.get("관리번호", "")).lower()
+                client = str(row.get("업체명", "")).lower()
+                model = str(row.get("모델명", "")).lower()
+                
+                if (search_text not in mgmt_no and 
+                    search_text not in client and 
+                    search_text not in model):
+                    continue
+            
+            filtered_rows.append(row)
         
         def sort_key(x):
             val = x.get(self.sort_col, "")
