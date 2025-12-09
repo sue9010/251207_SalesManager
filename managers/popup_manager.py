@@ -7,6 +7,7 @@ from ui.popups.order_popup import OrderPopup
 from ui.popups.complete_popup import CompletePopup
 from ui.popups.settings_popup import SettingsPopup
 from ui.popups.packing_list_popup import PackingListPopup
+from ui.popups.after_sales_popup import AfterSalesPopup
 
 
 class PopupManager:
@@ -38,3 +39,6 @@ class PopupManager:
 
     def open_packing_list_popup(self, mgmt_no):
         win = PackingListPopup(self.parent, self.dm, self.refresh_callback, mgmt_no)
+
+    def open_after_sales_popup(self, mgmt_nos):
+        win = AfterSalesPopup(self.parent, self.dm, self.refresh_callback, mgmt_nos)

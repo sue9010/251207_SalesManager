@@ -30,6 +30,9 @@ class AfterSalesView(ctk.CTkFrame):
         ctk.CTkButton(toolbar, text="새로고침", width=80, command=self.refresh_data,
                       fg_color=COLORS["bg_medium"], hover_color=COLORS["bg_light"], text_color=COLORS["text"]).pack(side="right", padx=(0, 10))
 
+        ctk.CTkButton(toolbar, text="선택 항목 일괄 처리", width=150, command=self.on_process,
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"]).pack(side="right", padx=(0, 10))
+
         tree_frame = ctk.CTkFrame(self, fg_color=COLORS["bg_medium"], corner_radius=10)
         tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
@@ -47,6 +50,8 @@ class AfterSalesView(ctk.CTkFrame):
             if col == "업체명": width = 150
             if "금액" in col: width = 120 
             self.tree.column(col, width=width, anchor="center")
+
+        self.tree.bind("<Double-1>", lambda e: self.on_process())
 
     def style_treeview(self):
         style = ttk.Style()
@@ -107,3 +112,33 @@ class AfterSalesView(ctk.CTkFrame):
             ]
             
             self.tree.insert("", "end", iid=idx, values=values)
+
+    def on_process(self):
+        selected_items = self.tree.selection()
+        if not selected_items:
+            messagebox.showwarning("경고", "처리할 항목을 하나 이상 선택해주세요.")
+            return
+        
+        first_idx = int(selected_items[0])
+        try:
+            first_client = self.dm.df_data.loc[first_idx, "업체명"]
+        except KeyError:
+            messagebox.showerror("오류", "선택된 항목의 정보를 찾을 수 없습니다.")
+            return
+        
+        target_mgmt_nos = set()
+
+        for item in selected_items:
+            idx = int(item)
+            try:
+                client = self.dm.df_data.loc[idx, "업체명"]
+                mgmt_no = self.dm.df_data.loc[idx, "관리번호"]
+            except KeyError: continue
+            
+            if client != first_client:
+                messagebox.showwarning("주의", "동일한 업체의 항목들만 일괄 처리가 가능합니다.")
+                return
+            
+            target_mgmt_nos.add(mgmt_no)
+
+        self.pm.open_after_sales_popup(list(target_mgmt_nos))
