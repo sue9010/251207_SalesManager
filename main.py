@@ -25,7 +25,7 @@ from ui.views.gantt_view import GanttView
 from ui.views.kanban_view import KanbanView
 from ui.views.sales_view import SalesView
 from ui.views.table_view import TableView
-from ui.views.placeholder_view import PlaceholderView
+from ui.views.purchase_view import PurchaseView
 
 # DnD 라이브러리 가용성 체크 및 래퍼 클래스 설정
 if DND_AVAILABLE:
@@ -118,11 +118,7 @@ class SalesManagerApp(BaseApp):
                 ("판매관리", self.show_sales_view, "sales_management"),
             ]),
             ("구매관리", [
-                ("견적", self.show_purchase_quote_view, "purchase_quote"),
-                ("주문", self.show_purchase_order_view, "purchase_order"),
-                ("납품", self.show_purchase_delivery_view, "purchase_delivery"),
-                ("송금", self.show_purchase_payment_view, "purchase_payment"),
-                ("사후처리", self.show_purchase_after_service_view, "purchase_as"),
+                ("구매관리", self.show_purchase_view, "purchase_management"),
             ]),
             ("일정 관리", [
                 ("테이블 뷰", self.show_table_view, "schedule_table"),
@@ -168,17 +164,12 @@ class SalesManagerApp(BaseApp):
         self.view_dashboard = DashboardView(self.content_frame, self.dm, self.pm)
         self.view_client = ClientView(self.content_frame, self.dm, self.pm)
         self.view_sales = SalesView(self.content_frame, self.dm, self.pm)
+        self.view_purchase = PurchaseView(self.content_frame, self.dm, self.pm)
         self.view_calendar = CalendarView(self.content_frame, self.dm, self.pm)
         self.view_kanban = KanbanView(self.content_frame, self.dm, self.pm)
         self.view_gantt = GanttView(self.content_frame, self.dm, self.pm)
         self.view_table = TableView(self.content_frame, self.dm, self.pm)
         
-        # 구매관리 뷰 (Placeholder)
-        self.view_purchase_quote = PlaceholderView(self.content_frame, "구매 견적")
-        self.view_purchase_order = PlaceholderView(self.content_frame, "구매 주문")
-        self.view_purchase_delivery = PlaceholderView(self.content_frame, "구매 납품")
-        self.view_purchase_payment = PlaceholderView(self.content_frame, "구매 송금")
-        self.view_purchase_as = PlaceholderView(self.content_frame, "구매 사후처리")
 
     def switch_view(self, view_name_key, view_instance):
         # 버튼 활성화 상태 변경
@@ -209,11 +200,7 @@ class SalesManagerApp(BaseApp):
     def show_sales_view(self): self.switch_view("sales_management", self.view_sales)
 
     # 구매관리
-    def show_purchase_quote_view(self): self.switch_view("purchase_quote", self.view_purchase_quote)
-    def show_purchase_order_view(self): self.switch_view("purchase_order", self.view_purchase_order)
-    def show_purchase_delivery_view(self): self.switch_view("purchase_delivery", self.view_purchase_delivery)
-    def show_purchase_payment_view(self): self.switch_view("purchase_payment", self.view_purchase_payment)
-    def show_purchase_after_service_view(self): self.switch_view("purchase_as", self.view_purchase_as)
+    def show_purchase_view(self): self.switch_view("purchase_management", self.view_purchase)
 
     # 일정 관리
     def show_table_view(self): self.switch_view("schedule_table", self.view_table)
