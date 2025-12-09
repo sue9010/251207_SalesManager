@@ -121,6 +121,9 @@ class DataManager:
     def delete_quote(self, mgmt_no):
         return self.order_handler.delete_quote(mgmt_no)
 
+    def process_after_sales(self, mgmt_nos, tax_date, tax_no, export_no, saved_paths):
+        return self.order_handler.process_after_sales(mgmt_nos, tax_date, tax_no, export_no, saved_paths)
+
     # Delegate to PaymentHandler
     def recalc_payment_status(self, dfs, mgmt_no):
         self.payment_handler.recalc_payment_status(dfs, mgmt_no)

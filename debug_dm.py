@@ -15,3 +15,5 @@ try:
     print("load_data called successfully")
 except Exception as e:
     print(f"load_data failed: {e}")
+
+print(f"Has process_after_sales: {hasattr(dm, 'process_after_sales')}")

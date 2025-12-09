@@ -134,3 +134,28 @@ class OrderHandler:
             self.dm.log_handler.add_log_to_dfs(dfs, "삭제", f"견적 삭제: 번호 [{mgmt_no}]")
             return True, ""
         return self.dm.execute_transaction(update)
+
+    def process_after_sales(self, mgmt_nos, tax_date, tax_no, export_no, saved_paths):
+        def update(dfs):
+            mask = dfs["data"]["관리번호"].isin(mgmt_nos)
+            if not mask.any():
+                return False, "처리할 항목을 찾을 수 없습니다."
+
+            # Update fields
+            if tax_date: dfs["data"].loc[mask, "세금계산서발행일"] = tax_date
+            if tax_no: dfs["data"].loc[mask, "계산서번호"] = tax_no
+            if export_no: dfs["data"].loc[mask, "수출신고번호"] = export_no
+            
+            # Update file paths
+            for col, path in saved_paths.items():
+                dfs["data"].loc[mask, col] = path
+
+            # Update Status to "종료"
+            dfs["data"].loc[mask, "Status"] = "종료"
+
+            # Log
+            cnt = mask.sum()
+            self.dm.log_handler.add_log_to_dfs(dfs, "사후처리", f"{cnt}건 처리 완료 (상태: 종료)")
+            return True, ""
+
+        return self.dm.execute_transaction(update)
