@@ -26,42 +26,13 @@ class PurchasePopup(BasePopup):
         super().__init__(parent, data_manager, refresh_callback, popup_title="발주 등록", mgmt_no=real_mgmt_no)
         self.geometry("1350x920")
 
-        # 신규 등록일 때 기본값 설정
-        if not real_mgmt_no:
-            self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
-            self.combo_status.set("발주") # 기본 상태
-import tkinter as tk
-from datetime import datetime
-from tkinter import messagebox, filedialog
-import customtkinter as ctk
-import pandas as pd
-
-from ui.popups.base_popup import BasePopup
-from src.styles import COLORS, FONTS
-# ExportManager는 추후 발주서 PDF 생성 시 사용
-from managers.export_manager import ExportManager
-from ui.widgets.autocomplete_entry import AutocompleteEntry
-
-class PurchasePopup(BasePopup):
-    def __init__(self, parent, data_manager, refresh_callback, mgmt_no=None, copy_mode=False):
-        self.export_manager = ExportManager(data_manager)
-        self.copy_mode = copy_mode
-        self.copy_src_no = mgmt_no if copy_mode else None
-        
-        # 신규/수정 구분
-        real_mgmt_no = None if copy_mode else mgmt_no
-        
-        self.item_widgets_map = {} # 위젯 추적용
-        self.item_rows = [] # 데이터 추적용
-
-        # BasePopup 초기화
-        super().__init__(parent, data_manager, refresh_callback, popup_title="발주 등록", mgmt_no=real_mgmt_no)
-        self.geometry("1350x920")
+        # [신규] FileDnDManager 초기화
+        from utils.file_dnd import FileDnDManager
+        self.file_manager = FileDnDManager(self)
 
         # 신규 등록일 때 기본값 설정
         if not real_mgmt_no:
             self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
-            # self.combo_status.set("발주") # 기본 상태 - REMOVED
             self._generate_new_id() # 신규 번호 생성
             # NEW: Set default for new status combos
             if hasattr(self, 'combo_receiving_status'):
@@ -106,7 +77,7 @@ class PurchasePopup(BasePopup):
 
     def _setup_info_panel(self, parent):
         """
-        좌측 패널 디자인 (6행 레이아웃 적용)
+        좌측 패널 디자인 (11행 레이아웃 적용)
         """
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
@@ -115,9 +86,13 @@ class PurchasePopup(BasePopup):
         self.entry_date = self.create_grid_input(parent, 0, 0, "발주일", placeholder="YYYY-MM-DD")
         self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수입"], command=self.on_type_change)
 
-        # --- 2행: 업체명 (매입처) - Full Width ---
+        # --- 2행: 통화, 세율 ---
+        self.combo_currency = self.create_grid_combo(parent, 1, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        self.entry_tax_rate = self.create_grid_input(parent, 1, 1, "세율(%)")
+
+        # --- 3행: 매입처 (Autocomplete) - Full Width ---
         f_client = ctk.CTkFrame(parent, fg_color="transparent")
-        f_client.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_client.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_client, text="매입처", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         
         client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
@@ -125,36 +100,51 @@ class PurchasePopup(BasePopup):
                                               height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_client.pack(side="left", fill="x", expand=True)
 
-        # --- 3행: 통화, 세율 ---
-        self.combo_currency = self.create_grid_combo(parent, 2, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
-        self.entry_tax_rate = self.create_grid_input(parent, 2, 1, "세율(%)")
+        # --- 4행: 예금주 ---
+        # Helper for full width input
+        def create_full_width_input(row_idx, label, key_name):
+            f = ctk.CTkFrame(parent, fg_color="transparent")
+            f.grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+            ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+            entry = ctk.CTkEntry(f, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+            entry.pack(side="left", fill="x", expand=True)
+            return entry
 
-        # --- 4행: 비고 (Multiline) - Full Width ---
+        self.entry_account_holder = create_full_width_input(3, "예금주", "예금주")
+        
+        # --- 5행: 계좌번호 ---
+        self.entry_account_number = create_full_width_input(4, "계좌번호", "계좌번호")
+
+        # --- 6행: 은행명 ---
+        self.entry_bank_name = create_full_width_input(5, "은행명", "은행명")
+
+        # --- 7행: Swift Code ---
+        self.entry_swift_code = create_full_width_input(6, "Swift Code", "Swift Code")
+
+        # --- 8행: 은행주소 (Multiline) ---
+        f_bank_addr = ctk.CTkFrame(parent, fg_color="transparent")
+        f_bank_addr.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_bank_addr, text="은행주소", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
+        self.entry_bank_address = ctk.CTkTextbox(f_bank_addr, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, wrap="word")
+        self.entry_bank_address.pack(side="left", fill="x", expand=True)
+
+        # --- 9행: 비고 (Multiline) ---
         f_note = ctk.CTkFrame(parent, fg_color="transparent")
-        f_note.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_note.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
-        self.entry_note = ctk.CTkTextbox(f_note, height=80, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_note = ctk.CTkTextbox(f_note, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, wrap="word")
         self.entry_note.pack(side="left", fill="x", expand=True)
 
-        # --- 5행: 견적서 등록 (File Upload) - Full Width ---
+        # --- 10행: 견적서 파일 업로드 (FileDnDManager) ---
         f_upload = ctk.CTkFrame(parent, fg_color="transparent")
-        f_upload.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_upload.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         
-        ctk.CTkLabel(f_upload, text="견적서", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        
-        self.entry_quote_file = ctk.CTkEntry(f_upload, placeholder_text="등록된 견적서 파일이 없습니다", 
-                                             height=28, fg_color=COLORS["bg_dark"], state="readonly")
-        self.entry_quote_file.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        
-        ctk.CTkButton(f_upload, text="파일 선택", command=self.upload_quote_file, width=80, height=28,
-                      fg_color=COLORS["bg_medium"], hover_color=COLORS["bg_light"], 
-                      text_color=COLORS["text"]).pack(side="right")
+        # FileDnDManager 사용
+        self.entry_quote_file, _, _ = self.file_manager.create_file_input_row(f_upload, "견적서", "견적서경로")
 
-        # --- 6행: 문서 생성 버튼들 (발주서, 기안서) - Full Width ---
+        # --- 11행: 문서 생성 버튼들 ---
         f_docs = ctk.CTkFrame(parent, fg_color="transparent")
-        f_docs.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
-        
-        # 버튼 균등 배치를 위한 Grid 설정
+        f_docs.grid(row=10, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
         f_docs.grid_columnconfigure(0, weight=1)
         f_docs.grid_columnconfigure(1, weight=1)
 
@@ -225,16 +215,31 @@ class PurchasePopup(BasePopup):
         # 모든 행 재계산
         for row in self.item_rows: self.calculate_row(row)
 
-    # --- Dummy Handlers for UI ---
-    def upload_quote_file(self):
-        # 디자인만 구현 (기능 추후)
-        filename = filedialog.askopenfilename(title="견적서 파일 선택", filetypes=[("PDF/Excel", "*.pdf *.xlsx *.xls"), ("All Files", "*.*")])
-        if filename:
-            self.entry_quote_file.configure(state="normal")
-            self.entry_quote_file.delete(0, "end")
-            self.entry_quote_file.insert(0, filename)
-            self.entry_quote_file.configure(state="readonly")
+    def _on_client_select(self, client_name):
+        """매입처 선택 시 금융 정보 자동 로드"""
+        if not client_name: return
+        
+        df = self.dm.df_clients
+        if df.empty: return
+        
+        row = df[df["업체명"] == client_name]
+        if not row.empty:
+            data = row.iloc[0]
+            
+            # Helper to set entry text
+            def set_text(entry, text):
+                entry.delete(0, "end")
+                entry.insert(0, str(text) if pd.notna(text) else "")
 
+            set_text(self.entry_account_holder, data.get("예금주", ""))
+            set_text(self.entry_account_number, data.get("계좌번호", ""))
+            set_text(self.entry_bank_name, data.get("은행명", ""))
+            set_text(self.entry_swift_code, data.get("Swift Code", ""))
+            
+            self.entry_bank_address.delete("1.0", "end")
+            self.entry_bank_address.insert("1.0", str(data.get("은행주소", "")) if pd.notna(data.get("은행주소")) else "")
+
+    # --- Dummy Handlers for UI ---
     def generate_po(self):
         messagebox.showinfo("알림", "발주서 PDF 생성 기능은 추후 구현됩니다.")
 
@@ -263,6 +268,19 @@ class PurchasePopup(BasePopup):
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
         self.entry_note.insert("1.0", str(data.get("비고", "")))
         
+        # Bank Info Load
+        def set_text(entry, text):
+            entry.delete(0, "end")
+            entry.insert(0, str(text) if pd.notna(text) else "")
+            
+        set_text(self.entry_account_holder, data.get("예금주", ""))
+        set_text(self.entry_account_number, data.get("계좌번호", ""))
+        set_text(self.entry_bank_name, data.get("은행명", ""))
+        set_text(self.entry_swift_code, data.get("Swift Code", ""))
+        
+        self.entry_bank_address.delete("1.0", "end")
+        self.entry_bank_address.insert("1.0", str(data.get("은행주소", "")) if pd.notna(data.get("은행주소")) else "")
+
         # 상태 로드 (기존 Status 호환성 고려)
         status = data.get("Status", "")
         recv_status = data.get("입고상태", "미입고")
@@ -279,9 +297,7 @@ class PurchasePopup(BasePopup):
         
         quote_path = data.get("견적서경로", "")
         if quote_path and str(quote_path) != "nan":
-            self.entry_quote_file.configure(state="normal")
-            self.entry_quote_file.insert(0, quote_path)
-            self.entry_quote_file.configure(state="readonly")
+            self.file_manager.update_file_entry("견적서경로", quote_path)
             
         for _, row in rows.iterrows():
             item_data = {
@@ -316,6 +332,19 @@ class PurchasePopup(BasePopup):
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
         self.entry_note.insert("1.0", str(data.get("비고", "")))
         
+        # Bank Info Copy
+        def set_text(entry, text):
+            entry.delete(0, "end")
+            entry.insert(0, str(text) if pd.notna(text) else "")
+            
+        set_text(self.entry_account_holder, data.get("예금주", ""))
+        set_text(self.entry_account_number, data.get("계좌번호", ""))
+        set_text(self.entry_bank_name, data.get("은행명", ""))
+        set_text(self.entry_swift_code, data.get("Swift Code", ""))
+        
+        self.entry_bank_address.delete("1.0", "end")
+        self.entry_bank_address.insert("1.0", str(data.get("은행주소", "")) if pd.notna(data.get("은행주소")) else "")
+        
         for _, row in rows.iterrows():
             item_data = {
                 "품목명": row.get("품목명", ""),
@@ -339,6 +368,14 @@ class PurchasePopup(BasePopup):
             messagebox.showwarning("경고", "매입처를 선택해주세요.", parent=self)
             return
             
+        # File Save
+        success, msg, quote_path = self.file_manager.save_file(
+            "견적서경로", "견적서", f"견적서_{client}", ""
+        )
+        if not success:
+            messagebox.showerror("파일 저장 실패", msg, parent=self)
+            return
+
         common_data = {
             "관리번호": mgmt_no,
             "발주일": self.entry_date.get(),
@@ -349,7 +386,13 @@ class PurchasePopup(BasePopup):
             "비고": self.entry_note.get("1.0", "end-1c").strip(),
             "입고상태": self.combo_receiving_status.get(),
             "지급상태": self.combo_payment_status.get(),
-            "견적서경로": self.entry_quote_file.get()
+            "견적서경로": quote_path,
+            # Bank Info
+            "예금주": self.entry_account_holder.get(),
+            "계좌번호": self.entry_account_number.get(),
+            "은행명": self.entry_bank_name.get(),
+            "Swift Code": self.entry_swift_code.get(),
+            "은행주소": self.entry_bank_address.get("1.0", "end-1c").strip()
         }
         
         rows_to_save = []
