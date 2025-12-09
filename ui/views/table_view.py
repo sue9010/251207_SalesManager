@@ -14,7 +14,6 @@ class MultiSelectDropdown(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent")
         self.values = values
         self.command = command
-        self.vars = values
         self.vars = {}
         self.dropdown_window = None
         
@@ -39,6 +38,12 @@ class MultiSelectDropdown(ctk.CTkFrame):
         else:
             return f"{selected_count}개 상태 선택됨"
 
+    def toggle_all(self):
+        state = self.all_var.get()
+        for var in self.vars.values():
+            var.set(state)
+        self.on_change()
+
     def toggle_dropdown(self):
         if self.dropdown_window and self.dropdown_window.winfo_exists():
             self.dropdown_window.destroy()
@@ -60,6 +65,11 @@ class MultiSelectDropdown(ctk.CTkFrame):
         scroll = ctk.CTkScrollableFrame(frame, width=200, height=250, fg_color="transparent")
         scroll.pack(fill="both", expand=True, padx=5, pady=5)
         
+        # Add "All" checkbox
+        self.all_var = ctk.BooleanVar(value=all(v.get() for v in self.vars.values()))
+        ctk.CTkCheckBox(scroll, text="All", variable=self.all_var, command=self.toggle_all,
+                        font=FONTS["main_bold"], text_color=COLORS["text"]).pack(anchor="w", pady=(2, 5))
+        
         for val in self.values:
             chk = ctk.CTkCheckBox(scroll, text=val, variable=self.vars[val], command=self.on_change,
                                   font=FONTS["main"], text_color=COLORS["text"])
@@ -72,6 +82,8 @@ class MultiSelectDropdown(ctk.CTkFrame):
 
     def on_change(self):
         self.btn_text.set(self._get_button_text())
+        if hasattr(self, 'all_var'):
+             self.all_var.set(all(v.get() for v in self.vars.values()))
         if self.command:
             self.command()
 
