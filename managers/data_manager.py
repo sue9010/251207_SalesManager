@@ -24,6 +24,7 @@ class DataManager:
         self.current_excel_path = Config.DEFAULT_EXCEL_PATH
         self.attachment_root = Config.DEFAULT_ATTACHMENT_ROOT
         self.production_request_path = Config.DEFAULT_PRODUCTION_REQUEST_PATH
+        self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH
         self.order_request_dir = Config.DEFAULT_ORDER_REQUEST_DIR 
         
         self.current_theme = "Dark"
@@ -41,14 +42,16 @@ class DataManager:
                     self.current_theme = data.get("theme", "Dark")
                     self.attachment_root = data.get("attachment_root", Config.DEFAULT_ATTACHMENT_ROOT)
                     self.production_request_path = data.get("production_request_path", Config.DEFAULT_PRODUCTION_REQUEST_PATH)
+                    self.purchase_data_path = data.get("purchase_data_path", Config.DEFAULT_PURCHASE_DATA_PATH)
                     self.order_request_dir = data.get("order_request_dir", Config.DEFAULT_ORDER_REQUEST_DIR)
             except: pass
 
-    def save_config(self, new_path=None, new_theme=None, new_attachment_dir=None, new_prod_path=None, new_order_req_dir=None):
+    def save_config(self, new_path=None, new_theme=None, new_attachment_dir=None, new_prod_path=None, new_order_req_dir=None, new_purchase_path=None):
         if new_path: self.current_excel_path = new_path
         if new_theme: self.current_theme = new_theme
         if new_attachment_dir: self.attachment_root = new_attachment_dir
         if new_prod_path: self.production_request_path = new_prod_path
+        if new_purchase_path: self.purchase_data_path = new_purchase_path
         if new_order_req_dir: self.order_request_dir = new_order_req_dir
         
         data = {
@@ -56,6 +59,7 @@ class DataManager:
             "theme": self.current_theme,
             "attachment_root": self.attachment_root,
             "production_request_path": self.production_request_path,
+            "purchase_data_path": self.purchase_data_path,
             "order_request_dir": self.order_request_dir
         }
         try:

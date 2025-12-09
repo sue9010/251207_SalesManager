@@ -89,6 +89,19 @@ class SettingsPopup(ctk.CTkToplevel):
         ctk.CTkButton(path_frame, text="찾기", width=60, command=self.browse_excel, 
                       fg_color=COLORS["bg_medium"], text_color=COLORS["text"]).pack(side="right")
         
+        # 2-1. 구매 데이터 파일 경로 설정 섹션
+        ctk.CTkLabel(parent, text="구매 데이터 파일 경로 (PurchaseData)", font=FONTS["header"]).pack(pady=(15, 5), anchor="w")
+
+        purchase_path_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        purchase_path_frame.pack(fill="x")
+
+        self.purchase_path_entry = ctk.CTkEntry(purchase_path_frame, font=FONTS["main"])
+        self.purchase_path_entry.insert(0, self.dm.purchase_data_path)
+        self.purchase_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        ctk.CTkButton(purchase_path_frame, text="찾기", width=60, command=self.browse_purchase_file, 
+                      fg_color=COLORS["bg_medium"], text_color=COLORS["text"]).pack(side="right")
+        
         # 3. 첨부 파일 저장 경로 설정 섹션
         ctk.CTkLabel(parent, text="첨부 파일 저장 폴더 (Root)", font=FONTS["header"]).pack(pady=(15, 5), anchor="w")
 
@@ -180,6 +193,14 @@ class SettingsPopup(ctk.CTkToplevel):
 
 
 
+    def browse_purchase_file(self):
+        self.attributes("-topmost", False)
+        file_path = filedialog.askopenfilename(parent=self, filetypes=[("Excel files", "*.xlsx;*.xls;*.xlsm")])
+        self.attributes("-topmost", True)
+        if file_path:
+            self.purchase_path_entry.delete(0, "end")
+            self.purchase_path_entry.insert(0, file_path)
+
     def toggle_dev_mode(self):
         if self.dev_var.get():
             self.attributes("-topmost", False)
@@ -219,13 +240,15 @@ class SettingsPopup(ctk.CTkToplevel):
         new_theme = self.theme_var.get()
         new_attach = self.attach_path_entry.get()
         new_prod_path = self.prod_path_entry.get()
+        new_purchase_path = self.purchase_path_entry.get()
         
         if new_path:
             self.dm.save_config(
                 new_path=new_path, 
                 new_theme=new_theme, 
                 new_attachment_dir=new_attach,
-                new_prod_path=new_prod_path
+                new_prod_path=new_prod_path,
+                new_purchase_path=new_purchase_path
             )
             
             self.attributes("-topmost", False)
