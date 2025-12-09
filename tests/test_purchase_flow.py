@@ -32,7 +32,8 @@ def test_purchase_flow():
         "공급가액": 10000,
         "세액": 1000,
         "합계금액": 11000,
-        "Status": "발주"
+        "입고상태": "미입고",
+        "지급상태": "미지급"
     }
     
     success, msg = dm.add_purchase([row_data])

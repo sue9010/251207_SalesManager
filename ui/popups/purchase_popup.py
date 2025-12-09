@@ -30,7 +30,45 @@ class PurchasePopup(BasePopup):
         if not real_mgmt_no:
             self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.combo_status.set("발주") # 기본 상태
+import tkinter as tk
+from datetime import datetime
+from tkinter import messagebox, filedialog
+import customtkinter as ctk
+import pandas as pd
+
+from ui.popups.base_popup import BasePopup
+from src.styles import COLORS, FONTS
+# ExportManager는 추후 발주서 PDF 생성 시 사용
+from managers.export_manager import ExportManager
+from ui.widgets.autocomplete_entry import AutocompleteEntry
+
+class PurchasePopup(BasePopup):
+    def __init__(self, parent, data_manager, refresh_callback, mgmt_no=None, copy_mode=False):
+        self.export_manager = ExportManager(data_manager)
+        self.copy_mode = copy_mode
+        self.copy_src_no = mgmt_no if copy_mode else None
+        
+        # 신규/수정 구분
+        real_mgmt_no = None if copy_mode else mgmt_no
+        
+        self.item_widgets_map = {} # 위젯 추적용
+        self.item_rows = [] # 데이터 추적용
+
+        # BasePopup 초기화
+        super().__init__(parent, data_manager, refresh_callback, popup_title="발주 등록", mgmt_no=real_mgmt_no)
+        self.geometry("1350x920")
+
+        # 신규 등록일 때 기본값 설정
+        if not real_mgmt_no:
+            self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
+            # self.combo_status.set("발주") # 기본 상태 - REMOVED
             self._generate_new_id() # 신규 번호 생성
+            # NEW: Set default for new status combos
+            if hasattr(self, 'combo_receiving_status'):
+                self.combo_receiving_status.set("미입고")
+            if hasattr(self, 'combo_payment_status'):
+                self.combo_payment_status.set("미지급")
+
 
         # 복사 모드일 때 데이터 로드
         if self.copy_mode and self.copy_src_no:
@@ -43,12 +81,19 @@ class PurchasePopup(BasePopup):
         extra_frame = ctk.CTkFrame(parent, fg_color="transparent")
         extra_frame.pack(fill="x", padx=20, pady=(0, 10))
         
-        ctk.CTkLabel(extra_frame, text="상태:", font=FONTS["main_bold"]).pack(side="left")
-        # 구매 프로세스 상태: 발주 -> 입고중 -> 완료 -> 취소
-        self.combo_status = ctk.CTkComboBox(extra_frame, values=["발주", "입고중", "완료", "취소"], 
-                                          width=100, font=FONTS["main"], state="readonly")
-        self.combo_status.pack(side="left", padx=5)
-        self.combo_status.set("발주")
+        # 입고 상태
+        ctk.CTkLabel(extra_frame, text="입고:", font=FONTS["main_bold"]).pack(side="left")
+        self.combo_receiving_status = ctk.CTkComboBox(extra_frame, values=["미입고", "입고중", "입고완료"], 
+                                          width=90, font=FONTS["main"], state="readonly")
+        self.combo_receiving_status.pack(side="left", padx=5)
+        self.combo_receiving_status.set("미입고")
+
+        # 지급 상태
+        ctk.CTkLabel(extra_frame, text="지급:", font=FONTS["main_bold"]).pack(side="left", padx=(10, 0))
+        self.combo_payment_status = ctk.CTkComboBox(extra_frame, values=["미지급", "지급완료"], 
+                                          width=90, font=FONTS["main"], state="readonly")
+        self.combo_payment_status.pack(side="left", padx=5)
+        self.combo_payment_status.set("미지급")
         
         # 발주번호 표시
         ctk.CTkLabel(extra_frame, text="발주번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
@@ -217,7 +262,20 @@ class PurchasePopup(BasePopup):
         self.entry_tax_rate.delete(0, "end")
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
         self.entry_note.insert("1.0", str(data.get("비고", "")))
-        self.combo_status.set(data.get("Status", "발주"))
+        
+        # 상태 로드 (기존 Status 호환성 고려)
+        status = data.get("Status", "")
+        recv_status = data.get("입고상태", "미입고")
+        pay_status = data.get("지급상태", "미지급")
+        
+        # 만약 기존 Status가 있고 새 컬럼이 비어있다면 매핑 시도 (간단히)
+        if status and (pd.isna(recv_status) or recv_status == "nan"):
+             if status == "완료": recv_status = "입고완료"
+             elif status == "입고중": recv_status = "입고중"
+             else: recv_status = "미입고"
+             
+        self.combo_receiving_status.set(recv_status)
+        self.combo_payment_status.set(pay_status)
         
         quote_path = data.get("견적서경로", "")
         if quote_path and str(quote_path) != "nan":
@@ -289,7 +347,8 @@ class PurchasePopup(BasePopup):
             "통화": self.combo_currency.get(),
             "세율(%)": self.entry_tax_rate.get(),
             "비고": self.entry_note.get("1.0", "end-1c").strip(),
-            "Status": self.combo_status.get(),
+            "입고상태": self.combo_receiving_status.get(),
+            "지급상태": self.combo_payment_status.get(),
             "견적서경로": self.entry_quote_file.get()
         }
         

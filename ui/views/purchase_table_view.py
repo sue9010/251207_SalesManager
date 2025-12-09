@@ -105,13 +105,9 @@ class PurchaseTableView(ctk.CTkFrame):
         self.dm = data_manager
         self.pm = popup_manager
         
-        # 구매 관리용 상태
-        self.all_statuses = [
-            "발주", "입고대기", "입고중", "입고완료/지급대기", 
-            "입고완료/지급완료", "종료", "취소", "보류"
-        ]
-        
-        self.default_statuses = [s for s in self.all_statuses if s not in ["종료", "취소", "보류"]]
+        # 구매 관리용 상태 정의
+        self.receiving_statuses = ["미입고", "입고중", "입고완료"]
+        self.payment_statuses = ["미지급", "지급완료"]
         
         self.sort_col = "발주일"
         self.sort_reverse = True
@@ -138,19 +134,31 @@ class PurchaseTableView(ctk.CTkFrame):
         )
         self.view_filter.pack(side="left", padx=(0, 10)) 
 
-        # 상태 필터
-        ctk.CTkLabel(header_frame, text="상태 필터:", font=FONTS["main_bold"], text_color=COLORS["text"]).pack(side="left", padx=(0, 10))
-        
-        self.status_filter = MultiSelectDropdown(
+        # 입고 상태 필터
+        ctk.CTkLabel(header_frame, text="입고:", font=FONTS["main_bold"], text_color=COLORS["text"]).pack(side="left", padx=(0, 5))
+        self.filter_receiving = MultiSelectDropdown(
             header_frame, 
-            values=self.all_statuses, 
-            default_values=self.default_statuses,
+            values=self.receiving_statuses, 
+            default_values=self.receiving_statuses,
             command=self.refresh_data,
-            width=150,
-            dropdown_height=280,
-            dropdown_width=200
+            width=120,
+            dropdown_height=150,
+            dropdown_width=150
         )
-        self.status_filter.pack(side="left", padx=5)
+        self.filter_receiving.pack(side="left", padx=5)
+
+        # 지급 상태 필터
+        ctk.CTkLabel(header_frame, text="지급:", font=FONTS["main_bold"], text_color=COLORS["text"]).pack(side="left", padx=(10, 5))
+        self.filter_payment = MultiSelectDropdown(
+            header_frame, 
+            values=self.payment_statuses, 
+            default_values=self.payment_statuses,
+            command=self.refresh_data,
+            width=120,
+            dropdown_height=100,
+            dropdown_width=150
+        )
+        self.filter_payment.pack(side="left", padx=5)
                 
         # 새로고침 / 검색 버튼
         ctk.CTkButton(header_frame, text="새로고침", command=self.refresh_data, width=80, 
@@ -192,17 +200,17 @@ class PurchaseTableView(ctk.CTkFrame):
         table_frame = ctk.CTkFrame(self, fg_color="transparent")
         table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        columns = ("관리번호", "Status", "업체명", "모델명", "수량", "공급가액", "발주일", "입고예정일", "입고일")
+        columns = ("관리번호", "입고상태", "지급상태", "업체명", "모델명", "수량", "공급가액", "발주일", "입고예정일", "입고일")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
         
         col_widths = {
-            "관리번호": 100, "Status": 80, "업체명": 120, "모델명": 150, 
+            "관리번호": 100, "입고상태": 70, "지급상태": 70, "업체명": 120, "모델명": 150, 
             "수량": 60, "공급가액": 100, "발주일": 90, "입고예정일": 90, "입고일": 90
         }
         
         for col in columns:
             self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
-            self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호","업체명","모델명", "Status", "수량", "발주일", "입고예정일", "입고일"] else "w")
+            self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호","업체명","모델명", "입고상태", "지급상태", "수량", "발주일", "입고예정일", "입고일"] else "w")
             if col == "공급가액":
                 self.tree.column(col, anchor="e")
             
@@ -238,18 +246,29 @@ class PurchaseTableView(ctk.CTkFrame):
         df = self.dm.df_purchase
         if df is None or df.empty: return
         
-        selected_statuses = self.status_filter.get_selected()
+        selected_recv = self.filter_receiving.get_selected()
+        selected_pay = self.filter_payment.get_selected()
         search_text = self.search_entry.get().lower().strip()
         view_mode = self.view_mode_var.get()
         
         filtered_rows = []
         
         for _, row in df.iterrows():
-            status = str(row.get("Status", "")).strip()
+            recv_status = str(row.get("입고상태", "미입고")).strip()
+            pay_status = str(row.get("지급상태", "미지급")).strip()
+            
+            # 기존 Status 호환성 (데이터가 비어있을 경우)
+            if pd.isna(recv_status) or recv_status == "nan": recv_status = "미입고"
+            if pd.isna(pay_status) or pay_status == "nan": pay_status = "미지급"
+
             # 필터링
-            if status not in selected_statuses and "All" not in selected_statuses:
-                if not (len(selected_statuses) == len(self.all_statuses)):
-                     if status not in selected_statuses: continue
+            if recv_status not in selected_recv and "All" not in selected_recv:
+                if not (len(selected_recv) == len(self.receiving_statuses)):
+                     if recv_status not in selected_recv: continue
+
+            if pay_status not in selected_pay and "All" not in selected_pay:
+                if not (len(selected_pay) == len(self.payment_statuses)):
+                     if pay_status not in selected_pay: continue
 
             if search_text:
                 mgmt_no = str(row.get("관리번호", "")).lower()
@@ -261,6 +280,9 @@ class PurchaseTableView(ctk.CTkFrame):
                     search_text not in model):
                     continue
             
+            # 행 데이터에 상태 정규화하여 저장 (표시용)
+            row["입고상태"] = recv_status
+            row["지급상태"] = pay_status
             filtered_rows.append(row)
 
         if view_mode == "발주별":
@@ -308,7 +330,8 @@ class PurchaseTableView(ctk.CTkFrame):
         for row in filtered_rows:
             values = (
                 row.get("관리번호", ""),
-                row.get("Status", ""),
+                row.get("입고상태", ""),
+                row.get("지급상태", ""),
                 row.get("업체명", ""),
                 row.get("모델명", ""),
                 row.get("수량", ""),
@@ -335,15 +358,11 @@ class PurchaseTableView(ctk.CTkFrame):
         self.tree.selection_set(item)
         values = self.tree.item(item, "values")
         mgmt_no = values[0]
-        status = values[1]
         
         self.context_menu.clear()
         
-        if status == "발주":
-            self.context_menu.add_command("발주 복사", lambda: self.pm.open_purchase_popup(mgmt_no=mgmt_no, copy_mode=True))
-            self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
-
-        # 필요 시 다른 상태 메뉴 추가
+        # 발주 복사는 항상 가능하도록
+        self.context_menu.add_command("발주 복사", lambda: self.pm.open_purchase_popup(mgmt_no=mgmt_no, copy_mode=True))
             
         if self.context_menu.buttons:
             self.context_menu.show(event.x_root, event.y_root)
