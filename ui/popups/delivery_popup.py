@@ -29,7 +29,7 @@ class DeliveryPopup(BasePopup):
         self.cached_client_name = "" # UI Entry 대신 변수로 관리
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=self.mgmt_nos[0])
-        self.geometry("1100x850")
+        self.geometry("1350x920")
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")

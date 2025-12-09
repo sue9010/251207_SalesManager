@@ -54,6 +54,7 @@ class MultiSelectDropdown(ctk.CTkFrame):
             
         self.dropdown_window = ctk.CTkToplevel(self)
         self.dropdown_window.wm_overrideredirect(True)
+        # [팝업 관리] 드롭다운 메뉴도 최상위로 설정
         self.dropdown_window.attributes("-topmost", True)
         self.dropdown_window.attributes("-alpha", 0.95)
         
@@ -124,6 +125,20 @@ class TableView(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
         
+        # --- [수정] 보기 필터 (품목별/주문별) 추가 ---
+        self.view_mode_var = ctk.StringVar(value="품목별")
+        self.view_filter = ctk.CTkSegmentedButton(
+            header_frame,
+            values=["품목별", "주문별"],
+            variable=self.view_mode_var,
+            command=lambda x: self.refresh_data(),
+            width=150,
+            font=FONTS["main_bold"]
+        )
+        self.view_filter.pack(side="left", padx=(0, 10)) 
+
+        # ---------------------------------------------
+
         ctk.CTkLabel(header_frame, text="상태 필터:", font=FONTS["main_bold"], text_color=COLORS["text"]).pack(side="left", padx=(0, 10))
         
         self.status_filter = MultiSelectDropdown(
@@ -222,8 +237,11 @@ class TableView(ctk.CTkFrame):
         
         selected_statuses = self.status_filter.get_selected()
         search_text = self.search_entry.get().lower().strip()
+        view_mode = self.view_mode_var.get() # "품목별" 또는 "주문별"
         
         filtered_rows = []
+        
+        # 1. 기본 필터링 (상태, 검색어)
         for _, row in df.iterrows():
             # Status Filter
             status = str(row.get("Status", "")).strip()
@@ -242,7 +260,59 @@ class TableView(ctk.CTkFrame):
                     continue
             
             filtered_rows.append(row)
+
+        # 2. 보기 모드에 따른 그룹화
+        if view_mode == "주문별":
+            grouped_data = {}
+            # 관리번호 기준으로 그룹화
+            for row in filtered_rows:
+                mgmt_no = row.get("관리번호", "")
+                if mgmt_no not in grouped_data:
+                    grouped_data[mgmt_no] = []
+                grouped_data[mgmt_no].append(row)
+            
+            aggregated_rows = []
+            for mgmt_no, items in grouped_data.items():
+                if not items: continue
+                
+                # 첫 번째 아이템을 기준으로 대표 정보 생성
+                base_item = items[0]
+                new_row = base_item.copy() # Series 복사
+                
+                # 항목이 여러 개인 경우 집계 처리
+                if len(items) > 1:
+                    # 1) 모델명: "A 모델 외 N건"
+                    first_model = str(base_item.get("모델명", ""))
+                    new_row["모델명"] = f"{first_model} 외 {len(items)-1}건"
+                    
+                    # 2) 수량: 합계
+                    total_qty = 0
+                    for item in items:
+                        try:
+                            # "1,000" 문자열 처리
+                            qty_val = str(item.get("수량", "0")).replace(",", "")
+                            total_qty += float(qty_val) if qty_val else 0
+                        except ValueError:
+                            pass
+                    new_row["수량"] = f"{int(total_qty):,}" # 다시 천단위 콤마 포맷
+                    
+                    # 3) 공급가액: 합계
+                    total_price = 0.0
+                    for item in items:
+                        try:
+                            price_val = str(item.get("공급가액", "0")).replace(",", "")
+                            total_price += float(price_val) if price_val else 0
+                        except ValueError:
+                            pass
+                    new_row["공급가액"] = f"{total_price:,.0f}" # 다시 천단위 콤마 포맷
+                
+                aggregated_rows.append(new_row)
+            
+            # 필터된 행 교체
+            filtered_rows = aggregated_rows
+
         
+        # 3. 정렬 (Sort)
         def sort_key(x):
             val = x.get(self.sort_col, "")
             
@@ -262,6 +332,7 @@ class TableView(ctk.CTkFrame):
             
         filtered_rows.sort(key=sort_key, reverse=self.sort_reverse)
         
+        # 4. Treeview 삽입
         for row in filtered_rows:
             values = (
                 row.get("관리번호", ""),
