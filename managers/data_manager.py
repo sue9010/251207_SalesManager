@@ -11,18 +11,23 @@ from managers.data.delivery_handler import DeliveryHandler
 
 class DataManager:
     def __init__(self):
+        # 기존 판매 관련 DataFrame
         self.df_clients = pd.DataFrame(columns=Config.CLIENT_COLUMNS)
-        self.df_data = pd.DataFrame(columns=Config.DATA_COLUMNS)
+        self.df_data = pd.DataFrame(columns=Config.DATA_COLUMNS) # Sales Data
         self.df_payment = pd.DataFrame(columns=Config.PAYMENT_COLUMNS)
         self.df_delivery = pd.DataFrame(columns=Config.DELIVERY_COLUMNS)
         self.df_log = pd.DataFrame(columns=Config.LOG_COLUMNS)
         self.df_memo = pd.DataFrame(columns=Config.MEMO_COLUMNS)
         self.df_memo_log = pd.DataFrame(columns=Config.MEMO_LOG_COLUMNS)
         
+        # [신규] 구매 관련 DataFrame 추가
+        self.df_purchase = pd.DataFrame(columns=Config.PURCHASE_COLUMNS)
+        
+        # Paths (Config에서 로드됨)
         self.current_excel_path = Config.DEFAULT_EXCEL_PATH
+        self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH # 구매 엑셀 경로
         self.attachment_root = Config.DEFAULT_ATTACHMENT_ROOT
         self.production_request_path = Config.DEFAULT_PRODUCTION_REQUEST_PATH
-        self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH
         self.order_request_dir = Config.DEFAULT_ORDER_REQUEST_DIR 
         
         self.current_theme = "Dark"
@@ -42,20 +47,72 @@ class DataManager:
     # Delegate to FileHandler
     def load_config(self):
         self.file_handler.load_config()
+        # config 로드 후 경로 업데이트 확인
+        self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH
 
     def save_config(self, *args, **kwargs):
         self.file_handler.save_config(*args, **kwargs)
 
     def load_data(self):
-        return self.file_handler.load_data()
+        """
+        판매 데이터(SalesList.xlsx)와 구매 데이터(OrderList.xlsx)를 모두 로드합니다.
+        """
+        # 1. 판매 데이터 로드 (기존 로직)
+        success_sales, msg_sales = self.file_handler.load_data()
+        
+        # 2. 구매 데이터 로드 (신규 로직)
+        success_purchase, msg_purchase = self._load_purchase_data()
+        
+        if not success_sales: return False, f"Sales Load Error: {msg_sales}"
+        if not success_purchase: 
+            # 구매 파일 로드 실패 시 로그만 남기고 일단 진행 (판매 기능은 유지)하거나 실패 처리
+            # 여기서는 명확한 오류 확인을 위해 실패로 처리합니다.
+            return False, f"Purchase Load Error: {msg_purchase}"
+            
+        return True, "데이터 로드 완료"
+
+    def _load_purchase_data(self):
+        """내부 메서드: 구매 엑셀 파일을 로드하여 self.df_purchase에 저장"""
+        if not os.path.exists(self.purchase_data_path):
+            # 파일이 없으면 빈 DF 생성 후 저장 (파일 생성)
+            try:
+                # 폴더가 없으면 생성
+                os.makedirs(os.path.dirname(self.purchase_data_path), exist_ok=True)
+                
+                with pd.ExcelWriter(self.purchase_data_path, engine="openpyxl") as writer:
+                    pd.DataFrame(columns=Config.PURCHASE_COLUMNS).to_excel(writer, sheet_name="Data", index=False)
+                    # 필요한 경우 다른 시트들도 빈 상태로 생성 가능
+                self.df_purchase = pd.DataFrame(columns=Config.PURCHASE_COLUMNS)
+                return True, "새로운 구매 데이터 파일 생성됨"
+            except Exception as e:
+                return False, f"구매 파일 생성 실패: {e}"
+        
+        try:
+            # Data 시트 읽기
+            df = pd.read_excel(self.purchase_data_path, sheet_name="Data", engine="openpyxl")
+            # 컬럼 보정 (누락된 컬럼 추가)
+            for col in Config.PURCHASE_COLUMNS:
+                if col not in df.columns:
+                    df[col] = ""
+            
+            # NaN 처리
+            df = df.fillna("")
+            self.df_purchase = df
+            return True, "구매 데이터 로드 성공"
+            
+        except Exception as e:
+            return False, f"구매 데이터 읽기 실패: {e}"
 
     def save_to_excel(self):
+        # 판매 데이터 저장
         return self.file_handler.save_to_excel()
+        # TODO: 구매 데이터 저장 로직도 save_purchase_data() 등으로 분리하거나 통합 필요
 
     def create_backup(self):
         return self.file_handler.create_backup()
 
     def check_for_external_changes(self):
+        # TODO: Purchase 파일 변경 체크 로직도 추가 필요
         return self.file_handler.check_for_external_changes()
 
     def save_attachment(self, *args, **kwargs):
