@@ -25,7 +25,7 @@ class AfterSalesPopup(BasePopup):
             self.destroy()
             return
             
-        super().__init__(parent, data_manager, refresh_callback, popup_title="사후처리 (A/S)", mgmt_no=self.mgmt_nos[0])
+        super().__init__(parent, data_manager, refresh_callback, popup_title="사후처리", mgmt_no=self.mgmt_nos[0])
         self.geometry("1300x850")
 
 
@@ -183,7 +183,7 @@ class AfterSalesPopup(BasePopup):
             client_name = self.dm.df_data.loc[self.dm.df_data["관리번호"] == self.mgmt_nos[0], "업체명"].values[0]
         except: client_name = "Unknown"
         
-        info_text = f"{client_name}_{self.mgmt_nos[0]}_AS"
+        info_text = f"{client_name}_{self.mgmt_nos[0]}"
 
         file_inputs = [
             ("수출신고필증경로", "ExportDeclaration")
