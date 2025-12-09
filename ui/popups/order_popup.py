@@ -95,7 +95,7 @@ class OrderPopup(BasePopup):
         f_req = ctk.CTkFrame(parent, fg_color="transparent")
         f_req.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_req, text="주문요청", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        self.entry_req = ctk.CTkEntry(f_req, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_req = ctk.CTkTextbox(f_req, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_req.pack(side="left", fill="x", expand=True)
 
         # Row 6: Note (Multiline)

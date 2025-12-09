@@ -46,13 +46,13 @@ class ClientPopup(BasePopup):
 
     def _setup_info_panel(self, parent):
         # Parent is self.info_panel
-        parent.pack_propagate(True) # Re-enable propagation to let children dictate size if needed, though we expand it.
+        parent.pack_propagate(True)
         
         # Use two columns within the info panel
         parent.columnconfigure(0, weight=1)
         parent.columnconfigure(1, weight=1)
         parent.rowconfigure(0, weight=1) # Columns row
-        parent.rowconfigure(1, weight=0) # Notes row
+        parent.rowconfigure(1, weight=0) # Bottom row
         
         left_col = ctk.CTkFrame(parent, fg_color="transparent")
         left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=10)
@@ -61,69 +61,67 @@ class ClientPopup(BasePopup):
         right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
         
         # --- Left Column ---
+        # 1. 기본 정보
         ctk.CTkLabel(left_col, text="기본 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         basic_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        basic_frame.pack(fill="x", pady=(0, 15))
+        basic_frame.pack(fill="x", pady=(0, 20))
         
         self.entries["업체명"] = self.create_input_row(basic_frame, "업체명")
         self.entries["국가"] = self.create_input_row(basic_frame, "국가")
         self.entries["통화"] = self.create_combo_row(basic_frame, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"])
         self.entries["주소"] = self.create_input_row(basic_frame, "주소")
 
-        # [신규] 금융 정보 (Left Column)
+        # 2. 금융 정보
         ctk.CTkLabel(left_col, text="금융 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         bank_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         bank_frame.pack(fill="x", pady=(0, 15))
 
-        self.entries["계좌번호"] = self.create_input_row(bank_frame, "계좌번호")
+        self.entries["결제방법"] = self.create_input_row(bank_frame, "결제방법")
         self.entries["예금주"] = self.create_input_row(bank_frame, "예금주")
+        self.entries["계좌번호"] = self.create_input_row(bank_frame, "계좌번호")
         self.entries["은행명"] = self.create_input_row(bank_frame, "은행명")
         self.entries["은행주소"] = self.create_input_row(bank_frame, "은행주소")
         self.entries["Swift Code"] = self.create_input_row(bank_frame, "Swift Code")
 
         # --- Right Column ---
-        # [이동] 담당자 정보 (Right Column Top)
+        # 3. 담당자 정보
         ctk.CTkLabel(right_col, text="담당자 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         contact_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        contact_frame.pack(fill="x", pady=(0, 15))
+        contact_frame.pack(fill="x", pady=(0, 20))
         
         self.entries["담당자"] = self.create_input_row(contact_frame, "담당자")
         self.entries["전화번호"] = self.create_input_row(contact_frame, "전화번호")
         self.entries["이메일"] = self.create_input_row(contact_frame, "이메일")
 
-
-        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(40, 5))
+        # 4. 수출/물류 정보
+        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         logistics_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         logistics_frame.pack(fill="x", pady=(0, 15))
         
         self.entries["수출허가구분"] = self.create_input_row(logistics_frame, "수출허가구분")
         self.entries["수출허가번호"] = self.create_input_row(logistics_frame, "수출허가번호")
-        self.entries["수출허가만료일"] = self.create_input_row(logistics_frame, "만료일", placeholder="YYYY-MM-DD")
+        self.entries["만료일"] = self.create_input_row(logistics_frame, "만료일", placeholder="YYYY-MM-DD")
         self.entries["운송계정"] = self.create_input_row(logistics_frame, "운송계정")
         self.entries["운송방법"] = self.create_input_row(logistics_frame, "운송방법")
 
-        ctk.CTkLabel(right_col, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        doc_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        doc_frame.pack(fill="x", pady=(0, 5))
+        # --- Bottom Section ---
+        bottom_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        
+        # 5. 증빙 서류
+        ctk.CTkLabel(bottom_frame, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+        doc_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
+        doc_frame.pack(fill="x", pady=(0, 15))
         
         entry, _, _ = self.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로")
         self.entries["사업자등록증경로"] = entry
 
-        # --- Bottom (Notes) ---
-        # We need to add this to the parent (info_panel) below the columns, 
-        # but we used grid for columns.
-        # Let's put columns in a container frame first? 
-        # Actually, parent is info_panel. We can use grid row 1 for notes.
-        
-        note_container = ctk.CTkFrame(parent, fg_color="transparent")
-        note_container.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        
-        ctk.CTkLabel(note_container, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        note_frame = ctk.CTkFrame(note_container, fg_color=COLORS["bg_medium"], corner_radius=6)
+        # 6. 기타 특이사항
+        ctk.CTkLabel(bottom_frame, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+        note_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
         note_frame.pack(fill="x")
         
-        # Match CTkEntry style using centralized styles
-        self.entry_note = ctk.CTkTextbox(note_frame, height=100, border_width=2, 
+        self.entry_note = ctk.CTkTextbox(note_frame, height=80, border_width=2, 
                                          border_color=COLORS["entry_border"], fg_color=COLORS["entry_bg"])
         self.entry_note.pack(fill="x", padx=5, pady=5)
         self.entries["특이사항"] = self.entry_note

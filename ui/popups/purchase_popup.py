@@ -77,7 +77,7 @@ class PurchasePopup(BasePopup):
 
     def _setup_info_panel(self, parent):
         """
-        좌측 패널 디자인 (11행 레이아웃 적용)
+        좌측 패널 디자인 (12행 레이아웃 적용)
         """
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
@@ -90,9 +90,13 @@ class PurchasePopup(BasePopup):
         self.combo_currency = self.create_grid_combo(parent, 1, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
         self.entry_tax_rate = self.create_grid_input(parent, 1, 1, "세율(%)")
 
-        # --- 3행: 매입처 (Autocomplete) - Full Width ---
+        # --- 3행: 결제방법 (New) ---
+        self.entry_payment_method = self.create_grid_input(parent, 2, 0, "결제방법")
+        # 3행 우측은 비워두거나 다른 정보 배치 가능. 일단 비워둠.
+        
+        # --- 4행: 매입처 (Autocomplete) - Full Width ---
         f_client = ctk.CTkFrame(parent, fg_color="transparent")
-        f_client.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_client.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_client, text="매입처", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         
         client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
@@ -100,7 +104,6 @@ class PurchasePopup(BasePopup):
                                               height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_client.pack(side="left", fill="x", expand=True)
 
-        # --- 4행: 예금주 ---
         # Helper for full width input
         def create_full_width_input(row_idx, label, key_name):
             f = ctk.CTkFrame(parent, fg_color="transparent")
@@ -110,41 +113,42 @@ class PurchasePopup(BasePopup):
             entry.pack(side="left", fill="x", expand=True)
             return entry
 
-        self.entry_account_holder = create_full_width_input(3, "예금주", "예금주")
+        # --- 5행: 예금주 ---
+        self.entry_account_holder = create_full_width_input(4, "예금주", "예금주")
         
-        # --- 5행: 계좌번호 ---
-        self.entry_account_number = create_full_width_input(4, "계좌번호", "계좌번호")
+        # --- 6행: 계좌번호 ---
+        self.entry_account_number = create_full_width_input(5, "계좌번호", "계좌번호")
 
-        # --- 6행: 은행명 ---
-        self.entry_bank_name = create_full_width_input(5, "은행명", "은행명")
+        # --- 7행: 은행명 ---
+        self.entry_bank_name = create_full_width_input(6, "은행명", "은행명")
 
-        # --- 7행: Swift Code ---
-        self.entry_swift_code = create_full_width_input(6, "Swift Code", "Swift Code")
+        # --- 8행: Swift Code ---
+        self.entry_swift_code = create_full_width_input(7, "Swift Code", "Swift Code")
 
-        # --- 8행: 은행주소 (Multiline) ---
+        # --- 9행: 은행주소 (Multiline) ---
         f_bank_addr = ctk.CTkFrame(parent, fg_color="transparent")
-        f_bank_addr.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_bank_addr.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_bank_addr, text="은행주소", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
-        self.entry_bank_address = ctk.CTkTextbox(f_bank_addr, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, wrap="word")
+        self.entry_bank_address = ctk.CTkTextbox(f_bank_addr, height=50, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, wrap="word")
         self.entry_bank_address.pack(side="left", fill="x", expand=True)
 
-        # --- 9행: 비고 (Multiline) ---
+        # --- 10행: 비고 (Multiline) ---
         f_note = ctk.CTkFrame(parent, fg_color="transparent")
-        f_note.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_note.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
-        self.entry_note = ctk.CTkTextbox(f_note, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, wrap="word")
+        self.entry_note = ctk.CTkTextbox(f_note, height=50, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2, wrap="word")
         self.entry_note.pack(side="left", fill="x", expand=True)
 
-        # --- 10행: 견적서 파일 업로드 (FileDnDManager) ---
+        # --- 11행: 견적서 파일 업로드 (FileDnDManager) ---
         f_upload = ctk.CTkFrame(parent, fg_color="transparent")
-        f_upload.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_upload.grid(row=10, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         
         # FileDnDManager 사용
         self.entry_quote_file, _, _ = self.file_manager.create_file_input_row(f_upload, "견적서", "견적서경로")
 
-        # --- 11행: 문서 생성 버튼들 ---
+        # --- 12행: 문서 생성 버튼들 ---
         f_docs = ctk.CTkFrame(parent, fg_color="transparent")
-        f_docs.grid(row=10, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        f_docs.grid(row=11, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
         f_docs.grid_columnconfigure(0, weight=1)
         f_docs.grid_columnconfigure(1, weight=1)
 
@@ -186,6 +190,12 @@ class PurchasePopup(BasePopup):
         # 합계 표시 영역
         total_frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
         total_frame.pack(fill="x", padx=20, pady=10)
+        
+        self.lbl_total_qty = ctk.CTkLabel(total_frame, text="총 수량: 0", font=FONTS["main_bold"], text_color=COLORS["text"])
+        self.lbl_total_qty.pack(side="right", padx=20)
+        
+        self.lbl_total_amt = ctk.CTkLabel(total_frame, text="총 합계: 0", font=FONTS["header"], text_color=COLORS["primary"])
+        self.lbl_total_amt.pack(side="right", padx=20)
 
     def _setup_buttons(self, parent):
         btn_frame = ctk.CTkFrame(parent, fg_color="transparent", height=50)
@@ -216,7 +226,7 @@ class PurchasePopup(BasePopup):
         for row in self.item_rows: self.calculate_row(row)
 
     def _on_client_select(self, client_name):
-        """매입처 선택 시 금융 정보 자동 로드"""
+        """매입처 선택 시 금융 정보 및 기타 정보 자동 로드"""
         if not client_name: return
         
         df = self.dm.df_clients
@@ -231,6 +241,27 @@ class PurchasePopup(BasePopup):
                 entry.delete(0, "end")
                 entry.insert(0, str(text) if pd.notna(text) else "")
 
+            # 1. 국가 기반 구분 설정
+            country = str(data.get("국가", "")).strip()
+            domestic_keywords = ["KR", "대한민국", "한국", "South Korea", "Korea"]
+            if country in domestic_keywords:
+                self.combo_type.set("내수")
+                self.entry_tax_rate.delete(0, "end")
+                self.entry_tax_rate.insert(0, "10")
+            else:
+                self.combo_type.set("수입")
+                self.entry_tax_rate.delete(0, "end")
+                self.entry_tax_rate.insert(0, "0")
+
+            # 2. 통화 설정
+            currency = str(data.get("통화", "KRW")).strip()
+            if currency:
+                self.combo_currency.set(currency)
+            
+            # 3. 결제방법 설정
+            set_text(self.entry_payment_method, data.get("결제방법", ""))
+
+            # 4. 금융 정보 설정
             set_text(self.entry_account_holder, data.get("예금주", ""))
             set_text(self.entry_account_number, data.get("계좌번호", ""))
             set_text(self.entry_bank_name, data.get("은행명", ""))
@@ -238,6 +269,10 @@ class PurchasePopup(BasePopup):
             
             self.entry_bank_address.delete("1.0", "end")
             self.entry_bank_address.insert("1.0", str(data.get("은행주소", "")) if pd.notna(data.get("은행주소")) else "")
+
+            # 5. 비고 (특이사항) 설정
+            self.entry_note.delete("1.0", "end")
+            self.entry_note.insert("1.0", str(data.get("특이사항", "")) if pd.notna(data.get("특이사항")) else "")
 
     # --- Dummy Handlers for UI ---
     def generate_po(self):
@@ -266,6 +301,10 @@ class PurchasePopup(BasePopup):
         self.combo_currency.set(data.get("통화", "KRW"))
         self.entry_tax_rate.delete(0, "end")
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
+        
+        self.entry_payment_method.delete(0, "end")
+        self.entry_payment_method.insert(0, str(data.get("결제방법", "")))
+
         self.entry_note.insert("1.0", str(data.get("비고", "")))
         
         # Bank Info Load
@@ -330,6 +369,10 @@ class PurchasePopup(BasePopup):
         self.combo_currency.set(data.get("통화", "KRW"))
         self.entry_tax_rate.delete(0, "end")
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
+        
+        self.entry_payment_method.delete(0, "end")
+        self.entry_payment_method.insert(0, str(data.get("결제방법", "")))
+
         self.entry_note.insert("1.0", str(data.get("비고", "")))
         
         # Bank Info Copy
@@ -383,6 +426,7 @@ class PurchasePopup(BasePopup):
             "업체명": client,
             "통화": self.combo_currency.get(),
             "세율(%)": self.entry_tax_rate.get(),
+            "결제방법": self.entry_payment_method.get(),
             "비고": self.entry_note.get("1.0", "end-1c").strip(),
             "입고상태": self.combo_receiving_status.get(),
             "지급상태": self.combo_payment_status.get(),
