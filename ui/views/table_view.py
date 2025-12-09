@@ -90,7 +90,7 @@ class TableView(ctk.CTkFrame):
         self.all_statuses = [
             "견적", "주문", "생산중", "납품대기", 
             "납품완료/입금대기", "납품대기/입금완료", 
-            "완료", "취소", "보류"
+            "완료", "종료","취소", "보류"
         ]
         
         self.default_statuses = [s for s in self.all_statuses if s != "완료"]
