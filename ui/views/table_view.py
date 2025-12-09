@@ -10,11 +10,13 @@ from ui.components.context_menu import ContextMenu
 from tkinter import messagebox
 
 class MultiSelectDropdown(ctk.CTkFrame):
-    def __init__(self, parent, values, default_values=None, command=None, width=200):
+    def __init__(self, parent, values, default_values=None, command=None, width=200, height=30, dropdown_height=300, dropdown_width=200):
         super().__init__(parent, fg_color="transparent")
         self.values = values
         self.command = command
         self.vars = {}
+        self.dropdown_height = dropdown_height
+        self.dropdown_width = dropdown_width
         self.dropdown_window = None
         
         if default_values is None:
@@ -25,7 +27,7 @@ class MultiSelectDropdown(ctk.CTkFrame):
             
         self.btn_text = ctk.StringVar(value=self._get_button_text())
         self.button = ctk.CTkButton(self, textvariable=self.btn_text, command=self.toggle_dropdown, 
-                                    width=width, fg_color=COLORS["bg_light"], text_color=COLORS["text"],
+                                    width=width, height=height, fg_color=COLORS["bg_light"], text_color=COLORS["text"],
                                     hover_color=COLORS["bg_light_hover"], font=FONTS["main"])
         self.button.pack(fill="both", expand=True)
         
@@ -62,7 +64,7 @@ class MultiSelectDropdown(ctk.CTkFrame):
         frame = ctk.CTkFrame(self.dropdown_window, fg_color=COLORS["bg_medium"], border_width=1, border_color=COLORS["border"])
         frame.pack(fill="both", expand=True)
         
-        scroll = ctk.CTkScrollableFrame(frame, width=200, height=250, fg_color="transparent")
+        scroll = ctk.CTkScrollableFrame(frame, width=self.dropdown_width, height=self.dropdown_height, fg_color="transparent")
         scroll.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Add "All" checkbox
@@ -108,7 +110,7 @@ class TableView(ctk.CTkFrame):
             "완료", "종료","취소", "보류"
         ]
         
-        self.default_statuses = [s for s in self.all_statuses if s != "종료"]
+        self.default_statuses = [s for s in self.all_statuses if s not in ["종료", "취소","보류"]]
         
         self.sort_col = "출고예정일"
         self.sort_reverse = False
@@ -129,7 +131,9 @@ class TableView(ctk.CTkFrame):
             values=self.all_statuses, 
             default_values=self.default_statuses,
             command=self.refresh_data,
-            width=200
+            width=150,
+            dropdown_height=280,
+            dropdown_width=150
         )
         self.status_filter.pack(side="left", padx=5)
         
