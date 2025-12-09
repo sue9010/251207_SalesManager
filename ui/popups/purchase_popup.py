@@ -212,7 +212,7 @@ class PurchasePopup(BasePopup):
         
         self.entry_date.insert(0, data.get("발주일", ""))
         self.combo_type.set(data.get("구분", "내수"))
-        self.entry_client.set(data.get("업체명", ""))
+        self.entry_client.set_value(data.get("업체명", ""))
         self.combo_currency.set(data.get("통화", "KRW"))
         self.entry_tax_rate.delete(0, "end")
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
@@ -252,7 +252,7 @@ class PurchasePopup(BasePopup):
         data = rows.iloc[0]
         
         self.combo_type.set(data.get("구분", "내수"))
-        self.entry_client.set(data.get("업체명", ""))
+        self.entry_client.set_value(data.get("업체명", ""))
         self.combo_currency.set(data.get("통화", "KRW"))
         self.entry_tax_rate.delete(0, "end")
         self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
