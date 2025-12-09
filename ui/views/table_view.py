@@ -184,7 +184,7 @@ class TableView(ctk.CTkFrame):
         
         for col in columns:
             self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
-            self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호", "Status", "수량", "수주일", "출고예정일", "출고일"] else "w")
+            self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호","업체명","모델명", "Status", "수량", "수주일", "출고예정일", "출고일"] else "w")
             if col == "공급가액":
                 self.tree.column(col, anchor="e")
             

@@ -24,15 +24,14 @@ class SalesView(ctk.CTkFrame):
         btn_frame.pack(side="right")
         
         buttons = [
-            ("견적", self.on_quote),
-            ("주문", self.on_order),
-            ("출고", self.on_delivery),
-            ("입금", self.on_payment),
-            ("종료", self.on_close),
+            ("신규견적", self.on_quote),
+            ("신규주문", self.on_order),
+            ("일괄출고", self.on_delivery),
+            ("일괄입금", self.on_payment)
         ]
         
         for text, cmd in buttons:
-            ctk.CTkButton(btn_frame, text=text, command=cmd, width=80, height=35,
+            ctk.CTkButton(btn_frame, text=text, command=cmd, width=80, height=28,
                           fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"],
                           font=FONTS["main_bold"]).pack(side="left", padx=5)
                           
