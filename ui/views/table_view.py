@@ -6,12 +6,15 @@ import pandas as pd
 
 # [변경] 경로 수정
 from src.styles import COLORS, FONT_FAMILY, FONTS
+from ui.components.context_menu import ContextMenu
+from tkinter import messagebox
 
 class MultiSelectDropdown(ctk.CTkFrame):
     def __init__(self, parent, values, default_values=None, command=None, width=200):
         super().__init__(parent, fg_color="transparent")
         self.values = values
         self.command = command
+        self.vars = values
         self.vars = {}
         self.dropdown_window = None
         
@@ -98,6 +101,8 @@ class TableView(ctk.CTkFrame):
         self.sort_col = "출고예정일"
         self.sort_reverse = False
         
+        self.context_menu = ContextMenu(self)
+        
         self.create_widgets()
         self.refresh_data()
 
@@ -160,6 +165,7 @@ class TableView(ctk.CTkFrame):
         scrollbar.pack(side="right", fill="y")
         
         self.tree.bind("<Double-1>", self.on_double_click)
+        self.tree.bind("<Button-3>", self.on_right_click)
 
     def sort_column(self, col):
         if self.sort_col == col:
@@ -236,3 +242,39 @@ class TableView(ctk.CTkFrame):
             self.pm.open_quote_popup(mgmt_no)
         else:
             self.pm.open_order_popup(mgmt_no)
+
+    def on_right_click(self, event):
+        item = self.tree.identify_row(event.y)
+        if not item: return
+        
+        self.tree.selection_set(item)
+        values = self.tree.item(item, "values")
+        mgmt_no = values[0]
+        status = values[5]
+        
+        self.context_menu.clear()
+        
+        if status == "견적":
+            self.context_menu.add_command("견적 복사", lambda: self.pm.open_quote_popup(mgmt_no, copy_mode=True))
+            self.context_menu.add_command("주문 전환", lambda: self.update_status(mgmt_no, "주문"))
+            self.context_menu.add_command("대기 전환", lambda: self.update_status(mgmt_no, "보류"))
+            self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
+            
+        elif status == "주문":
+            self.context_menu.add_command("주문 복사", lambda: self.pm.open_order_popup(mgmt_no, copy_mode=True))
+            self.context_menu.add_command("생산 전환", lambda: self.update_status(mgmt_no, "생산중"))
+            self.context_menu.add_command("대기 전환", lambda: self.update_status(mgmt_no, "보류"))
+            self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
+            
+        elif status == "생산중":
+            self.context_menu.add_command("납품대기 전환", lambda: self.update_status(mgmt_no, "납품대기"))
+            
+        if self.context_menu.buttons:
+            self.context_menu.show(event.x_root, event.y_root)
+
+    def update_status(self, mgmt_no, new_status):
+        success, msg = self.dm.update_order_status(mgmt_no, new_status)
+        if success:
+            self.refresh_data()
+        else:
+            messagebox.showerror("오류", msg)

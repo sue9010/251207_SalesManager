@@ -159,3 +159,15 @@ class OrderHandler:
             return True, ""
 
         return self.dm.execute_transaction(update)
+
+    def update_status(self, mgmt_no: str, new_status: str) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            if not mask.any(): return False, "항목을 찾을 수 없습니다."
+            
+            old_status = dfs["data"].loc[mask, "Status"].iloc[0]
+            dfs["data"].loc[mask, "Status"] = new_status
+            
+            self.dm.log_handler.add_log_to_dfs(dfs, "상태 변경", f"번호 [{mgmt_no}] : {old_status} -> {new_status}")
+            return True, ""
+        return self.dm.execute_transaction(update)
