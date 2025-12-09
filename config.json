@@ -3,6 +3,6 @@
     "theme": "Dark",
     "attachment_root": "//cox_biz/business/SalesManager/attachments",
     "production_request_path": "//cox_biz/business/SalesManager/생산 요청.xlsx",
-    "purchase_data_path": "//cox_biz/business/SalesManager/purchase_data.xlsx",
+    "purchase_data_path": "//cox_biz/business/SalesManager/OrderList.xlsx",
     "order_request_dir": "order_requests"
 }
