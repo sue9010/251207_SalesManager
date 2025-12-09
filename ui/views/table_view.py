@@ -96,7 +96,7 @@ class TableView(ctk.CTkFrame):
             "완료", "종료","취소", "보류"
         ]
         
-        self.default_statuses = [s for s in self.all_statuses if s != "완료"]
+        self.default_statuses = [s for s in self.all_statuses if s != "종료"]
         
         self.sort_col = "출고예정일"
         self.sort_reverse = False
