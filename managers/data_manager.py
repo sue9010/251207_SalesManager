@@ -8,6 +8,7 @@ from managers.data.client_handler import ClientHandler
 from managers.data.order_handler import OrderHandler
 from managers.data.payment_handler import PaymentHandler
 from managers.data.delivery_handler import DeliveryHandler
+from managers.data.purchase_handler import PurchaseHandler
 
 class DataManager:
     def __init__(self):
@@ -41,6 +42,7 @@ class DataManager:
         self.order_handler = OrderHandler(self)
         self.payment_handler = PaymentHandler(self)
         self.delivery_handler = DeliveryHandler(self)
+        self.purchase_handler = PurchaseHandler(self)
         
         self.load_config()
 
@@ -73,35 +75,12 @@ class DataManager:
 
     def _load_purchase_data(self):
         """내부 메서드: 구매 엑셀 파일을 로드하여 self.df_purchase에 저장"""
-        if not os.path.exists(self.purchase_data_path):
-            # 파일이 없으면 빈 DF 생성 후 저장 (파일 생성)
-            try:
-                # 폴더가 없으면 생성
-                os.makedirs(os.path.dirname(self.purchase_data_path), exist_ok=True)
-                
-                with pd.ExcelWriter(self.purchase_data_path, engine="openpyxl") as writer:
-                    pd.DataFrame(columns=Config.PURCHASE_COLUMNS).to_excel(writer, sheet_name="Data", index=False)
-                    # 필요한 경우 다른 시트들도 빈 상태로 생성 가능
-                self.df_purchase = pd.DataFrame(columns=Config.PURCHASE_COLUMNS)
-                return True, "새로운 구매 데이터 파일 생성됨"
-            except Exception as e:
-                return False, f"구매 파일 생성 실패: {e}"
-        
-        try:
-            # Data 시트 읽기
-            df = pd.read_excel(self.purchase_data_path, sheet_name="Data", engine="openpyxl")
-            # 컬럼 보정 (누락된 컬럼 추가)
-            for col in Config.PURCHASE_COLUMNS:
-                if col not in df.columns:
-                    df[col] = ""
-            
-            # NaN 처리
-            df = df.fillna("")
+        df, msg = self.file_handler.load_purchase_data()
+        if df is not None:
             self.df_purchase = df
-            return True, "구매 데이터 로드 성공"
-            
-        except Exception as e:
-            return False, f"구매 데이터 읽기 실패: {e}"
+            return True, msg
+        else:
+            return False, msg
 
     def save_to_excel(self):
         # 판매 데이터 저장
@@ -216,6 +195,22 @@ class DataManager:
     def get_serial_number_map(self):
         return self.delivery_handler.get_serial_number_map()
 
+    # Delegate to PurchaseHandler
+    def get_next_purchase_id(self):
+        return self.purchase_handler.get_next_purchase_id()
+
+    def add_purchase(self, row_data):
+        return self.purchase_handler.add_purchase(row_data)
+
+    def update_purchase(self, mgmt_no, row_data):
+        return self.purchase_handler.update_purchase(mgmt_no, row_data)
+
+    def delete_purchase(self, mgmt_no):
+        return self.purchase_handler.delete_purchase(mgmt_no)
+
+    def save_purchase_data(self):
+        return self.file_handler.save_purchase_data()
+
     # Common methods
     def set_dev_mode(self, enabled):
         self.is_dev_mode = enabled
@@ -228,8 +223,17 @@ class DataManager:
             dfs = self.file_handler.read_all_sheets()
             dfs = self.file_handler.normalize_all(dfs)
             
+            # 구매 데이터도 트랜잭션에 포함
+            if self.df_purchase is not None:
+                dfs["purchase"] = self.df_purchase
+            
             success, msg = update_logic_func(dfs)
             if not success: return False, msg
+
+            # dfs에 'purchase' 키가 있으면 구매 데이터 저장
+            if "purchase" in dfs:
+                self.df_purchase = dfs["purchase"]
+                self.file_handler.save_purchase_data()
 
             self.file_handler.write_all_sheets(dfs)
             self.load_data()

@@ -28,7 +28,7 @@ class ClientPopup(BasePopup):
         super().__init__(parent, data_manager, refresh_callback, popup_title="업체", mgmt_no=client_name)
         
         # Override geometry if needed, BasePopup is 1100x750, ClientPopup was 900x660
-        self.geometry("900x660")
+        self.geometry("900x700")
 
     def _setup_items_panel(self, parent):
         # ClientPopup does not have an items list (products), so we hide or destroy the items panel

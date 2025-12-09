@@ -184,6 +184,38 @@ class FileHandler:
         except Exception as e:
             return False, f"저장 실패: {e}"
 
+    def load_purchase_data(self):
+        """구매 엑셀 파일을 로드하여 DataFrame 반환"""
+        if not os.path.exists(self.dm.purchase_data_path):
+            try:
+                os.makedirs(os.path.dirname(self.dm.purchase_data_path), exist_ok=True)
+                with pd.ExcelWriter(self.dm.purchase_data_path, engine="openpyxl") as writer:
+                    pd.DataFrame(columns=Config.PURCHASE_COLUMNS).to_excel(writer, sheet_name="Data", index=False)
+                return pd.DataFrame(columns=Config.PURCHASE_COLUMNS), "새로운 구매 데이터 파일 생성됨"
+            except Exception as e:
+                return None, f"구매 파일 생성 실패: {e}"
+        
+        try:
+            df = pd.read_excel(self.dm.purchase_data_path, sheet_name="Data", engine="openpyxl")
+            for col in Config.PURCHASE_COLUMNS:
+                if col not in df.columns:
+                    df[col] = ""
+            df = df.fillna("")
+            return df, "구매 데이터 로드 성공"
+        except Exception as e:
+            return None, f"구매 데이터 읽기 실패: {e}"
+
+    def save_purchase_data(self):
+        try:
+            with pd.ExcelWriter(self.dm.purchase_data_path, engine="openpyxl") as writer:
+                self.dm.df_purchase.to_excel(writer, sheet_name="Data", index=False)
+            return True, "구매 데이터 저장 완료"
+        except PermissionError:
+            return False, "구매 데이터 파일이 열려있습니다."
+        except Exception as e:
+            return False, f"구매 데이터 저장 실패: {e}"
+
+
     def create_backup(self):
         if not os.path.exists(self.dm.current_excel_path): return False, "파일 없음"
         try:

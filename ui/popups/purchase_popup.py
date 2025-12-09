@@ -197,15 +197,83 @@ class PurchasePopup(BasePopup):
         messagebox.showinfo("알림", "기안서 생성 기능은 추후 구현됩니다.")
 
     def _load_data(self):
-        # TODO: 추후 DB에서 발주 데이터 로드 구현 필요
-        pass
+        if not self.mgmt_no: return
+        
+        df = self.dm.df_purchase
+        if df.empty: return
+        
+        rows = df[df["관리번호"] == self.mgmt_no]
+        if rows.empty:
+            messagebox.showerror("오류", "데이터를 찾을 수 없습니다.")
+            self.destroy()
+            return
+            
+        data = rows.iloc[0]
+        
+        self.entry_date.insert(0, data.get("발주일", ""))
+        self.combo_type.set(data.get("구분", "내수"))
+        self.entry_client.set(data.get("업체명", ""))
+        self.combo_currency.set(data.get("통화", "KRW"))
+        self.entry_tax_rate.delete(0, "end")
+        self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
+        self.entry_note.insert("1.0", str(data.get("비고", "")))
+        self.combo_status.set(data.get("Status", "발주"))
+        
+        quote_path = data.get("견적서경로", "")
+        if quote_path and str(quote_path) != "nan":
+            self.entry_quote_file.configure(state="normal")
+            self.entry_quote_file.insert(0, quote_path)
+            self.entry_quote_file.configure(state="readonly")
+            
+        for _, row in rows.iterrows():
+            item_data = {
+                "품목명": row.get("품목명", ""),
+                "모델명": row.get("모델명", ""),
+                "Description": row.get("Description", ""),
+                "수량": row.get("수량", 0),
+                "단가": row.get("단가", 0),
+                "공급가액": row.get("공급가액", 0),
+                "세액": row.get("세액", 0),
+                "합계금액": row.get("합계금액", 0)
+            }
+            self._add_item_row(item_data)
+            
+        self._calculate_totals()
 
     def _load_copied_data(self):
-        # TODO: 추후 복사 기능 구현 시 필요
-        pass
+        if not self.copy_src_no: return
+        
+        df = self.dm.df_purchase
+        if df.empty: return
+        
+        rows = df[df["관리번호"] == self.copy_src_no]
+        if rows.empty: return
+            
+        data = rows.iloc[0]
+        
+        self.combo_type.set(data.get("구분", "내수"))
+        self.entry_client.set(data.get("업체명", ""))
+        self.combo_currency.set(data.get("통화", "KRW"))
+        self.entry_tax_rate.delete(0, "end")
+        self.entry_tax_rate.insert(0, str(data.get("세율(%)", "10")))
+        self.entry_note.insert("1.0", str(data.get("비고", "")))
+        
+        for _, row in rows.iterrows():
+            item_data = {
+                "품목명": row.get("품목명", ""),
+                "모델명": row.get("모델명", ""),
+                "Description": row.get("Description", ""),
+                "수량": row.get("수량", 0),
+                "단가": row.get("단가", 0),
+                "공급가액": row.get("공급가액", 0),
+                "세액": row.get("세액", 0),
+                "합계금액": row.get("합계금액", 0)
+            }
+            self._add_item_row(item_data)
+            
+        self._calculate_totals()
 
     def save(self):
-        # 임시 저장 로직
         mgmt_no = self.entry_id.get()
         client = self.entry_client.get()
         
@@ -213,17 +281,70 @@ class PurchasePopup(BasePopup):
             messagebox.showwarning("경고", "매입처를 선택해주세요.", parent=self)
             return
             
-        messagebox.showinfo("알림", f"발주({mgmt_no}) 저장 기능은 DB 핸들러 구현 후 활성화됩니다.\n(현재는 UI 테스트 모드입니다)", parent=self)
-        self.destroy()
+        common_data = {
+            "관리번호": mgmt_no,
+            "발주일": self.entry_date.get(),
+            "구분": self.combo_type.get(),
+            "업체명": client,
+            "통화": self.combo_currency.get(),
+            "세율(%)": self.entry_tax_rate.get(),
+            "비고": self.entry_note.get("1.0", "end-1c").strip(),
+            "Status": self.combo_status.get(),
+            "견적서경로": self.entry_quote_file.get()
+        }
+        
+        rows_to_save = []
+        if not self.item_rows:
+            messagebox.showwarning("경고", "품목을 하나 이상 추가해주세요.", parent=self)
+            return
+
+        for row_widgets in self.item_rows:
+            try:
+                qty = float(row_widgets["qty"].get().replace(",", "") or 0)
+                price = float(row_widgets["price"].get().replace(",", "") or 0)
+                supply = float(row_widgets["supply"].get().replace(",", "") or 0)
+                tax = float(row_widgets["tax"].get().replace(",", "") or 0)
+                total = float(row_widgets["total"].get().replace(",", "") or 0)
+            except:
+                qty=0; price=0; supply=0; tax=0; total=0
+            
+            row_data = common_data.copy()
+            row_data.update({
+                "품목명": row_widgets["item"].get(),
+                "모델명": row_widgets["model"].get(),
+                "Description": row_widgets["desc"].get(),
+                "수량": qty,
+                "단가": price,
+                "공급가액": supply,
+                "세액": tax,
+                "합계금액": total
+            })
+            rows_to_save.append(row_data)
+            
+        if self.mgmt_no and not self.copy_mode:
+            success, msg = self.dm.update_purchase(mgmt_no, rows_to_save)
+        else:
+            success, msg = self.dm.add_purchase(rows_to_save)
+            
+        if success:
+            messagebox.showinfo("알림", "저장되었습니다.")
+            if self.refresh_callback: self.refresh_callback()
+            self.destroy()
+        else:
+            messagebox.showerror("오류", f"저장 실패: {msg}")
 
     def delete(self):
         if messagebox.askyesno("삭제 확인", f"정말 이 발주({self.mgmt_no})를 삭제하시겠습니까?", parent=self):
-            messagebox.showinfo("알림", "삭제 기능은 추후 구현됩니다.", parent=self)
-            self.destroy()
+            success, msg = self.dm.delete_purchase(self.mgmt_no)
+            if success:
+                messagebox.showinfo("알림", "삭제되었습니다.")
+                if self.refresh_callback: self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("오류", f"삭제 실패: {msg}")
 
     def _generate_new_id(self):
-        today = datetime.now().strftime("%y%m%d")
-        new_id = f"PO-{today}-001" 
+        new_id = self.dm.get_next_purchase_id()
         
         if hasattr(self, 'entry_id'):
             self.entry_id.configure(state="normal")
