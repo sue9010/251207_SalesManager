@@ -136,17 +136,17 @@ class TableView(ctk.CTkFrame):
             dropdown_width=200
         )
         self.status_filter.pack(side="left", padx=5)
+                
+        ctk.CTkButton(header_frame, text="새로고침", command=self.refresh_data, width=80, 
+                      fg_color=COLORS["bg_medium"], hover_color=COLORS["bg_light"], text_color=COLORS["text"], font=FONTS["main"]).pack(side="right")
+
+        ctk.CTkButton(header_frame, text="검색", command=self.refresh_data, width=60, 
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main"]).pack(side="right", padx=5)
         
         # Search Entry
         self.search_entry = ctk.CTkEntry(header_frame, placeholder_text="검색 (관리번호, 업체명, 모델명)", width=250, font=FONTS["main"])
-        self.search_entry.pack(side="left", padx=5)
+        self.search_entry.pack(side="right", padx=5)
         self.search_entry.bind("<Return>", lambda e: self.refresh_data())
-        
-        ctk.CTkButton(header_frame, text="검색", command=self.refresh_data, width=60, 
-                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main"]).pack(side="left", padx=5)
-        
-        ctk.CTkButton(header_frame, text="새로고침", command=self.refresh_data, width=80, 
-                      fg_color=COLORS["bg_medium"], hover_color=COLORS["bg_light"], text_color=COLORS["text"], font=FONTS["main"]).pack(side="right")
 
         style = ttk.Style()
         style.theme_use("default")
@@ -174,13 +174,19 @@ class TableView(ctk.CTkFrame):
         table_frame = ctk.CTkFrame(self, fg_color="transparent")
         table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        columns = ("관리번호", "업체명", "모델명", "수량", "출고예정일", "Status")
+        columns = ("관리번호", "Status", "업체명", "모델명", "수량", "공급가액", "수주일", "출고예정일", "출고일")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
         
-        col_widths = {"관리번호": 100, "업체명": 150, "모델명": 200, "수량": 80, "출고예정일": 100, "Status": 120}
+        col_widths = {
+            "관리번호": 100, "Status": 80, "업체명": 120, "모델명": 150, 
+            "수량": 60, "공급가액": 100, "수주일": 90, "출고예정일": 90, "출고일": 90
+        }
+        
         for col in columns:
             self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
-            self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호", "수량", "출고예정일", "Status"] else "w")
+            self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호", "Status", "수량", "수주일", "출고예정일", "출고일"] else "w")
+            if col == "공급가액":
+                self.tree.column(col, anchor="e")
             
         scrollbar = ctk.CTkScrollbar(table_frame, orientation="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -240,8 +246,8 @@ class TableView(ctk.CTkFrame):
         def sort_key(x):
             val = x.get(self.sort_col, "")
             
-            # Numeric sort for Quantity
-            if self.sort_col == "수량":
+            # Numeric sort for Quantity and Price
+            if self.sort_col in ["수량", "공급가액"]:
                 try: return float(str(val).replace(",", ""))
                 except: return 0
             
@@ -258,12 +264,15 @@ class TableView(ctk.CTkFrame):
         
         for row in filtered_rows:
             values = (
-                row["관리번호"],
-                row["업체명"],
-                row["모델명"],
-                row["수량"],
-                row["출고예정일"],
-                row["Status"]
+                row.get("관리번호", ""),
+                row.get("Status", ""),
+                row.get("업체명", ""),
+                row.get("모델명", ""),
+                row.get("수량", ""),
+                row.get("공급가액", ""),
+                row.get("수주일", ""),
+                row.get("출고예정일", ""),
+                row.get("출고일", "")
             )
             self.tree.insert("", "end", values=values)
 
@@ -273,7 +282,7 @@ class TableView(ctk.CTkFrame):
         
         values = self.tree.item(item[0], "values")
         mgmt_no = values[0]
-        status = values[5]
+        status = values[1]  # Status is now at index 1
         
         if status == "완료":
             self.pm.open_complete_popup(mgmt_no)
@@ -289,7 +298,7 @@ class TableView(ctk.CTkFrame):
         self.tree.selection_set(item)
         values = self.tree.item(item, "values")
         mgmt_no = values[0]
-        status = values[5]
+        status = values[1] # Status is now at index 1
         
         self.context_menu.clear()
         

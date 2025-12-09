@@ -29,7 +29,6 @@ class SalesView(ctk.CTkFrame):
             ("출고", self.on_delivery),
             ("입금", self.on_payment),
             ("종료", self.on_close),
-            ("새로고침", self.on_refresh)
         ]
         
         for text, cmd in buttons:
