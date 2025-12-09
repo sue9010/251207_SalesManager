@@ -28,7 +28,7 @@ class ClientPopup(BasePopup):
         super().__init__(parent, data_manager, refresh_callback, popup_title="업체", mgmt_no=client_name)
         
         # Override geometry if needed, BasePopup is 1100x750, ClientPopup was 900x660
-        self.geometry("900x700")
+        self.geometry("900x900")
 
     def _setup_items_panel(self, parent):
         # ClientPopup does not have an items list (products), so we hide or destroy the items panel
@@ -70,16 +70,29 @@ class ClientPopup(BasePopup):
         self.entries["통화"] = self.create_combo_row(basic_frame, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"])
         self.entries["주소"] = self.create_input_row(basic_frame, "주소")
 
-        ctk.CTkLabel(left_col, text="담당자 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        contact_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
+        # [신규] 금융 정보 (Left Column)
+        ctk.CTkLabel(left_col, text="금융 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+        bank_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
+        bank_frame.pack(fill="x", pady=(0, 15))
+
+        self.entries["계좌번호"] = self.create_input_row(bank_frame, "계좌번호")
+        self.entries["예금주"] = self.create_input_row(bank_frame, "예금주")
+        self.entries["은행명"] = self.create_input_row(bank_frame, "은행명")
+        self.entries["은행주소"] = self.create_input_row(bank_frame, "은행주소")
+        self.entries["Swift Code"] = self.create_input_row(bank_frame, "Swift Code")
+
+        # --- Right Column ---
+        # [이동] 담당자 정보 (Right Column Top)
+        ctk.CTkLabel(right_col, text="담당자 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+        contact_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         contact_frame.pack(fill="x", pady=(0, 15))
         
         self.entries["담당자"] = self.create_input_row(contact_frame, "담당자")
         self.entries["전화번호"] = self.create_input_row(contact_frame, "전화번호")
         self.entries["이메일"] = self.create_input_row(contact_frame, "이메일")
 
-        # --- Right Column ---
-        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+
+        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(40, 5))
         logistics_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
         logistics_frame.pack(fill="x", pady=(0, 15))
         
