@@ -28,6 +28,7 @@ from ui.views.order_view import OrderView
 from ui.views.payment_view import PaymentView
 from ui.views.quote_view import QuoteView
 from ui.views.table_view import TableView
+from ui.views.placeholder_view import PlaceholderView
 
 # DnD 라이브러리 가용성 체크 및 래퍼 클래스 설정
 if DND_AVAILABLE:
@@ -106,54 +107,65 @@ class SalesManagerApp(BaseApp):
             font=("Emoji", 26, "bold"), 
             text_color=COLORS["primary"]
         )
-        self.logo_label.pack(pady=(30, 20), padx=20, anchor="w")
+        self.logo_label.pack(pady=(20, 10), padx=20, anchor="w")
         self.logo_label.bind("<Button-1>", lambda e: self.show_dashboard())
         self.logo_label.bind("<Enter>", lambda e: self.logo_label.configure(cursor="hand2"))
         self.logo_label.bind("<Leave>", lambda e: self.logo_label.configure(cursor=""))
 
+        # (Label Text, Command, Unique Key)
         menu_groups = [
-            ("관리", [
-                ("🏢 업체 관리", self.show_client_view),
-                ("📄 견적 관리", self.show_quote_view),
-                ("🛒 주문 관리", self.show_order_view),
-                ("🚚 납품 관리", self.show_delivery_view),
-                ("💰 입금 관리", self.show_payment_view),
+            ("통합관리", [
+                ("업체", self.show_client_view, "client"),
             ]),
-            ("일정", [
-                ("📅 캘린더 뷰", self.show_calendar_view),
-                ("📊 테이블 뷰", self.show_table_view),
-                ("📋 칸반 보드", self.show_kanban_view),
-                ("📈 간트 차트", self.show_gantt_view),
+            ("판매관리", [
+                ("견적", self.show_quote_view, "sales_quote"),
+                ("주문", self.show_order_view, "sales_order"),
+                ("납품", self.show_delivery_view, "sales_delivery"),
+                ("입금", self.show_payment_view, "sales_payment"),
+                ("사후처리", self.show_sales_after_service_view, "sales_as"),
+            ]),
+            ("구매관리", [
+                ("견적", self.show_purchase_quote_view, "purchase_quote"),
+                ("주문", self.show_purchase_order_view, "purchase_order"),
+                ("납품", self.show_purchase_delivery_view, "purchase_delivery"),
+                ("송금", self.show_purchase_payment_view, "purchase_payment"),
+                ("사후처리", self.show_purchase_after_service_view, "purchase_as"),
+            ]),
+            ("일정 관리", [
+                ("테이블 뷰", self.show_table_view, "schedule_table"),
+                ("캘린더 뷰", self.show_calendar_view, "schedule_calendar"),
+                ("칸반 보드", self.show_kanban_view, "schedule_kanban"),
+                ("간트 차트", self.show_gantt_view, "schedule_gantt"),
             ])
         ]
 
         for group_name, items in menu_groups:
-            ctk.CTkLabel(self.sidebar_frame, text=group_name, font=FONTS["main_bold"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(20, 5))
+            ctk.CTkLabel(self.sidebar_frame, text=group_name, font=FONTS["main_bold"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(10, 2))
             
-            for text, command in items:
+            for text, command, key in items:
                 btn = ctk.CTkButton(
                     self.sidebar_frame, 
                     text=text, 
                     command=command,
-                    height=40, 
+                    height=32, 
                     anchor="w", 
                     fg_color="transparent", 
                     text_color=COLORS["text"], 
                     hover_color=COLORS["bg_medium"], 
                     font=FONTS["main"]
                 )
-                btn.pack(fill="x", padx=10, pady=2)
-                self.nav_buttons[text] = btn
+                btn.pack(fill="x", padx=10, pady=1)
+                self.nav_buttons[key] = btn
 
-        ctk.CTkFrame(self.sidebar_frame, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=20, padx=10, side="bottom")
+        ctk.CTkFrame(self.sidebar_frame, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=10, padx=10, side="bottom")
         
         ctk.CTkButton(self.sidebar_frame, text="⚙️  설정", command=self.pm.open_settings, 
-                      height=40, anchor="w", fg_color="transparent", text_color=COLORS["text_dim"], 
-                      hover_color=COLORS["bg_medium"], font=FONTS["main"]).pack(fill="x", padx=10, pady=5, side="bottom")
+                      height=32, anchor="w", fg_color="transparent", text_color=COLORS["text_dim"], 
+                      hover_color=COLORS["bg_medium"], font=FONTS["main"]).pack(fill="x", padx=10, pady=2, side="bottom")
         
         ctk.CTkButton(self.sidebar_frame, text="🔄  데이터 로드", command=self.reload_all_data, 
-                      height=40, anchor="w", fg_color=COLORS["bg_medium"], text_color=COLORS["text"], 
-                      hover_color=COLORS["bg_light"], font=FONTS["main"]).pack(fill="x", padx=10, pady=10, side="bottom")
+                      height=32, anchor="w", fg_color=COLORS["bg_medium"], text_color=COLORS["text"], 
+                      hover_color=COLORS["bg_light"], font=FONTS["main"]).pack(fill="x", padx=10, pady=5, side="bottom")
 
     def create_content_area(self):
         self.content_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -170,11 +182,21 @@ class SalesManagerApp(BaseApp):
         self.view_kanban = KanbanView(self.content_frame, self.dm, self.pm)
         self.view_gantt = GanttView(self.content_frame, self.dm, self.pm)
         self.view_table = TableView(self.content_frame, self.dm, self.pm)
+        
+        # 판매관리 사후처리
+        self.view_sales_as = PlaceholderView(self.content_frame, "판매 사후처리")
+
+        # 구매관리 뷰 (Placeholder)
+        self.view_purchase_quote = PlaceholderView(self.content_frame, "구매 견적")
+        self.view_purchase_order = PlaceholderView(self.content_frame, "구매 주문")
+        self.view_purchase_delivery = PlaceholderView(self.content_frame, "구매 납품")
+        self.view_purchase_payment = PlaceholderView(self.content_frame, "구매 송금")
+        self.view_purchase_as = PlaceholderView(self.content_frame, "구매 사후처리")
 
     def switch_view(self, view_name_key, view_instance):
         # 버튼 활성화 상태 변경
-        for text, btn in self.nav_buttons.items():
-            if text == view_name_key:
+        for key, btn in self.nav_buttons.items():
+            if key == view_name_key:
                 btn.configure(fg_color=COLORS["bg_light"], text_color=COLORS["primary"])
             else:
                 btn.configure(fg_color="transparent", text_color=COLORS["text"])
@@ -192,15 +214,29 @@ class SalesManagerApp(BaseApp):
             view_instance.refresh_data()
 
     def show_dashboard(self): self.switch_view(None, self.view_dashboard)
-    def show_client_view(self): self.switch_view("🏢 업체 관리", self.view_client)
-    def show_quote_view(self): self.switch_view("📄 견적 관리", self.view_quote)
-    def show_order_view(self): self.switch_view("🛒 주문 관리", self.view_order)
-    def show_delivery_view(self): self.switch_view("🚚 납품 관리", self.view_delivery)
-    def show_payment_view(self): self.switch_view("💰 입금 관리", self.view_payment)
-    def show_calendar_view(self): self.switch_view("📅 캘린더 뷰", self.view_calendar)
-    def show_kanban_view(self): self.switch_view("📋 칸반 보드", self.view_kanban)
-    def show_gantt_view(self): self.switch_view("📈 간트 차트", self.view_gantt)
-    def show_table_view(self): self.switch_view("📊 테이블 뷰", self.view_table)
+    
+    # 통합관리
+    def show_client_view(self): self.switch_view("client", self.view_client)
+    
+    # 판매관리
+    def show_quote_view(self): self.switch_view("sales_quote", self.view_quote)
+    def show_order_view(self): self.switch_view("sales_order", self.view_order)
+    def show_delivery_view(self): self.switch_view("sales_delivery", self.view_delivery)
+    def show_payment_view(self): self.switch_view("sales_payment", self.view_payment)
+    def show_sales_after_service_view(self): self.switch_view("sales_as", self.view_sales_as)
+
+    # 구매관리
+    def show_purchase_quote_view(self): self.switch_view("purchase_quote", self.view_purchase_quote)
+    def show_purchase_order_view(self): self.switch_view("purchase_order", self.view_purchase_order)
+    def show_purchase_delivery_view(self): self.switch_view("purchase_delivery", self.view_purchase_delivery)
+    def show_purchase_payment_view(self): self.switch_view("purchase_payment", self.view_purchase_payment)
+    def show_purchase_after_service_view(self): self.switch_view("purchase_as", self.view_purchase_as)
+
+    # 일정 관리
+    def show_table_view(self): self.switch_view("schedule_table", self.view_table)
+    def show_calendar_view(self): self.switch_view("schedule_calendar", self.view_calendar)
+    def show_kanban_view(self): self.switch_view("schedule_kanban", self.view_kanban)
+    def show_gantt_view(self): self.switch_view("schedule_gantt", self.view_gantt)
 
     def reload_all_data(self):
         success, msg = self.dm.load_data()
