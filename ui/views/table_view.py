@@ -95,6 +95,9 @@ class TableView(ctk.CTkFrame):
         
         self.default_statuses = [s for s in self.all_statuses if s != "완료"]
         
+        self.sort_col = "출고예정일"
+        self.sort_reverse = False
+        
         self.create_widgets()
         self.refresh_data()
 
@@ -143,11 +146,11 @@ class TableView(ctk.CTkFrame):
         table_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
         columns = ("관리번호", "업체명", "모델명", "수량", "출고예정일", "Status")
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="extended")
         
         col_widths = {"관리번호": 100, "업체명": 150, "모델명": 200, "수량": 80, "출고예정일": 100, "Status": 120}
         for col in columns:
-            self.tree.heading(col, text=col)
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
             self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호", "수량", "출고예정일", "Status"] else "w")
             
         scrollbar = ctk.CTkScrollbar(table_frame, orientation="vertical", command=self.tree.yview)
@@ -157,6 +160,22 @@ class TableView(ctk.CTkFrame):
         scrollbar.pack(side="right", fill="y")
         
         self.tree.bind("<Double-1>", self.on_double_click)
+
+    def sort_column(self, col):
+        if self.sort_col == col:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_col = col
+            self.sort_reverse = False
+            
+        # Update header text to show sort indicator
+        for c in self.tree["columns"]:
+            text = c
+            if c == self.sort_col:
+                text += " ▼" if self.sort_reverse else " ▲"
+            self.tree.heading(c, text=text)
+            
+        self.refresh_data()
 
     def refresh_data(self):
         for item in self.tree.get_children():
@@ -174,12 +193,23 @@ class TableView(ctk.CTkFrame):
                 filtered_rows.append(row)
         
         def sort_key(x):
-            date_str = str(x.get("출고예정일", "")).strip()
-            if not date_str or date_str == "-":
-                return "9999-99-99"
-            return date_str
+            val = x.get(self.sort_col, "")
             
-        filtered_rows.sort(key=sort_key)
+            # Numeric sort for Quantity
+            if self.sort_col == "수량":
+                try: return float(str(val).replace(",", ""))
+                except: return 0
+            
+            # Date sort
+            if "일" in self.sort_col or "Date" in self.sort_col:
+                date_str = str(val).strip()
+                if not date_str or date_str == "-":
+                    return "9999-99-99" if not self.sort_reverse else "0000-00-00"
+                return date_str
+                
+            return str(val)
+            
+        filtered_rows.sort(key=sort_key, reverse=self.sort_reverse)
         
         for row in filtered_rows:
             values = (

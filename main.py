@@ -21,17 +21,11 @@ from src.styles import COLORS, FONT_FAMILY, FONTS
 from ui.views.calendar_view import CalendarView
 from ui.views.client_view import ClientView
 from ui.views.dashboard import DashboardView
-from ui.views.delivery_view import DeliveryView
 from ui.views.gantt_view import GanttView
 from ui.views.kanban_view import KanbanView
-from ui.views.order_view import OrderView
-from ui.views.payment_view import PaymentView
-from ui.views.quote_view import QuoteView
-from ui.views.table_view import TableView
-from ui.views.quote_view import QuoteView
+from ui.views.sales_view import SalesView
 from ui.views.table_view import TableView
 from ui.views.placeholder_view import PlaceholderView
-from ui.views.after_sales_view import AfterSalesView
 
 # DnD 라이브러리 가용성 체크 및 래퍼 클래스 설정
 if DND_AVAILABLE:
@@ -121,11 +115,7 @@ class SalesManagerApp(BaseApp):
                 ("업체", self.show_client_view, "client"),
             ]),
             ("판매관리", [
-                ("견적", self.show_quote_view, "sales_quote"),
-                ("주문", self.show_order_view, "sales_order"),
-                ("납품", self.show_delivery_view, "sales_delivery"),
-                ("입금", self.show_payment_view, "sales_payment"),
-                ("사후처리", self.show_sales_after_service_view, "sales_as"),
+                ("판매관리", self.show_sales_view, "sales_management"),
             ]),
             ("구매관리", [
                 ("견적", self.show_purchase_quote_view, "purchase_quote"),
@@ -177,19 +167,12 @@ class SalesManagerApp(BaseApp):
         # 뷰 인스턴스 생성 (PopupManager 전달)
         self.view_dashboard = DashboardView(self.content_frame, self.dm, self.pm)
         self.view_client = ClientView(self.content_frame, self.dm, self.pm)
-        self.view_quote = QuoteView(self.content_frame, self.dm, self.pm)
-        self.view_order = OrderView(self.content_frame, self.dm, self.pm)
-        self.view_delivery = DeliveryView(self.content_frame, self.dm, self.pm)
-        self.view_payment = PaymentView(self.content_frame, self.dm, self.pm)
+        self.view_sales = SalesView(self.content_frame, self.dm, self.pm)
         self.view_calendar = CalendarView(self.content_frame, self.dm, self.pm)
         self.view_kanban = KanbanView(self.content_frame, self.dm, self.pm)
         self.view_gantt = GanttView(self.content_frame, self.dm, self.pm)
         self.view_table = TableView(self.content_frame, self.dm, self.pm)
         
-        # 판매관리 사후처리
-        # 판매관리 사후처리
-        self.view_sales_as = AfterSalesView(self.content_frame, self.dm, self.pm)
-
         # 구매관리 뷰 (Placeholder)
         self.view_purchase_quote = PlaceholderView(self.content_frame, "구매 견적")
         self.view_purchase_order = PlaceholderView(self.content_frame, "구매 주문")
@@ -223,11 +206,7 @@ class SalesManagerApp(BaseApp):
     def show_client_view(self): self.switch_view("client", self.view_client)
     
     # 판매관리
-    def show_quote_view(self): self.switch_view("sales_quote", self.view_quote)
-    def show_order_view(self): self.switch_view("sales_order", self.view_order)
-    def show_delivery_view(self): self.switch_view("sales_delivery", self.view_delivery)
-    def show_payment_view(self): self.switch_view("sales_payment", self.view_payment)
-    def show_sales_after_service_view(self): self.switch_view("sales_as", self.view_sales_as)
+    def show_sales_view(self): self.switch_view("sales_management", self.view_sales)
 
     # 구매관리
     def show_purchase_quote_view(self): self.switch_view("purchase_quote", self.view_purchase_quote)
