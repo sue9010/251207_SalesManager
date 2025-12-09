@@ -204,7 +204,7 @@ class PurchasePopup(BasePopup):
         
         rows = df[df["관리번호"] == self.mgmt_no]
         if rows.empty:
-            messagebox.showerror("오류", "데이터를 찾을 수 없습니다.")
+            messagebox.showerror("오류", "데이터를 찾을 수 없습니다.", parent=self)
             self.destroy()
             return
             
@@ -327,21 +327,21 @@ class PurchasePopup(BasePopup):
             success, msg = self.dm.add_purchase(rows_to_save)
             
         if success:
-            messagebox.showinfo("알림", "저장되었습니다.")
+            messagebox.showinfo("알림", "저장되었습니다.", parent=self)
             if self.refresh_callback: self.refresh_callback()
             self.destroy()
         else:
-            messagebox.showerror("오류", f"저장 실패: {msg}")
+            messagebox.showerror("오류", f"저장 실패: {msg}", parent=self)
 
     def delete(self):
         if messagebox.askyesno("삭제 확인", f"정말 이 발주({self.mgmt_no})를 삭제하시겠습니까?", parent=self):
             success, msg = self.dm.delete_purchase(self.mgmt_no)
             if success:
-                messagebox.showinfo("알림", "삭제되었습니다.")
+                messagebox.showinfo("알림", "삭제되었습니다.", parent=self)
                 if self.refresh_callback: self.refresh_callback()
                 self.destroy()
             else:
-                messagebox.showerror("오류", f"삭제 실패: {msg}")
+                messagebox.showerror("오류", f"삭제 실패: {msg}", parent=self)
 
     def _generate_new_id(self):
         new_id = self.dm.get_next_purchase_id()

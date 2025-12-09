@@ -35,7 +35,10 @@ class PurchaseHandler:
             
             new_df = pd.DataFrame(rows)
             if not new_df.dropna(how='all').empty:
-                dfs["purchase"] = pd.concat([dfs["purchase"], new_df], ignore_index=True)
+                if dfs["purchase"].empty:
+                    dfs["purchase"] = new_df
+                else:
+                    dfs["purchase"] = pd.concat([dfs["purchase"], new_df], ignore_index=True)
             
             mgmt_no = rows[0].get('관리번호', '?') if rows else '?'
             client_name = rows[0].get('업체명', '?') if rows else '?'
@@ -55,7 +58,10 @@ class PurchaseHandler:
             # 새 데이터 추가
             new_df = pd.DataFrame(rows)
             if not new_df.dropna(how='all').empty:
-                dfs["purchase"] = pd.concat([dfs["purchase"], new_df], ignore_index=True)
+                if dfs["purchase"].empty:
+                    dfs["purchase"] = new_df
+                else:
+                    dfs["purchase"] = pd.concat([dfs["purchase"], new_df], ignore_index=True)
             
             self.dm.log_handler.add_log_to_dfs(dfs, "발주 수정", f"번호 [{mgmt_no}]")
             return True, ""
