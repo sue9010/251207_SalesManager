@@ -28,7 +28,10 @@ from ui.views.order_view import OrderView
 from ui.views.payment_view import PaymentView
 from ui.views.quote_view import QuoteView
 from ui.views.table_view import TableView
+from ui.views.quote_view import QuoteView
+from ui.views.table_view import TableView
 from ui.views.placeholder_view import PlaceholderView
+from ui.views.after_sales_view import AfterSalesView
 
 # DnD 라이브러리 가용성 체크 및 래퍼 클래스 설정
 if DND_AVAILABLE:
@@ -184,7 +187,8 @@ class SalesManagerApp(BaseApp):
         self.view_table = TableView(self.content_frame, self.dm, self.pm)
         
         # 판매관리 사후처리
-        self.view_sales_as = PlaceholderView(self.content_frame, "판매 사후처리")
+        # 판매관리 사후처리
+        self.view_sales_as = AfterSalesView(self.content_frame, self.dm, self.pm)
 
         # 구매관리 뷰 (Placeholder)
         self.view_purchase_quote = PlaceholderView(self.content_frame, "구매 견적")
