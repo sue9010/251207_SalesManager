@@ -107,7 +107,7 @@ class TableView(ctk.CTkFrame):
         self.all_statuses = [
             "견적", "주문", "생산중", "납품대기", 
             "납품완료/입금대기", "납품대기/입금완료", 
-            "완료", "종료","취소", "보류"
+            "납품완료/입금완료", "종료","취소", "보류"
         ]
         
         self.default_statuses = [s for s in self.all_statuses if s not in ["종료", "취소","보류"]]
@@ -284,7 +284,7 @@ class TableView(ctk.CTkFrame):
         mgmt_no = values[0]
         status = values[1]  # Status is now at index 1
         
-        if status == "완료":
+        if status == "납품완료/입금완료":
             self.pm.open_complete_popup(mgmt_no)
         elif str(mgmt_no).startswith("Q"):
             self.pm.open_quote_popup(mgmt_no)

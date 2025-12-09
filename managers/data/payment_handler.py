@@ -55,13 +55,15 @@ class PaymentHandler:
             current_status = str(data_df.at[idx, "Status"])
             
             if row_unpaid < 1:
+                # 납품이 포함된 상태이거나 이미 완료(납품완료/입금완료)된 상태인 경우
                 if "납품" in current_status or "완료" in current_status:
-                    new_status = "완료"
+                    new_status = "납품완료/입금완료"
                 else:
                     new_status = "납품대기/입금완료"
                 data_df.at[idx, "입금완료일"] = last_pay_date
             else:
-                if current_status == "완료": new_status = "납품완료/입금완료"
+                if current_status == "납품완료/입금완료": new_status = "납품완료/입금완료"
+                elif current_status == "완료": new_status = "납품완료/입금완료" # 기존 데이터 호환
                 elif current_status == "납품대기/입금완료": new_status = current_status
                 else: new_status = current_status
             
