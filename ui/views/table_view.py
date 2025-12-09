@@ -282,14 +282,46 @@ class TableView(ctk.CTkFrame):
         
         values = self.tree.item(item[0], "values")
         mgmt_no = values[0]
-        status = values[1]  # Status is now at index 1
+        status = values[1]
         
-        if status == "납품완료/입금완료":
-            self.pm.open_complete_popup(mgmt_no)
-        elif str(mgmt_no).startswith("Q"):
+        # 1. 견적 -> 견적 팝업
+        if status == "견적":
             self.pm.open_quote_popup(mgmt_no)
-        else:
+            
+        # 2. 주문 -> 주문 팝업
+        elif status == "주문":
             self.pm.open_order_popup(mgmt_no)
+            
+        # 3. 생산중, 납품대기, 납품대기/입금완료 -> 납품 팝업
+        elif status in ["생산중", "납품대기", "납품대기/입금완료"]:
+            self.pm.open_delivery_popup([mgmt_no])
+            
+        # 4. 납품완료/입금대기 -> 송금 팝업
+        elif status == "납품완료/입금대기":
+            self.pm.open_payment_popup([mgmt_no])
+            
+        # 5. 납품완료/입금완료 -> 사후처리 팝업
+        elif status == "납품완료/입금완료":
+            self.pm.open_after_sales_popup([mgmt_no])
+            
+        # 6. 종료 -> 완료 팝업
+        elif status == "종료":
+            self.pm.open_complete_popup(mgmt_no)
+            
+        # 7. 취소, 보류 -> 견적일 유무에 따라 분기
+        elif status in ["취소", "보류"]:
+            # 데이터 매니저에서 해당 관리번호의 전체 데이터 조회
+            row_data = self.dm.df_data[self.dm.df_data["관리번호"] == mgmt_no]
+            if not row_data.empty:
+                quote_date = str(row_data.iloc[0].get("견적일", "")).strip()
+                # 견적일이 있고 유효한 값이면 견적 팝업, 아니면 주문 팝업
+                if quote_date and quote_date != "-" and quote_date != "nan":
+                    self.pm.open_quote_popup(mgmt_no)
+                else:
+                    self.pm.open_order_popup(mgmt_no)
+            else:
+                # 데이터가 없는 경우 안전하게 주문 팝업 (또는 에러 처리)
+                self.pm.open_order_popup(mgmt_no)
 
     def on_right_click(self, event):
         item = self.tree.identify_row(event.y)
@@ -316,6 +348,19 @@ class TableView(ctk.CTkFrame):
             
         elif status == "생산중":
             self.context_menu.add_command("납품대기 전환", lambda: self.update_status(mgmt_no, "납품대기"))
+
+        elif status == "납품대기":
+            self.context_menu.add_command("입금", lambda: self.pm.open_payment_popup([mgmt_no]))
+            self.context_menu.add_command("납품", lambda: self.pm.open_delivery_popup([mgmt_no]))
+            
+        elif status == "납품완료/입금대기":
+            self.context_menu.add_command("입금", lambda: self.pm.open_payment_popup([mgmt_no]))
+        
+        elif status == "납품대기/입금완료":
+            self.context_menu.add_command("납품", lambda: self.pm.open_delivery_popup([mgmt_no]))
+
+        elif status == "납품완료/입금완료":
+            self.context_menu.add_command("종료", lambda: self.pm.open_after_sales_popup([mgmt_no]))
             
         if self.context_menu.buttons:
             self.context_menu.show(event.x_root, event.y_root)
