@@ -90,9 +90,8 @@ class PurchasePopup(BasePopup):
         self.combo_currency = self.create_grid_combo(parent, 1, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
         self.entry_tax_rate = self.create_grid_input(parent, 1, 1, "세율(%)")
 
-        # --- 3행: 결제방법 (New) ---
-        self.entry_payment_method = self.create_grid_input(parent, 2, 0, "결제방법")
-        # 3행 우측은 비워두거나 다른 정보 배치 가능. 일단 비워둠.
+        # --- 3행: 결제방법 (New) --- Full Width ---
+        self.entry_payment_method = self.create_full_width_input(parent, 2, 0, "결제방법")
         
         # --- 4행: 매입처 (Autocomplete) - Full Width ---
         f_client = ctk.CTkFrame(parent, fg_color="transparent")
