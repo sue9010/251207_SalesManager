@@ -11,7 +11,7 @@ from ui.popups.packing_list_popup import PackingListPopup
 from src.styles import COLORS, FONTS
 from managers.export_manager import ExportManager 
 
-class DeliveryPopup(BasePopup):
+class ProductionPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_nos):
         if isinstance(mgmt_nos, list):
             self.mgmt_nos = mgmt_nos
@@ -26,7 +26,7 @@ class DeliveryPopup(BasePopup):
         self.item_widgets_map = {}
         self.export_manager = ExportManager(data_manager) 
         self.current_delivery_no = ""
-        self.cached_client_name = "" # UI Entry 대신 변수로 관리
+        self.cached_client_name = "" 
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=self.mgmt_nos[0])
         self.geometry("1350x920")
@@ -84,55 +84,6 @@ class DeliveryPopup(BasePopup):
         f_po_file.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         self.entry_po_file, _, _ = self.create_file_input_row(f_po_file, "발주서 파일", "발주서경로")
 
-        # Separator
-        ctk.CTkFrame(parent, height=2, fg_color=COLORS["border"]).grid(row=10, column=0, columnspan=2, sticky="ew", padx=5, pady=15)
-
-        # --- Delivery Info Section ---
-        ctk.CTkLabel(parent, text="출고 정보", font=FONTS["header"]).grid(row=11, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 5))
-
-        # Row 12: Delivery Date, Delivery No
-        self.entry_delivery_date = self.create_grid_input(parent, 12, 0, "출고일", placeholder="YYYY-MM-DD")
-        self.entry_delivery_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
-        
-        self.entry_delivery_no = self.create_grid_input(parent, 12, 1, "출고번호")
-        self.entry_delivery_no.configure(state="readonly")
-
-        # Row 13: Invoice No (Full Width)
-        self.entry_invoice_no = self._create_full_width_input(parent, 13, "송장번호")
-
-        # Row 14: Transport Method, Transport Account
-        self.entry_shipping_method = self.create_grid_input(parent, 14, 0, "운송방법")
-        self.entry_shipping_account = self.create_grid_input(parent, 14, 1, "운송계정")
-
-        # Row 15: Waybill File (Full Width)
-        f_waybill = ctk.CTkFrame(parent, fg_color="transparent")
-        f_waybill.grid(row=15, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_waybill_file, _, _ = self.create_file_input_row(f_waybill, "운송장 파일", "운송장경로")
-
-        # Row 16: Buttons (Delivery Request, PI)
-        f_btn1 = ctk.CTkFrame(parent, fg_color="transparent")
-        f_btn1.grid(row=16, column=0, columnspan=2, sticky="ew", padx=5, pady=(10, 2))
-        
-        ctk.CTkButton(f_btn1, text="📄 출고요청서", command=self.export_order_request, height=30, 
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
-
-        ctk.CTkButton(f_btn1, text="📄 PI 발행", command=self.export_pi, height=30, 
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
-
-        # Row 17: Buttons (CI, PL)
-        f_btn2 = ctk.CTkFrame(parent, fg_color="transparent")
-        f_btn2.grid(row=17, column=0, columnspan=2, sticky="ew", padx=5, pady=(2, 10))
-
-        ctk.CTkButton(f_btn2, text="📄 CI 발행", command=self.export_ci, height=30, 
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
-                      
-        ctk.CTkButton(f_btn2, text="📄 PL 발행", command=self.export_pl, height=30, 
-                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
-
     def _setup_items_panel(self, parent):
         ctk.CTkLabel(parent, text="납품 품목 리스트", font=FONTS["header"]).pack(anchor="w", padx=15, pady=15)
         
@@ -155,9 +106,22 @@ class DeliveryPopup(BasePopup):
         ctk.CTkButton(footer_frame, text="닫기", command=self.destroy, width=100, height=45,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], 
                       text_color=COLORS["text"]).pack(side="left")
-        ctk.CTkButton(footer_frame, text="납품 처리 (저장)", command=self.save, width=200, height=45,
+        
+        # 납품 버튼
+        ctk.CTkButton(footer_frame, text="납품", command=self.on_delivery_btn, width=150, height=45,
                       fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], 
-                      font=FONTS["header"]).pack(side="right")
+                      font=FONTS["header"]).pack(side="right", padx=5)
+
+        # 입금 버튼
+        ctk.CTkButton(footer_frame, text="입금", command=self.on_payment_btn, width=150, height=45,
+                      fg_color=COLORS["success"], hover_color=COLORS["success_hover"], 
+                      font=FONTS["header"]).pack(side="right", padx=5)
+
+    def on_delivery_btn(self):
+        messagebox.showinfo("알림", "납품 기능은 추후 구현 예정입니다.", parent=self)
+
+    def on_payment_btn(self):
+        messagebox.showinfo("알림", "입금 기능은 추후 구현 예정입니다.", parent=self)
 
     def _create_full_width_input(self, parent, row, label_text):
         f = ctk.CTkFrame(parent, fg_color="transparent")
@@ -205,22 +169,6 @@ class DeliveryPopup(BasePopup):
         if self.entry_po_file:
              path = str(first.get("발주서경로", "")).replace("nan", "")
              if path: self.update_file_entry("발주서경로", path)
-
-        # 배송 정보 프리필
-        self.entry_shipping_method.insert(0, self.dm.get_client_shipping_method(self.cached_client_name) or "")
-        self.entry_shipping_account.insert(0, self.dm.get_client_shipping_account(self.cached_client_name) or "")
-        
-        if self.entry_waybill_file:
-            path = str(first.get("운송장경로", "")).replace("nan", "")
-            if path: self.update_file_entry("운송장경로", path)
-
-        # 출고번호 (항상 신규 생성)
-        self.current_delivery_no = self.dm.get_next_delivery_id() # 신규 생성
-            
-        self.entry_delivery_no.configure(state="normal")
-        self.entry_delivery_no.delete(0, "end")
-        self.entry_delivery_no.insert(0, self.current_delivery_no)
-        self.entry_delivery_no.configure(state="readonly")
 
         # 품목 리스트
         target_rows = rows[~rows["Status"].isin(["납품완료/입금대기", "완료", "취소", "보류"])]
@@ -370,7 +318,7 @@ class DeliveryPopup(BasePopup):
         order_info = {
             "client_name": self.cached_client_name,
             "mgmt_no": self.current_delivery_no, 
-            "date": self.entry_delivery_date.get(), 
+            "date": datetime.now().strftime("%Y-%m-%d"), # Default to today
             "po_no": first.get("발주서번호", ""), 
         }
         self._execute_export(self.export_manager.export_ci_to_pdf, client_info, order_info, items, "CI")
@@ -387,7 +335,7 @@ class DeliveryPopup(BasePopup):
         initial_data = {
             "client_name": self.cached_client_name,
             "mgmt_no": self.current_delivery_no,
-            "date": self.entry_delivery_date.get(),
+            "date": datetime.now().strftime("%Y-%m-%d"), # Default to today
             "items": items
         }
 
@@ -396,7 +344,7 @@ class DeliveryPopup(BasePopup):
             order_info = {
                 "client_name": self.cached_client_name,
                 "mgmt_no": self.current_delivery_no,
-                "date": self.entry_delivery_date.get(),
+                "date": datetime.now().strftime("%Y-%m-%d"),
                 "po_no": first_po,
                 "notes": notes
             }
@@ -404,7 +352,6 @@ class DeliveryPopup(BasePopup):
             return success, result 
 
         self.attributes("-topmost", False)
-        # [변경] ui.popups 경로의 PackingListPopup 사용
         from ui.popups.packing_list_popup import PackingListPopup
         PackingListPopup(self, self.dm, on_pl_confirm, initial_data)
 
@@ -417,69 +364,9 @@ class DeliveryPopup(BasePopup):
             messagebox.showerror("실패", result, parent=self)
         self.attributes("-topmost", True)
 
-    # 저장 (납품 처리) 메서드
-
+    # 저장 (납품 처리) 메서드 - Placeholder for now as per plan
     def save(self):
-        delivery_date = self.entry_delivery_date.get()
-        if not delivery_date:
-            messagebox.showwarning("경고", "출고일을 입력하세요.", parent=self)
-            return
-
-        update_requests = []
-        for index, item_widget in self.item_widgets_map.items():
-            try: deliver_qty = float(item_widget["entry"].get().replace(",", ""))
-            except ValueError:
-                messagebox.showerror("오류", "출고 수량은 숫자여야 합니다.", parent=self)
-                return
-            
-            if deliver_qty <= 0: continue
-            if deliver_qty > item_widget["current_qty"]:
-                messagebox.showerror("오류", f"잔여 수량 초과: {item_widget['row_data'].get('품목명','')}", parent=self)
-                return
-
-            update_requests.append({
-                "idx": index, "deliver_qty": deliver_qty,
-                "serial_no": str(item_widget["row_data"].get("시리얼번호", "-"))
-            })
-        
-        if not update_requests:
-            messagebox.showinfo("정보", "처리할 품목이 없습니다.", parent=self)
-            return
-
-        waybill_path = ""
-        if self.entry_waybill_file:
-            path = self.full_paths.get("운송장경로", "")
-            waybill_path = path if path else self.entry_waybill_file.get().strip()
-
-        # 운송장 파일 저장
-        final_waybill_path = ""
-        safe_client = "".join([c for c in self.cached_client_name if c.isalnum() or c in (' ', '_')]).strip()
-        
-        success, msg, new_path = self.file_manager.save_file(
-            "운송장경로", "운송장", "운송장", f"{safe_client}_{self.mgmt_nos[0]}_{self.current_delivery_no}"
-        )
-        
-        if success and new_path:
-             final_waybill_path = new_path
-        elif not success and waybill_path: # Failed to save but had path
-             pass
-
-        success, msg = self.dm.process_delivery(
-            self.current_delivery_no,
-            delivery_date,
-            self.entry_invoice_no.get(),
-            self.entry_shipping_method.get(),
-            final_waybill_path,
-            update_requests
-        )
-
-        if success:
-            messagebox.showinfo("성공", "납품 처리가 완료되었습니다.\n(CI/PL 발행 가능)", parent=self)
-            self.refresh_callback()
-            self.export_pl() # 저장 후 바로 PL 발행 팝업 호출 (기존 로직 유지)
-            self.destroy()
-        else:
-            messagebox.showerror("실패", f"저장에 실패했습니다: {msg}", parent=self)
+        pass
 
     # Abstract Methods Placeholder
     def delete(self): pass

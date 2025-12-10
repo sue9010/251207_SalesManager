@@ -19,6 +19,7 @@ COLORS = {
     "danger": ("#C62828", "#E04F5F"),
     "danger_hover": ("#B71C1C", "#D32F2F"),
     "success": ("#2E7D32", "#2CC985"),
+    "success_hover": ("#1B5E20", "#25A96F"),
     "warning": ("#EF6C00", "#D35400"),
     
     # 텍스트 색상

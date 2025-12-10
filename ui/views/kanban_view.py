@@ -151,7 +151,7 @@ class KanbanView(ctk.CTkFrame):
             return
 
         if status in ["생산중", "납품대기", "납품대기/입금완료"]:
-            self.pm.open_delivery_popup(mgmt_no)
+            self.pm.open_production_popup(mgmt_no)
             return
 
         if status == "납품완료/입금대기":
