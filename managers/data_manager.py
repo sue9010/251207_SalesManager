@@ -71,6 +71,9 @@ class DataManager:
             # 여기서는 명확한 오류 확인을 위해 실패로 처리합니다.
             return False, f"Purchase Load Error: {msg_purchase}"
             
+        # 3. 생산 요청 파일의 날짜 동기화 (출고예정일 등)
+        self.sync_production_dates()
+            
         return True, "데이터 로드 완료"
 
     def _load_purchase_data(self):

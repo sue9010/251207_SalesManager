@@ -143,7 +143,7 @@ class TableView(ctk.CTkFrame):
         )
         self.status_filter.pack(side="left", padx=5)
                 
-        ctk.CTkButton(header_frame, text="새로고침", command=self.refresh_data, width=80, 
+        ctk.CTkButton(header_frame, text="새로고침", command=self.reload_and_refresh, width=80, 
                       fg_color=COLORS["bg_medium"], hover_color=COLORS["bg_light"], text_color=COLORS["text"], font=FONTS["main"]).pack(side="right")
 
         ctk.CTkButton(header_frame, text="검색", command=self.refresh_data, width=60, 
@@ -224,6 +224,15 @@ class TableView(ctk.CTkFrame):
             self.tree.heading(c, text=text)
             
         self.refresh_data()
+
+    def reload_and_refresh(self):
+        """파일에서 데이터를 다시 로드하고 화면을 갱신합니다."""
+        success, msg = self.dm.load_data()
+        if success:
+            self.refresh_data()
+            print("Data reloaded successfully")
+        else:
+            messagebox.showerror("데이터 로드 실패", msg)
 
     def refresh_data(self):
         for item in self.tree.get_children():
@@ -328,8 +337,11 @@ class TableView(ctk.CTkFrame):
         if status == "견적":
             self.pm.open_quote_popup(mgmt_no)
             
-        elif status in ["주문", "생산중"]:
+        elif status == "주문":
             self.pm.open_order_popup(mgmt_no)
+            
+        elif status == "생산중":
+            self.pm.open_delivery_popup([mgmt_no])
             
         elif status == "종료":
             self.pm.open_complete_popup(mgmt_no)
