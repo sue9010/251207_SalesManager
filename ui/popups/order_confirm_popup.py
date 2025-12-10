@@ -14,7 +14,7 @@ class OrderConfirmPopup(ctk.CTkToplevel):
         self.on_confirm_callback = on_confirm_callback
         
         self.title("주문 확정")
-        self.geometry("500x550")
+        self.geometry("500x480")
         self.configure(fg_color=COLORS["bg_dark"])
         
         self.file_manager = FileDnDManager(self)

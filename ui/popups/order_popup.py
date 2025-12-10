@@ -23,7 +23,7 @@ class OrderPopup(BasePopup):
         self.item_rows = [] # 데이터 추적용 (BasePopup 호환)
 
         super().__init__(parent, data_manager, refresh_callback, popup_title="주문", mgmt_no=real_mgmt_no)
-        self.geometry("1350x920")
+        self.geometry("1350x750")
 
         if not real_mgmt_no:
             self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))

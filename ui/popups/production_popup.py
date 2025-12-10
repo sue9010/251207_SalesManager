@@ -31,7 +31,7 @@ class ProductionPopup(BasePopup):
         self.cached_client_name = "" 
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=self.mgmt_nos[0])
-        self.geometry("1100x650")
+        self.geometry("1100x620")
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")
