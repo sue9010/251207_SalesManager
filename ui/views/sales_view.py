@@ -64,7 +64,7 @@ class SalesView(ctk.CTkFrame):
     def on_delivery(self):
         mgmt_nos = self.get_selected_mgmt_nos()
         if mgmt_nos:
-            self.pm.open_delivery_popup(mgmt_nos)
+            self.pm.open_production_popup(mgmt_nos)
             
     def on_payment(self):
         mgmt_nos = self.get_selected_mgmt_nos()

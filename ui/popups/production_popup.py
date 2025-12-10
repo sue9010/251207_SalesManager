@@ -130,9 +130,10 @@ class ProductionPopup(BasePopup):
             
             if deliver_qty > 0:
                 delivery_items.append({
+                    "idx": index,
                     "mgmt_no": row_data.get("관리번호", ""),
-                    "serial": str(row_data.get("시리얼번호", "-")),
-                    "qty": deliver_qty
+                    "serial_no": str(row_data.get("시리얼번호", "-")),
+                    "deliver_qty": deliver_qty
                 })
         
         if not delivery_items:
@@ -372,7 +373,8 @@ class ProductionPopup(BasePopup):
         initial_data = {
             "client_name": self.cached_client_name,
             "mgmt_no": self.current_delivery_no,
-            "date": datetime.now().strftime("%Y-%m-%d"), # Default to today
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "po_no": items[0].get("po_no", "") if items else "",
             "items": items
         }
 

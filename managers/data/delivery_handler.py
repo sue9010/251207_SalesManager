@@ -47,6 +47,8 @@ class DeliveryHandler:
             try: current_user = getpass.getuser()
             except: current_user = "Unknown"
             
+            row_data = None
+            
             for req in update_requests:
                 idx = req["idx"]
                 if idx not in dfs["data"].index: continue
@@ -106,7 +108,11 @@ class DeliveryHandler:
                 if not new_df.dropna(how='all').empty:
                     dfs["delivery"] = pd.concat([dfs["delivery"], new_df], ignore_index=True)
 
-            log_msg = f"번호 [{row_data.get('관리번호', '')}...] 납품 처리(출고번호: {delivery_no}) / {', '.join(processed_items)}"
+            if not processed_items:
+                return False, "처리된 항목이 없습니다."
+
+            mgmt_no_log = row_data.get('관리번호', '') if row_data is not None else "Unknown"
+            log_msg = f"번호 [{mgmt_no_log}...] 납품 처리(출고번호: {delivery_no}) / {', '.join(processed_items)}"
             self.dm.log_handler.add_log_to_dfs(dfs, "납품 처리", log_msg)
             return True, ""
             

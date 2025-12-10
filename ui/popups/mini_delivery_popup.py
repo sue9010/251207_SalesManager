@@ -99,13 +99,16 @@ class MiniDeliveryPopup(BasePopup):
              if success and path: saved_paths["운송장경로"] = path
 
         # Process Delivery
+        delivery_no = self.dm.get_next_delivery_id()
+        waybill_path = saved_paths.get("운송장경로", "")
+        
         success, msg = self.dm.process_delivery(
-            self.delivery_items,
+            delivery_no,
             date,
             invoice_no,
             ship_method,
-            ship_account,
-            saved_paths
+            waybill_path,
+            self.delivery_items
         )
 
         if success:
