@@ -501,10 +501,216 @@ class QuotePopup(BasePopup):
                       fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
         self.btn_save.pack(side="right", padx=5)
 
+        if rows.empty: return
+        
+        first = rows.iloc[0]
+        
+        # ID is already generated as NEW in __init__
+        
+        date_val = str(first.get("견적일", ""))
+        self.entry_date.delete(0, "end"); self.entry_date.insert(0, date_val)
+
+        self.combo_type.set(str(first.get("구분", "내수")))
+        
+        client_name = str(first.get("업체명", ""))
+        self.entry_client.set_value(client_name)
+        
+        self.combo_currency.set(str(first.get("통화", "KRW")))
+        
+        saved_tax = first.get("세율(%)", "")
+        if saved_tax != "" and saved_tax != "-": tax_rate = str(saved_tax)
+        else:
+            currency = str(first.get("통화", "KRW"))
+            tax_rate = "10" if currency == "KRW" else "0"
+        self.entry_tax_rate.delete(0, "end"); self.entry_tax_rate.insert(0, tax_rate)
+
+        self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
+        
+        # New Fields
+        self.entry_valid_until.delete(0, "end"); self.entry_valid_until.insert(0, str(first.get("유효기간", "")))
+        self.entry_payment_terms.delete(0, "end"); self.entry_payment_terms.insert(0, str(first.get("결제조건", "")))
+        self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건", "")))
+        self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
+        
+        # Status should be reset to "견적" for new copy
+        self.combo_status.set("견적")
+        
+        self._on_client_select(client_name)
+        
+        # Restore saved values again
+        if first.get("결제조건"): 
+            self.entry_payment_terms.delete(0, "end"); self.entry_payment_terms.insert(0, str(first.get("결제조건")))
+        if first.get("지급조건"):
+            self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건")))
+        if first.get("보증기간"):
+            self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간")))
+            
+        # Load items
+        for _, row in rows.iterrows():
+            self._add_item_row(row)
+            
+        self.title(f"견적 복사 등록 (원본: {self.copy_src_no}) - Sales Manager")
+
+    def save(self):
+        mgmt_no = self.entry_id.get()
+        client = self.entry_client.get()
+        
+        if not client:
+            messagebox.showwarning("경고", "고객사를 선택해주세요.", parent=self)
+            return
+        if not self.item_rows:
+            messagebox.showwarning("경고", "최소 1개 이상의 품목을 추가해주세요.", parent=self)
+            return
+
+        try: tax_rate_val = float(self.entry_tax_rate.get().strip())
+        except: tax_rate_val = 0
+
+        new_rows = []
+        
+        common_data = {
+            "관리번호": mgmt_no,
+            "구분": self.combo_type.get(),
+            "업체명": client,
+            "프로젝트명": self.entry_project.get(),
+            "통화": self.combo_currency.get(),
+            "환율": 1, 
+            "세율(%)": tax_rate_val,
+            "주문요청사항": "", # 견적은 주문요청사항 없음
+            "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
+            "Status": self.combo_status.get(),
+            "견적일": self.entry_date.get(),
+            "유효기간": self.entry_valid_until.get(),
+            "결제조건": self.entry_payment_terms.get(),
+            "지급조건": self.entry_payment_cond.get(),
+            "보증기간": self.entry_warranty.get()
+        }
+        
+        for item in self.item_rows:
+            row_data = common_data.copy()
+            row_data.update({
+                "품목명": item["item"].get(), "모델명": item["model"].get(), "Description": item["desc"].get(),
+                "수량": float(item["qty"].get().replace(",","") or 0),
+                "단가": float(item["price"].get().replace(",","") or 0),
+                "공급가액": float(item["supply"].get().replace(",","") or 0),
+                "세액": float(item["tax"].get().replace(",","") or 0),
+                "합계금액": float(item["total"].get().replace(",","") or 0),
+                "기수금액": 0, "미수금액": float(item["total"].get().replace(",","") or 0)
+            })
+            new_rows.append(row_data)
+
+        if self.mgmt_no and not self.copy_mode:
+            success, msg = self.dm.update_quote(mgmt_no, new_rows, client)
+        else:
+            # Copy mode or New
+            success, msg = self.dm.add_quote(new_rows, mgmt_no, client)
+        
+        if success:
+            messagebox.showinfo("완료", "저장되었습니다.", parent=self)
+            self.refresh_callback()
+            self.destroy()
+        else:
+            messagebox.showerror("실패", msg, parent=self)
+
+    def delete(self):
+        if messagebox.askyesno("삭제 확인", f"정말 이 견적({self.mgmt_no})을 삭제하시겠습니까?", parent=self):
+            success, msg = self.dm.delete_quote(self.mgmt_no)
+            if success:
+                messagebox.showinfo("삭제 완료", "삭제되었습니다.", parent=self)
+                self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("실패", msg, parent=self)
+
+    def export_quote(self):
+        client_name = self.entry_client.get()
+        if not client_name:
+            self.attributes("-topmost", False)
+            messagebox.showwarning("경고", "고객사를 선택해주세요.", parent=self)
+            self.attributes("-topmost", True)
+            return
+
+        client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
+        if client_row.empty:
+            self.attributes("-topmost", False)
+            messagebox.showerror("오류", "고객 정보를 찾을 수 없습니다.", parent=self)
+            self.attributes("-topmost", True)
+            return
+        
+        quote_info = {
+            "client_name": client_name,
+            "mgmt_no": self.entry_id.get(),
+            "date": self.entry_date.get(),
+            "req_note": "",
+            "note": self.entry_note.get("1.0", "end-1c") # Multiline get
+        }
+        
+        items = []
+        for row in self.item_rows:
+            items.append({
+                "item": row["item"].get(),
+                "model": row["model"].get(),
+                "desc": row["desc"].get(),
+                "qty": float(row["qty"].get().replace(",", "") or 0),
+                "price": float(row["price"].get().replace(",", "") or 0),
+                "amount": float(row["supply"].get().replace(",", "") or 0)
+            })
+
+        success, result = self.export_manager.export_quote_to_pdf(
+            client_row.iloc[0], quote_info, items
+        )
+        
+        self.attributes("-topmost", False)
+        if success:
+            messagebox.showinfo("성공", f"견적서가 생성되었습니다.\n{result}", parent=self)
+        else:
+            messagebox.showerror("실패", result, parent=self)
+        self.attributes("-topmost", True)
+
+    def _generate_new_id(self):
+        new_id = self.dm.get_next_quote_id()
+        
+        # UI 업데이트 (entry_id가 존재한다면)
+        if hasattr(self, 'entry_id'):
+            self.entry_id.configure(state="normal")
+            self.entry_id.delete(0, "end")
+            self.entry_id.insert(0, new_id)
+
+    def _create_footer(self, parent):
+        self.footer_frame = ctk.CTkFrame(parent, height=60, fg_color="transparent")
+        self.footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
+
+        # 버튼 배치 순서 (우측부터): [취소] [수정] [주문 확정]
+        
+        # 취소 버튼
+        self.btn_cancel = ctk.CTkButton(self.footer_frame, text="취소", command=self.destroy, width=80, height=40,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], text_color=COLORS["text"])
+        self.btn_cancel.pack(side="right", padx=5)
+
+        # 수정 버튼 (기존 저장 버튼 역할)
+        self.btn_save = ctk.CTkButton(self.footer_frame, text="수정", command=self.save, width=120, height=40,
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
+        self.btn_save.pack(side="right", padx=5)
+
         # 주문 확정 버튼 (신규 추가)
         self.btn_confirm = ctk.CTkButton(self.footer_frame, text="주문 확정", command=self.confirm_order, width=120, height=40,
                       fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], font=FONTS["main_bold"])
         self.btn_confirm.pack(side="right", padx=5)
 
     def confirm_order(self):
-        messagebox.showinfo("알림", "주문 확정 기능은 준비 중입니다.", parent=self)
+        from ui.popups.order_confirm_popup import OrderConfirmPopup
+        
+        def on_confirm(confirm_data):
+            success, msg = self.dm.confirm_order(self.mgmt_no, confirm_data)
+            if success:
+                messagebox.showinfo("완료", "주문이 확정되었습니다.", parent=self)
+                self.refresh_callback()
+                self.destroy()
+            else:
+                messagebox.showerror("실패", msg, parent=self)
+                
+        OrderConfirmPopup(self, self.dm, self.mgmt_no, on_confirm)

@@ -163,6 +163,9 @@ class DataManager:
     def update_order_status(self, mgmt_no, new_status):
         return self.order_handler.update_status(mgmt_no, new_status)
 
+    def confirm_order(self, mgmt_no, confirm_data):
+        return self.order_handler.confirm_order(mgmt_no, confirm_data)
+
     # Delegate to PaymentHandler
     def recalc_payment_status(self, dfs, mgmt_no):
         self.payment_handler.recalc_payment_status(dfs, mgmt_no)

@@ -176,3 +176,22 @@ class OrderHandler:
             self.dm.log_handler.add_log_to_dfs(dfs, "상태 변경", f"번호 [{mgmt_no}] : {old_status} -> {new_status}")
             return True, ""
         return self.dm.execute_transaction(update)
+
+    def confirm_order(self, mgmt_no: str, confirm_data: dict) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            if not mask.any(): return False, "항목을 찾을 수 없습니다."
+            
+            # Update Statuses
+            dfs["data"].loc[mask, "Status"] = "주문"
+            dfs["data"].loc[mask, "Delivery Status"] = "대기"
+            dfs["data"].loc[mask, "Payment Status"] = "대기"
+            
+            # Update additional data
+            for key, value in confirm_data.items():
+                if key in dfs["data"].columns:
+                    dfs["data"].loc[mask, key] = value
+            
+            self.dm.log_handler.add_log_to_dfs(dfs, "주문 확정", f"번호 [{mgmt_no}] 주문 확정 처리")
+            return True, ""
+        return self.dm.execute_transaction(update)
