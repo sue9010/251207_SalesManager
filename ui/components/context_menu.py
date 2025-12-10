@@ -41,8 +41,10 @@ class ContextMenu(ctk.CTkToplevel):
         
     def show(self, x, y):
         self.update_idletasks()
+        
+        # Calculate required size
         width = 150
-        height = len(self.buttons) * 32 + 4
+        height = self.frame.winfo_reqheight()
         
         # Adjust position if menu goes off-screen (basic check)
         screen_width = self.winfo_screenwidth()
