@@ -4,7 +4,6 @@ from datetime import datetime
 import customtkinter as ctk
 import pandas as pd
 
-# [변경] 경로 수정
 from src.styles import COLORS, FONT_FAMILY, FONTS
 from ui.components.context_menu import ContextMenu
 from tkinter import messagebox
@@ -410,12 +409,16 @@ class TableView(ctk.CTkFrame):
             self.context_menu.add_command("주문 전환", lambda: self.update_status(mgmt_no, "주문"))
             self.context_menu.add_command("대기 전환", lambda: self.update_status(mgmt_no, "보류"))
             self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
+            self.context_menu.add_separator()
+            self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, "견적"), text_color=COLORS["danger"])
             
         elif status == "주문":
             self.context_menu.add_command("주문 복사", lambda: self.pm.open_order_popup(mgmt_no, copy_mode=True))
             self.context_menu.add_command("생산 전환", lambda: self.update_status(mgmt_no, "생산중"))
             self.context_menu.add_command("대기 전환", lambda: self.update_status(mgmt_no, "보류"))
             self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
+            self.context_menu.add_separator()
+            self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, "주문"), text_color=COLORS["danger"])
             
         elif status == "생산중":
             self.context_menu.add_command("납품대기 전환", lambda: self.update_status(mgmt_no, "납품대기"))
@@ -435,6 +438,24 @@ class TableView(ctk.CTkFrame):
             
         if self.context_menu.buttons:
             self.context_menu.show(event.x_root, event.y_root)
+
+    def delete_item(self, mgmt_no, status):
+        if not messagebox.askyesno("삭제 확인", f"정말 {status} 건 ({mgmt_no})을 삭제하시겠습니까?"):
+            return
+
+        success = False
+        msg = ""
+
+        if status == "견적":
+            success, msg = self.dm.delete_quote(mgmt_no)
+        elif status == "주문":
+            success, msg = self.dm.delete_order(mgmt_no)
+        
+        if success:
+            messagebox.showinfo("삭제 완료", "삭제되었습니다.")
+            self.refresh_data()
+        else:
+            messagebox.showerror("오류", f"삭제 실패: {msg}")
 
     def update_status(self, mgmt_no, new_status):
         success, msg = self.dm.update_order_status(mgmt_no, new_status)

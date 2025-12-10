@@ -201,7 +201,7 @@ class OrderPopup(BasePopup):
         self.entry_tax_rate.delete(0, "end"); self.entry_tax_rate.insert(0, tax_rate)
 
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
-        self.entry_req.delete(0, "end"); self.entry_req.insert(0, str(first.get("주문요청사항", "")).replace("nan", ""))
+        self.entry_req.delete("1.0", "end"); self.entry_req.insert("1.0", str(first.get("주문요청사항", "")).replace("nan", ""))
         
         # Note (Multiline)
         note_val = str(first.get("비고", ""))
@@ -245,7 +245,7 @@ class OrderPopup(BasePopup):
         original_proj = str(first.get("프로젝트명", ""))
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, f"{original_proj} (Copy)")
         
-        self.entry_req.delete(0, "end"); self.entry_req.insert(0, str(first.get("주문요청사항", "")).replace("nan", ""))
+        self.entry_req.delete("1.0", "end"); self.entry_req.insert("1.0", str(first.get("주문요청사항", "")).replace("nan", ""))
         
         # Note (Multiline)
         note_val = str(first.get("비고", ""))
@@ -277,7 +277,7 @@ class OrderPopup(BasePopup):
         except: tax_rate_val = 0
 
         new_rows = []
-        req_note_val = self.entry_req.get()
+        req_note_val = self.entry_req.get("1.0", "end-1c")
         
         # File Save Logic
         order_file_path = ""
@@ -370,7 +370,7 @@ class OrderPopup(BasePopup):
             "mgmt_no": self.entry_id.get(),
             "date": self.entry_date.get(),
             "type": self.combo_type.get(),
-            "req_note": self.entry_req.get(),
+            "req_note": self.entry_req.get("1.0", "end-1c"),
         }
         
         items = []

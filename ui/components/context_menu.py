@@ -16,13 +16,16 @@ class ContextMenu(ctk.CTkToplevel):
         # Click outside to close
         self.bind("<FocusOut>", lambda e: self.hide())
         
-    def add_command(self, label, command):
+    def add_command(self, label, command, text_color=None):
+        if text_color is None:
+            text_color = COLORS["text"]
+            
         btn = ctk.CTkButton(
             self.frame, 
             text=label, 
             command=lambda: [command(), self.hide()],
             fg_color="transparent", 
-            text_color=COLORS["text"],
+            text_color=text_color,
             hover_color=COLORS["primary"],
             anchor="w",
             height=28,
@@ -30,6 +33,11 @@ class ContextMenu(ctk.CTkToplevel):
         )
         btn.pack(fill="x", padx=2, pady=2)
         self.buttons.append(btn)
+
+    def add_separator(self):
+        sep = ctk.CTkFrame(self.frame, height=2, fg_color=COLORS["border"])
+        sep.pack(fill="x", padx=5, pady=2)
+        self.buttons.append(sep)
         
     def show(self, x, y):
         self.update_idletasks()

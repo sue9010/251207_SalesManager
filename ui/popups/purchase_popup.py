@@ -82,6 +82,15 @@ class PurchasePopup(BasePopup):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
 
+        # Helper for full width input
+        def create_full_width_input(row_idx, label, key_name):
+            f = ctk.CTkFrame(parent, fg_color="transparent")
+            f.grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+            ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+            entry = ctk.CTkEntry(f, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+            entry.pack(side="left", fill="x", expand=True)
+            return entry
+
         # --- 1행: 발주일, 구분 ---
         self.entry_date = self.create_grid_input(parent, 0, 0, "발주일", placeholder="YYYY-MM-DD")
         self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수입"], command=self.on_type_change)
@@ -91,7 +100,7 @@ class PurchasePopup(BasePopup):
         self.entry_tax_rate = self.create_grid_input(parent, 1, 1, "세율(%)")
 
         # --- 3행: 결제방법 (New) --- Full Width ---
-        self.entry_payment_method = self.create_full_width_input(parent, 2, 0, "결제방법")
+        self.entry_payment_method = create_full_width_input(2,"결제방법", "결제방법")
         
         # --- 4행: 매입처 (Autocomplete) - Full Width ---
         f_client = ctk.CTkFrame(parent, fg_color="transparent")
@@ -102,15 +111,6 @@ class PurchasePopup(BasePopup):
         self.entry_client = AutocompleteEntry(f_client, completevalues=client_names, command=self._on_client_select,
                                               height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_client.pack(side="left", fill="x", expand=True)
-
-        # Helper for full width input
-        def create_full_width_input(row_idx, label, key_name):
-            f = ctk.CTkFrame(parent, fg_color="transparent")
-            f.grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-            ctk.CTkLabel(f, text=label, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-            entry = ctk.CTkEntry(f, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
-            entry.pack(side="left", fill="x", expand=True)
-            return entry
 
         # --- 5행: 예금주 ---
         self.entry_account_holder = create_full_width_input(4, "예금주", "예금주")

@@ -363,9 +363,23 @@ class PurchaseTableView(ctk.CTkFrame):
         
         # 발주 복사는 항상 가능하도록
         self.context_menu.add_command("발주 복사", lambda: self.pm.open_purchase_popup(mgmt_no=mgmt_no, copy_mode=True))
+        self.context_menu.add_separator()
+        self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no), text_color=COLORS["danger"])
             
         if self.context_menu.buttons:
             self.context_menu.show(event.x_root, event.y_root)
+
+    def delete_item(self, mgmt_no):
+        if not messagebox.askyesno("삭제 확인", f"정말 발주 건 ({mgmt_no})을 삭제하시겠습니까?"):
+            return
+
+        success, msg = self.dm.delete_purchase(mgmt_no)
+        
+        if success:
+            messagebox.showinfo("삭제 완료", "삭제되었습니다.")
+            self.refresh_data()
+        else:
+            messagebox.showerror("오류", f"삭제 실패: {msg}")
 
     def update_status(self, mgmt_no, new_status):
         messagebox.showinfo("알림", f"상태 변경({new_status})은 추후 DB 연동 후 구현됩니다.")
