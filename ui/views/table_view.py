@@ -104,9 +104,7 @@ class TableView(ctk.CTkFrame):
         self.pm = popup_manager
         
         self.all_statuses = [
-            "견적", "주문", "생산중", "납품대기", 
-            "납품완료/입금대기", "납품대기/입금완료", 
-            "납품완료/입금완료", "종료","취소", "보류"
+            "견적", "주문", "생산중", "종료","취소", "보류"
         ]
         
         self.default_statuses = [s for s in self.all_statuses if s not in ["종료", "취소","보류"]]
@@ -192,8 +190,16 @@ class TableView(ctk.CTkFrame):
             "수량": 60, "공급가액": 100, "수주일": 90, "출고예정일": 90, "출고일": 90
         }
         
+        # 헤더 표시명 매핑 (Key: 실제 데이터 컬럼명, Value: 표시될 헤더 텍스트)
+        header_map = {
+            "Status": "진행상태",
+            "Delivery Status": "납품상태",
+            "Payment Status": "결제상태"
+        }
+        
         for col in columns:
-            self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
+            display_text = header_map.get(col, col)
+            self.tree.heading(col, text=display_text, command=lambda c=col: self.sort_column(c))
             self.tree.column(col, width=col_widths.get(col, 100), anchor="center" if col in ["관리번호","업체명","모델명", "Status", "Delivery Status", "Payment Status", "수량", "수주일", "출고예정일", "출고일"] else "w")
             if col == "공급가액":
                 self.tree.column(col, anchor="e")
