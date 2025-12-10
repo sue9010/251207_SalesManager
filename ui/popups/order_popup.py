@@ -278,7 +278,7 @@ class OrderPopup(BasePopup):
     # ==========================================================================
     # 저장 및 삭제
     # ==========================================================================
-    def save(self):
+    def save(self, destroy_after=True):
         mgmt_no = self.entry_id.get()
         client = self.entry_client.get()
         
@@ -312,7 +312,8 @@ class OrderPopup(BasePopup):
                   order_file_path = self.entry_order_file.get().strip()
         
         # Force Status to "주문"
-        self.combo_status.set("주문")
+        # Force Status to "주문" -> Removed to respect current status
+        # self.combo_status.set("주문")
 
         common_data = {
             "관리번호": mgmt_no,
@@ -326,7 +327,7 @@ class OrderPopup(BasePopup):
             "지급조건": self.entry_payment_cond.get(),
             "주문요청사항": req_note_val,
             "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
-            "Status": "주문", # Force Status
+            "Status": self.combo_status.get(), # Use current status
             "발주서경로": order_file_path,
             "수주일": self.entry_date.get(),
             "발주서번호": self.entry_po_no.get().strip()
@@ -354,9 +355,12 @@ class OrderPopup(BasePopup):
         if success:
             messagebox.showinfo("완료", "저장되었습니다.", parent=self)
             self.refresh_callback()
-            self.destroy()
+            if destroy_after:
+                self.destroy()
+            return True, "저장되었습니다.", new_rows
         else:
             messagebox.showerror("실패", msg, parent=self)
+            return False, msg, []
 
     def delete(self):
         if messagebox.askyesno("삭제 확인", f"정말 이 주문({self.mgmt_no})을 삭제하시겠습니까?", parent=self):
@@ -555,4 +559,16 @@ class OrderPopup(BasePopup):
     def start_production(self):
         if messagebox.askyesno("생산 시작", "주문 상태를 '생산중'으로 변경하고 저장하시겠습니까?", parent=self):
             self.combo_status.set("생산중")
-            self.save()
+            # 저장 후 데이터 받아오기 (팝업 닫지 않음)
+            success, msg, saved_rows = self.save(destroy_after=False)
+            
+            if success:
+                # 생산 요청 파일로 내보내기
+                export_success, export_msg = self.dm.export_to_production_request(saved_rows)
+                
+                if export_success:
+                    messagebox.showinfo("생산 요청 완료", f"생산 요청이 완료되었습니다.\n{export_msg}", parent=self)
+                else:
+                    messagebox.showwarning("생산 요청 실패", f"주문은 저장되었으나 생산 요청 파일 업데이트에 실패했습니다.\n{export_msg}", parent=self)
+                
+                self.destroy()
