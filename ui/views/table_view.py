@@ -349,14 +349,13 @@ class TableView(ctk.CTkFrame):
     def on_double_click(self, event):
         item = self.tree.selection()
         if not item: return
-        
         values = self.tree.item(item[0], "values")
         mgmt_no = values[0]
         status = values[1]
         
-        # 1. 견적 -> 견적 팝업
+        # 1. 견적 -> 주문 팝업 (User Request)
         if status == "견적":
-            self.pm.open_quote_popup(mgmt_no)
+            self.pm.open_order_popup(mgmt_no)
             
         # 2. 주문 -> 주문 팝업
         elif status == "주문":
