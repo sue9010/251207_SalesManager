@@ -102,5 +102,34 @@ class TestOrderPopupRedesign(unittest.TestCase):
         
         popup.destroy()
 
+    def test_save_button_and_status(self):
+        # Open New OrderPopup
+        popup = OrderPopup(self.root, self.mock_dm, lambda: None)
+        
+        # Verify Save Button Text
+        self.assertEqual(popup.btn_save.cget("text"), "주문 저장")
+        
+        # Fill fields
+        popup.entry_client.set_value("Test Client")
+        
+        # Add Item
+        popup._add_item_row()
+        row = popup.item_rows[0]
+        row["item"].insert(0, "Item 1")
+        row["qty"].insert(0, "1")
+        row["price"].insert(0, "100")
+        popup.calculate_row(row)
+        
+        # Save
+        popup.save()
+        
+        # Verify add_order called with Status="주문"
+        args = self.mock_dm.add_order.call_args
+        self.assertIsNotNone(args)
+        rows = args[0][0]
+        self.assertEqual(rows[0]["Status"], "주문")
+        
+        popup.destroy()
+
 if __name__ == "__main__":
     unittest.main()

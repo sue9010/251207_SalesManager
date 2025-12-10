@@ -32,6 +32,10 @@ class OrderPopup(BasePopup):
             
         if self.copy_mode and self.copy_src_no:
             self._load_copied_data()
+            
+        # Rename Save Button
+        if hasattr(self, 'btn_save'):
+            self.btn_save.configure(text="주문 저장")
     
 
     def _create_header(self, parent):
@@ -304,9 +308,6 @@ class OrderPopup(BasePopup):
         if success:
              order_file_path = new_path
         else:
-             # If save failed, we might want to stop or warn. 
-             # Original code warned but proceeded if I recall correctly or just showed warning.
-             # Here we show warning.
              if self.entry_order_file.get().strip():
                  messagebox.showwarning("파일 저장 실패", f"파일 저장에 실패했습니다. 기존 경로를 유지하거나 저장되지 않을 수 있습니다.\n{msg}", parent=self)
 
@@ -314,6 +315,9 @@ class OrderPopup(BasePopup):
              order_file_path = self.full_paths.get("발주서경로", "")
              if not order_file_path and self.entry_order_file:
                   order_file_path = self.entry_order_file.get().strip()
+        
+        # Force Status to "주문"
+        self.combo_status.set("주문")
 
         common_data = {
             "관리번호": mgmt_no,
@@ -327,7 +331,7 @@ class OrderPopup(BasePopup):
             "지급조건": self.entry_payment_cond.get(),
             "주문요청사항": req_note_val,
             "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
-            "Status": self.combo_status.get(),
+            "Status": "주문", # Force Status
             "발주서경로": order_file_path,
             "수주일": self.entry_date.get(),
             "발주서번호": self.entry_po_no.get().strip()
