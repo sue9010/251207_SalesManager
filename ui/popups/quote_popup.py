@@ -183,7 +183,6 @@ class QuotePopup(BasePopup):
         self._calculate_totals()
         
         # Recalculate all rows
-        # Recalculate all rows
         for row in self.item_rows: self.calculate_row(row)
 
     def _on_tax_change(self, event=None):
@@ -294,7 +293,72 @@ class QuotePopup(BasePopup):
             self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건")))
         if first.get("보증기간"):
             self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간")))
+            
+        # Load items
+        for _, row in rows.iterrows():
+            self._add_item_row(row)
         
+        if self.copy_mode:
+            self.title(f"견적 복사 등록 (원본: {self.copy_src_no}) - Sales Manager")
+        else:
+            self.title(f"견적 수정 ({self.mgmt_no}) - Sales Manager")
+
+    def _load_copied_data(self):
+        df = self.dm.df_data
+        rows = df[df["관리번호"] == self.copy_src_no]
+        if rows.empty: return
+        
+        first = rows.iloc[0]
+        
+        # ID is already generated as NEW in __init__
+        
+        date_val = str(first.get("견적일", ""))
+        self.entry_date.delete(0, "end"); self.entry_date.insert(0, date_val)
+
+        self.combo_type.set(str(first.get("구분", "내수")))
+        
+        client_name = str(first.get("업체명", ""))
+        self.entry_client.set_value(client_name)
+        
+        self.combo_currency.set(str(first.get("통화", "KRW")))
+        
+        saved_tax = first.get("세율(%)", "")
+        if saved_tax != "" and saved_tax != "-": tax_rate = str(saved_tax)
+        else:
+            currency = str(first.get("통화", "KRW"))
+            tax_rate = "10" if currency == "KRW" else "0"
+        self.entry_tax_rate.delete(0, "end"); self.entry_tax_rate.insert(0, tax_rate)
+
+        self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
+        
+        # New Fields
+        self.entry_valid_until.delete(0, "end"); self.entry_valid_until.insert(0, str(first.get("유효기간", "")))
+        self.entry_payment_terms.delete(0, "end"); self.entry_payment_terms.insert(0, str(first.get("결제조건", "")))
+        self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건", "")))
+        self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간", "")))
+        
+        # Note (Multiline)
+        note_val = str(first.get("비고", ""))
+        self.entry_note.delete("1.0", "end")
+        self.entry_note.insert("1.0", note_val)
+        
+        # Status should be reset to "견적" for new copy
+        self.combo_status.set("견적")
+        
+        self._on_client_select(client_name)
+        
+        # Restore saved values again
+        if first.get("결제조건"): 
+            self.entry_payment_terms.delete(0, "end"); self.entry_payment_terms.insert(0, str(first.get("결제조건")))
+        if first.get("지급조건"):
+            self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건")))
+        if first.get("보증기간"):
+            self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간")))
+            
+        # Load items
+        for _, row in rows.iterrows():
+            self._add_item_row(row)
+            
         self.title(f"견적 복사 등록 (원본: {self.copy_src_no}) - Sales Manager")
 
     def save(self):
@@ -420,4 +484,3 @@ class QuotePopup(BasePopup):
             self.entry_id.configure(state="normal")
             self.entry_id.delete(0, "end")
             self.entry_id.insert(0, new_id)
-            # self.entry_id.configure(state="readonly") # Entry가 hidden이거나 dummy일 수 있으므로 상태 제어 주의

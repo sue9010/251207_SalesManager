@@ -67,13 +67,12 @@ class DeliveryHandler:
 
                 # 데이터 업데이트 (완전 출고 vs 부분 출고)
                 is_full = abs(deliver_qty - db_qty) < 0.000001
-                new_status = "완료" if row_data.get("Status") == "납품대기/입금완료" else "납품완료/입금대기"
                 
                 price = float(str(row_data.get("단가", 0)).replace(",", "") or 0)
                 tax_rate = float(str(row_data.get("세율(%)", 0)).replace(",", "") or 0) / 100
 
                 if is_full:
-                    dfs["data"].at[idx, "Status"] = new_status
+                    dfs["data"].at[idx, "Delivery Status"] = "완료"
                     dfs["data"].at[idx, "출고일"] = delivery_date
                     dfs["data"].at[idx, "송장번호"] = invoice_no
                     dfs["data"].at[idx, "운송방법"] = shipping_method
@@ -93,7 +92,7 @@ class DeliveryHandler:
                     new_row = row_data.copy()
                     new_row.update({
                         "수량": deliver_qty, "공급가액": new_supply, "세액": new_tax, "합계금액": new_supply + new_tax,
-                        "미수금액": new_supply + new_tax, "Status": new_status, "출고일": delivery_date,
+                        "미수금액": new_supply + new_tax, "Delivery Status": "완료", "출고일": delivery_date,
                         "송장번호": invoice_no, "운송방법": shipping_method,
                     })
                     if "운송장경로" in new_row: new_row["운송장경로"] = ""

@@ -50,6 +50,11 @@ class OrderHandler:
 
     def add_order(self, order_rows: list[dict], mgmt_no: str, client_name: str) -> tuple[bool, str]:
         def update(dfs):
+            # Initialize new status columns
+            for row in order_rows:
+                row["Delivery Status"] = "대기"
+                row["Payment Status"] = "대기"
+                
             new_df = pd.DataFrame(order_rows)
             if not new_df.dropna(how='all').empty:
                 dfs["data"] = pd.concat([dfs["data"], new_df], ignore_index=True)
@@ -64,7 +69,7 @@ class OrderHandler:
             
             if not existing_rows.empty:
                 first_exist = existing_rows.iloc[0]
-                preserve_cols = ["출고예정일", "출고일", "입금완료일", "세금계산서발행일", "계산서번호", "수출신고번호"]
+                preserve_cols = ["출고예정일", "출고일", "입금완료일", "세금계산서발행일", "계산서번호", "수출신고번호", "Delivery Status", "Payment Status"]
                 for row in order_rows:
                     for col in preserve_cols:
                         if col not in row:
