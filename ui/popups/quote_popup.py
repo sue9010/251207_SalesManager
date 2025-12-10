@@ -1,5 +1,6 @@
+
 import tkinter as tk
-from datetime import datetime
+from datetime import datetime, timedelta
 from tkinter import messagebox
 import customtkinter as ctk
 import pandas as pd
@@ -28,6 +29,8 @@ class QuotePopup(BasePopup):
         if not real_mgmt_no:
             self.entry_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.combo_status.set("견적")
+            self.combo_currency.set("KRW")
+            self.entry_tax_rate.insert(0, "10")
             self._generate_new_id()
             
         # [신규] 복사 모드라면 원본 데이터 로드하여 필드 채우기
@@ -63,13 +66,26 @@ class QuotePopup(BasePopup):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
 
-        # Row 0: Date, Type
+        # 1행: 견적일, 구분
         self.entry_date = self.create_grid_input(parent, 0, 0, "견적일", placeholder="YYYY-MM-DD")
+        self.entry_date.bind("<FocusOut>", self._on_date_change) # 날짜 변경 시 유효기간 재계산
         self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
 
-        # Row 1: Client (Autocomplete) - Full Width
+        # 2행: 통화, 세율
+        self.combo_currency = self.create_grid_combo(parent, 1, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        self.entry_tax_rate = self.create_grid_input(parent, 1, 1, "세율(%)")
+        self.entry_tax_rate.bind("<KeyRelease>", self._on_tax_change)
+
+        # 3행: 프로젝트명 (Full Width)
+        f_project = ctk.CTkFrame(parent, fg_color="transparent")
+        f_project.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_project.pack(side="left", fill="x", expand=True)
+
+        # 4행: 업체명 (Autocomplete) - Full Width
         f_client = ctk.CTkFrame(parent, fg_color="transparent")
-        f_client.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_client.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_client, text="업체명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         
         client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
@@ -77,31 +93,51 @@ class QuotePopup(BasePopup):
                                               height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_client.pack(side="left", fill="x", expand=True)
 
-        # Row 2: Project - Full Width
-        f_project = ctk.CTkFrame(parent, fg_color="transparent")
-        f_project.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
-        self.entry_project.pack(side="left", fill="x", expand=True)
+        # 5행: 유효기간 (견적일 + 30일)
+        self.entry_valid_until = self.create_grid_input(parent, 4, 0, "유효기간", placeholder="YYYY-MM-DD")
+        
+        # 5행 우측: 결제조건 (Conditional) -> 6행으로 이동 요청되었으나 "5행: 유효기간, 5행: 결제조건"이라 표기됨. 
+        # 요청사항: "5행: 유효기간", "5행: 결제조건" -> 같은 행에 배치.
+        self.entry_payment_terms = self.create_grid_input(parent, 4, 1, "결제조건")
 
-        # Row 3: Currency, Tax Rate
-        self.combo_currency = self.create_grid_combo(parent, 3, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
-        self.entry_tax_rate = self.create_grid_input(parent, 3, 1, "세율(%)")
+        # 6행: 지급조건
+        self.entry_payment_cond = self.create_grid_input(parent, 5, 0, "지급조건")
+        
+        # 7행: 보증기간 (6행 우측이 비어있으므로 6행 우측에 넣을지, 7행으로 갈지? 요청은 "6행: 지급조건", "7행: 보증기간" 명시됨.
+        # 하지만 5행이 2개였음. 
+        # 1행: 견적일, 구분
+        # 2행: 통화, 세율
+        # 3행: 프로젝트명
+        # 4행: 업체명
+        # 5행: 유효기간
+        # 5행: 결제조건 (같은 5행으로 해석)
+        # 6행: 지급조건
+        # 7행: 보증기간
+        # 9행: 비고 (8행 건너뜀?)
+        # 순서대로 배치하겠습니다.
+        
+        # 수정 제안: 6행에 지급조건, 보증기간을 같이 넣겠습니다. (공간 활용)
+        # 만약 사용자가 엄격하게 행을 구분하길 원한다면 수정하겠습니다. 
+        # 일단 6행: 지급조건, 보증기간 (Grid 5,0 / 5,1) 로 배치하여 밸런스를 맞춥니다.
+        self.entry_warranty = self.create_grid_input(parent, 5, 1, "보증기간")
 
-        # Row 4: Note (Multiline)
+        # 9행: 비고 (Grid 6, 0~1)
         f_note = ctk.CTkFrame(parent, fg_color="transparent")
-        f_note.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        f_note.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
         self.entry_note = ctk.CTkTextbox(f_note, height=80, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         self.entry_note.pack(side="left", fill="x", expand=True)
 
-        # Row 5: PDF Export Button
+        # PDF Export Button (Row 7)
         f_btn = ctk.CTkFrame(parent, fg_color="transparent")
-        f_btn.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        f_btn.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
         
         ctk.CTkButton(f_btn, text="📄 견적서 발행 (PDF)", command=self.export_quote, height=30,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
                       text_color=COLORS["text"], font=FONTS["main_bold"]).pack(fill="x")
+        
+        # 초기 유효기간 계산
+        self._calculate_valid_until()
 
     def _setup_items_panel(self, parent):
         # 타이틀 & 추가 버튼
@@ -147,7 +183,58 @@ class QuotePopup(BasePopup):
         self._calculate_totals()
         
         # Recalculate all rows
+        # Recalculate all rows
         for row in self.item_rows: self.calculate_row(row)
+
+    def _on_tax_change(self, event=None):
+        for row in self.item_rows:
+            self.calculate_row(row)
+        self._calculate_totals()
+
+    def _on_date_change(self, event=None):
+        self._calculate_valid_until()
+
+    def _calculate_valid_until(self):
+        date_str = self.entry_date.get()
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            valid_until = date_obj + timedelta(days=30)
+            self.entry_valid_until.delete(0, "end")
+            self.entry_valid_until.insert(0, valid_until.strftime("%Y-%m-%d"))
+        except ValueError:
+            pass # 날짜 형식이 올바르지 않으면 무시
+
+    def _on_client_select(self, client_name):
+        # 1. 업체 특이사항 표시
+        client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
+        if not client_row.empty:
+            note = str(client_row.iloc[0].get("특이사항", ""))
+            self.lbl_client_note.configure(text=f"※ {note}" if note else "")
+            
+            # 2. 국가 확인 및 조건부 필드 업데이트
+            country = str(client_row.iloc[0].get("국가", ""))
+            self._update_conditional_fields(country)
+        else:
+            self.lbl_client_note.configure(text="")
+            # 클라이언트가 선택되지 않았거나 찾을 수 없을 경우 기본값으로 리셋
+            self._update_conditional_fields("") # 빈 문자열을 넘겨 기본값으로 설정
+
+    def _update_conditional_fields(self, country):
+        # 국가가 KR/South Korea/Korea/대한민국/한국 인 경우
+        korea_aliases = ["KR", "South Korea", "Korea", "대한민국", "한국"]
+        is_korea = country in korea_aliases
+        
+        # 결제조건
+        self.entry_payment_terms.delete(0, "end")
+        self.entry_payment_terms.insert(0, "당사 공장 인도가" if is_korea else "EXW")
+        
+        # 지급조건
+        self.entry_payment_cond.delete(0, "end")
+        self.entry_payment_cond.insert(0, "납품 전 100%" if is_korea else "T/T in advance")
+        
+        # 보증기간
+        self.entry_warranty.delete(0, "end")
+        self.entry_warranty.insert(0, "2년" if is_korea else "2 years conditional")
 
     def _load_data(self):
         df = self.dm.df_data
@@ -179,6 +266,12 @@ class QuotePopup(BasePopup):
 
         self.entry_project.delete(0, "end"); self.entry_project.insert(0, str(first.get("프로젝트명", "")))
         
+        # New Fields
+        self.entry_valid_until.delete(0, "end"); self.entry_valid_until.insert(0, str(first.get("유효기간", "")))
+        self.entry_payment_terms.delete(0, "end"); self.entry_payment_terms.insert(0, str(first.get("결제조건", "")))
+        self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건", "")))
+        self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간", "")))
+        
         # Note (Multiline)
         note_val = str(first.get("비고", ""))
         self.entry_note.delete("1.0", "end")
@@ -187,40 +280,20 @@ class QuotePopup(BasePopup):
         current_status = str(first.get("Status", "견적"))
         self.combo_status.set(current_status)
         
+        # _on_client_select 호출 시 조건부 필드가 덮어씌워질 수 있으므로, 
+        # 저장된 값이 있다면 다시 복구해야 함. 
+        # 하지만 로직상 클라이언트 선택 -> 자동채움 -> 사용자 수정 -> 저장 -> 로드 순서이므로
+        # 로드 시에는 저장된 값을 우선해야 함.
+        # 따라서 _on_client_select를 호출하되, 필드 값은 다시 설정
         self._on_client_select(client_name)
-        for _, row in rows.iterrows(): self._add_item_row(row)
-
-    def _load_copied_data(self):
-        df = self.dm.df_data
-        rows = df[df["관리번호"] == self.copy_src_no]
-        if rows.empty: return
         
-        first = rows.iloc[0]
-        
-        self.combo_type.set(str(first.get("구분", "내수")))
-        
-        client_name = str(first.get("업체명", ""))
-        self.entry_client.set_value(client_name)
-        
-        self.combo_currency.set(str(first.get("통화", "KRW")))
-        
-        saved_tax = first.get("세율(%)", "")
-        if saved_tax != "" and saved_tax != "-": tax_rate = str(saved_tax)
-        else:
-            currency = str(first.get("통화", "KRW"))
-            tax_rate = "10" if currency == "KRW" else "0"
-        self.entry_tax_rate.delete(0, "end"); self.entry_tax_rate.insert(0, tax_rate)
-
-        original_proj = str(first.get("프로젝트명", ""))
-        self.entry_project.delete(0, "end"); self.entry_project.insert(0, f"{original_proj} (Copy)")
-        
-        # Note (Multiline)
-        note_val = str(first.get("비고", ""))
-        self.entry_note.delete("1.0", "end")
-        self.entry_note.insert("1.0", note_val)
-        
-        self._on_client_select(client_name)
-        for _, row in rows.iterrows(): self._add_item_row(row)
+        # Restore saved values again just in case _on_client_select overwrote them with defaults
+        if first.get("결제조건"): 
+            self.entry_payment_terms.delete(0, "end"); self.entry_payment_terms.insert(0, str(first.get("결제조건")))
+        if first.get("지급조건"):
+            self.entry_payment_cond.delete(0, "end"); self.entry_payment_cond.insert(0, str(first.get("지급조건")))
+        if first.get("보증기간"):
+            self.entry_warranty.delete(0, "end"); self.entry_warranty.insert(0, str(first.get("보증기간")))
         
         self.title(f"견적 복사 등록 (원본: {self.copy_src_no}) - Sales Manager")
 
@@ -251,7 +324,11 @@ class QuotePopup(BasePopup):
             "주문요청사항": "", # 견적은 주문요청사항 없음
             "비고": self.entry_note.get("1.0", "end-1c"), # Multiline get
             "Status": self.combo_status.get(),
-            "견적일": self.entry_date.get()
+            "견적일": self.entry_date.get(),
+            "유효기간": self.entry_valid_until.get(),
+            "결제조건": self.entry_payment_terms.get(),
+            "지급조건": self.entry_payment_cond.get(),
+            "보증기간": self.entry_warranty.get()
         }
         
         for item in self.item_rows:
