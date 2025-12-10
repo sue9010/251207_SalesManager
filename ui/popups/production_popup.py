@@ -10,6 +10,8 @@ from ui.popups.base_popup import BasePopup
 from ui.popups.packing_list_popup import PackingListPopup 
 from src.styles import COLORS, FONTS
 from managers.export_manager import ExportManager 
+from ui.popups.mini_payment_popup import MiniPaymentPopup
+from ui.popups.mini_delivery_popup import MiniDeliveryPopup
 
 class ProductionPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_nos):
@@ -29,7 +31,7 @@ class ProductionPopup(BasePopup):
         self.cached_client_name = "" 
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=self.mgmt_nos[0])
-        self.geometry("1350x920")
+        self.geometry("1100x650")
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -118,10 +120,45 @@ class ProductionPopup(BasePopup):
                       font=FONTS["header"]).pack(side="right", padx=5)
 
     def on_delivery_btn(self):
-        messagebox.showinfo("알림", "납품 기능은 추후 구현 예정입니다.", parent=self)
+        # Collect delivery items
+        delivery_items = []
+        for index, item_info in self.item_widgets_map.items():
+            entry_widget = item_info["entry"]
+            row_data = item_info["row_data"]
+            try: deliver_qty = float(entry_widget.get().replace(",", ""))
+            except: deliver_qty = 0
+            
+            if deliver_qty > 0:
+                delivery_items.append({
+                    "mgmt_no": row_data.get("관리번호", ""),
+                    "serial": str(row_data.get("시리얼번호", "-")),
+                    "qty": deliver_qty
+                })
+        
+        if not delivery_items:
+            messagebox.showwarning("경고", "납품할 품목의 수량을 입력해주세요.", parent=self)
+            return
+
+        # Open Mini Delivery Popup
+        self.attributes("-topmost", False)
+        MiniDeliveryPopup(self, self.dm, self.refresh_callback, self.mgmt_nos, delivery_items)
+        self.attributes("-topmost", True)
 
     def on_payment_btn(self):
-        messagebox.showinfo("알림", "입금 기능은 추후 구현 예정입니다.", parent=self)
+        # Calculate unpaid amount
+        rows = self.dm.df_data[self.dm.df_data["관리번호"].isin(self.mgmt_nos)]
+        total_amount = rows["합계금액"].sum()
+        paid_amount = rows["기수금액"].sum()
+        unpaid_amount = total_amount - paid_amount
+        
+        if unpaid_amount <= 0:
+             if not messagebox.askyesno("확인", "이미 완납된 상태입니다. 추가 입금을 진행하시겠습니까?", parent=self):
+                 return
+
+        # Open Mini Payment Popup
+        self.attributes("-topmost", False)
+        MiniPaymentPopup(self, self.dm, self.refresh_callback, self.mgmt_nos, unpaid_amount)
+        self.attributes("-topmost", True)
 
     def _create_full_width_input(self, parent, row, label_text):
         f = ctk.CTkFrame(parent, fg_color="transparent")
