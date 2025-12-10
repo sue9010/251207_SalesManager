@@ -54,6 +54,10 @@ class QuotePopup(BasePopup):
         if self.mgmt_no: self.entry_id.insert(0, self.mgmt_no)
         else: self.entry_id.insert(0, "NEW")
         self.entry_id.configure(state="readonly")
+        
+        # [신규] 업체 특이사항 라벨
+        self.lbl_client_note = ctk.CTkLabel(extra_frame, text="", text_color=COLORS["danger"], font=FONTS["main_bold"])
+        self.lbl_client_note.pack(side="left", padx=(20, 0))
 
     def _setup_info_panel(self, parent):
         parent.grid_columnconfigure(0, weight=1)
