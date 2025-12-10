@@ -484,3 +484,27 @@ class QuotePopup(BasePopup):
             self.entry_id.configure(state="normal")
             self.entry_id.delete(0, "end")
             self.entry_id.insert(0, new_id)
+
+    def _create_footer(self, parent):
+        self.footer_frame = ctk.CTkFrame(parent, height=60, fg_color="transparent")
+        self.footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
+
+        # 버튼 배치 순서 (우측부터): [취소] [수정] [주문 확정]
+        
+        # 취소 버튼
+        self.btn_cancel = ctk.CTkButton(self.footer_frame, text="취소", command=self.destroy, width=80, height=40,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], text_color=COLORS["text"])
+        self.btn_cancel.pack(side="right", padx=5)
+
+        # 수정 버튼 (기존 저장 버튼 역할)
+        self.btn_save = ctk.CTkButton(self.footer_frame, text="수정", command=self.save, width=120, height=40,
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
+        self.btn_save.pack(side="right", padx=5)
+
+        # 주문 확정 버튼 (신규 추가)
+        self.btn_confirm = ctk.CTkButton(self.footer_frame, text="주문 확정", command=self.confirm_order, width=120, height=40,
+                      fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], font=FONTS["main_bold"])
+        self.btn_confirm.pack(side="right", padx=5)
+
+    def confirm_order(self):
+        messagebox.showinfo("알림", "주문 확정 기능은 준비 중입니다.", parent=self)
