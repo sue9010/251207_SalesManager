@@ -44,71 +44,94 @@ class DeliveryPopup(BasePopup):
         
         ctk.CTkLabel(top_row, text="납품 대기", font=FONTS["small"], fg_color=COLORS["primary"], 
                      text_color="white", corner_radius=10, width=80).pack(side="left", padx=10)
-        
-        # 프로젝트명 및 고객사
-        info_row = ctk.CTkFrame(header_frame, fg_color="transparent")
-        info_row.pack(fill="x", pady=(5, 0))
-        
-        self.lbl_project = ctk.CTkLabel(info_row, text="Project Name", font=FONTS["title"], anchor="w")
-        self.lbl_project.pack(side="left", padx=(0, 20))
-        
-        ctk.CTkLabel(info_row, text="|", font=FONTS["header"], text_color=COLORS["text_dim"]).pack(side="left", padx=10)
-        self.lbl_client = ctk.CTkLabel(info_row, text="Client Name", font=FONTS["header"], text_color=COLORS["text_dim"], anchor="w")
-        self.lbl_client.pack(side="left", padx=10)
-
-        # 추가 정보 (특이사항, 주문요청사항)
-        note_row = ctk.CTkFrame(header_frame, fg_color="transparent")
-        note_row.pack(fill="x", pady=(5, 0))
-        
-        self.lbl_client_note = ctk.CTkLabel(note_row, text="업체 특이사항: -", font=FONTS["main"], text_color=COLORS["danger"], anchor="w")
-        self.lbl_client_note.pack(side="left", padx=(0, 20))
-        
-        ctk.CTkLabel(note_row, text="|", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", padx=10)
-        self.lbl_order_note = ctk.CTkLabel(note_row, text="주문 요청사항: -", font=FONTS["main"], text_color=COLORS["text"], anchor="w")
-        self.lbl_order_note.pack(side="left", padx=10)
 
     def _setup_info_panel(self, parent):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
 
-        # Row 0: Delivery Date, Delivery No
-        self.entry_delivery_date = self.create_grid_input(parent, 0, 0, "출고일", placeholder="YYYY-MM-DD")
+        # --- Basic Info Section ---
+        ctk.CTkLabel(parent, text="기본 정보", font=FONTS["header"]).grid(row=0, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 5))
+
+        # Row 1: Date, Type
+        self.entry_date = self.create_grid_input(parent, 1, 0, "수주일")
+        self.entry_type = self.create_grid_input(parent, 1, 1, "구분")
+
+        # Row 2: Currency, Tax Rate
+        self.entry_currency = self.create_grid_input(parent, 2, 0, "통화")
+        self.entry_tax_rate = self.create_grid_input(parent, 2, 1, "세율")
+
+        # Row 3: Project Name (Full Width)
+        self.entry_project = self._create_full_width_input(parent, 3, "프로젝트명")
+
+        # Row 4: Client Name (Full Width)
+        self.entry_client = self._create_full_width_input(parent, 4, "업체명")
+
+        # Row 5: Payment Terms, Payment Cond
+        self.entry_payment_terms = self.create_grid_input(parent, 5, 0, "결제조건")
+        self.entry_payment_cond = self.create_grid_input(parent, 5, 1, "지급조건")
+
+        # Row 6: PO No. (Full Width)
+        self.entry_po_no = self._create_full_width_input(parent, 6, "발주서 No.")
+
+        # Row 7: Request Note (Full Width)
+        self.entry_req_note = self._create_full_width_input(parent, 7, "주문요청")
+
+        # Row 8: Note (Full Width)
+        self.entry_note = self._create_full_width_input(parent, 8, "비고")
+
+        # Row 9: PO File (Full Width)
+        f_po_file = ctk.CTkFrame(parent, fg_color="transparent")
+        f_po_file.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_po_file, _, _ = self.create_file_input_row(f_po_file, "발주서 파일", "발주서경로")
+
+        # Separator
+        ctk.CTkFrame(parent, height=2, fg_color=COLORS["border"]).grid(row=10, column=0, columnspan=2, sticky="ew", padx=5, pady=15)
+
+        # --- Delivery Info Section ---
+        ctk.CTkLabel(parent, text="출고 정보", font=FONTS["header"]).grid(row=11, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 5))
+
+        # Row 12: Delivery Date, Delivery No
+        self.entry_delivery_date = self.create_grid_input(parent, 12, 0, "출고일", placeholder="YYYY-MM-DD")
         self.entry_delivery_date.insert(0, datetime.now().strftime("%Y-%m-%d"))
         
-        self.entry_delivery_no = self.create_grid_input(parent, 0, 1, "출고번호")
+        self.entry_delivery_no = self.create_grid_input(parent, 12, 1, "출고번호")
         self.entry_delivery_no.configure(state="readonly")
 
-        # Row 1: Invoice No (Full Width)
-        f_inv = ctk.CTkFrame(parent, fg_color="transparent")
-        f_inv.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        ctk.CTkLabel(f_inv, text="송장번호", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
-        self.entry_invoice_no = ctk.CTkEntry(f_inv, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
-        self.entry_invoice_no.pack(side="left", fill="x", expand=True)
+        # Row 13: Invoice No (Full Width)
+        self.entry_invoice_no = self._create_full_width_input(parent, 13, "송장번호")
 
-        # Row 2: Shipping Method, Shipping Account
-        self.entry_shipping_method = self.create_grid_input(parent, 2, 0, "운송방법")
-        self.entry_shipping_account = self.create_grid_input(parent, 2, 1, "운송계정")
+        # Row 14: Transport Method, Transport Account
+        self.entry_shipping_method = self.create_grid_input(parent, 14, 0, "운송방법")
+        self.entry_shipping_account = self.create_grid_input(parent, 14, 1, "운송계정")
 
-        # Row 3: Waybill File (Full Width)
-        f_file = ctk.CTkFrame(parent, fg_color="transparent")
-        f_file.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_waybill_file, _, _ = self.create_file_input_row(f_file, "운송장 파일", "운송장경로")
+        # Row 15: Waybill File (Full Width)
+        f_waybill = ctk.CTkFrame(parent, fg_color="transparent")
+        f_waybill.grid(row=15, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_waybill_file, _, _ = self.create_file_input_row(f_waybill, "운송장 파일", "운송장경로")
 
-        # Row 4: Export Buttons
-        f_btn = ctk.CTkFrame(parent, fg_color="transparent")
-        f_btn.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        # Row 16: Buttons (Delivery Request, PI)
+        f_btn1 = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn1.grid(row=16, column=0, columnspan=2, sticky="ew", padx=5, pady=(10, 2))
         
-        ctk.CTkButton(f_btn, text="📄 PI 발행 (PDF)", command=self.export_pi, height=30, width=110,
+        ctk.CTkButton(f_btn1, text="📄 출고요청서", command=self.export_order_request, height=30, 
                       fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
 
-        ctk.CTkButton(f_btn, text="📄 CI 발행 (PDF)", command=self.export_ci, height=30, width=110,
+        ctk.CTkButton(f_btn1, text="📄 PI 발행", command=self.export_pi, height=30, 
                       fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
+
+        # Row 17: Buttons (CI, PL)
+        f_btn2 = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn2.grid(row=17, column=0, columnspan=2, sticky="ew", padx=5, pady=(2, 10))
+
+        ctk.CTkButton(f_btn2, text="📄 CI 발행", command=self.export_ci, height=30, 
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
                       
-        ctk.CTkButton(f_btn, text="📄 PL 발행 (PDF)", command=self.export_pl, height=30, width=110,
+        ctk.CTkButton(f_btn2, text="📄 PL 발행", command=self.export_pl, height=30, 
                       fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
-                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True, fill="x")
 
     def _setup_items_panel(self, parent):
         ctk.CTkLabel(parent, text="납품 품목 리스트", font=FONTS["header"]).pack(anchor="w", padx=15, pady=15)
@@ -136,6 +159,20 @@ class DeliveryPopup(BasePopup):
                       fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], 
                       font=FONTS["header"]).pack(side="right")
 
+    def _create_full_width_input(self, parent, row, label_text):
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.grid(row=row, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f, text=label_text, width=80, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        entry = ctk.CTkEntry(f, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        entry.pack(side="left", fill="x", expand=True)
+        return entry
+
+    def _set_entry_value(self, entry, value):
+        entry.configure(state="normal")
+        entry.delete(0, "end")
+        entry.insert(0, str(value).replace("nan", ""))
+        entry.configure(state="readonly")
+
     def _load_data(self):
         df = self.dm.df_data
         rows = df[df["관리번호"].isin(self.mgmt_nos)].copy()
@@ -147,25 +184,27 @@ class DeliveryPopup(BasePopup):
         serial_map = self.dm.get_serial_number_map()
         first = rows.iloc[0]
         
-        # 기본 정보 설정
+        # 기본 정보 설정 (Basic Info Section)
         mgmt_str = f"{self.mgmt_nos[0]}" + (f" 외 {len(self.mgmt_nos)-1}건" if len(self.mgmt_nos) > 1 else "")
         self.lbl_id.configure(text=f"No. {mgmt_str}")
-        self.lbl_project.configure(text=first.get("프로젝트명", ""))
-        self.lbl_client.configure(text=first.get("업체명", ""))
+        
         self.cached_client_name = str(first.get("업체명", ""))
 
-        # 노트 정보 로드
-        client_note = "-"
-        client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == self.cached_client_name]
-        if not client_row.empty:
-             val = client_row.iloc[0].get("특이사항", "-")
-             if str(val) != "nan" and val: client_note = str(val)
+        self._set_entry_value(self.entry_date, first.get("수주일", ""))
+        self._set_entry_value(self.entry_type, first.get("구분", ""))
+        self._set_entry_value(self.entry_currency, first.get("통화", ""))
+        self._set_entry_value(self.entry_tax_rate, first.get("세율(%)", ""))
+        self._set_entry_value(self.entry_project, first.get("프로젝트명", ""))
+        self._set_entry_value(self.entry_client, first.get("업체명", ""))
+        self._set_entry_value(self.entry_payment_terms, first.get("결제조건", ""))
+        self._set_entry_value(self.entry_payment_cond, first.get("지급조건", ""))
+        self._set_entry_value(self.entry_po_no, first.get("발주서번호", ""))
+        self._set_entry_value(self.entry_req_note, first.get("주문요청사항", ""))
+        self._set_entry_value(self.entry_note, first.get("비고", ""))
         
-        order_note = str(first.get("주문요청사항", "-"))
-        if order_note == "nan" or not order_note: order_note = "-"
-        
-        self.lbl_client_note.configure(text=f"업체 특이사항: {client_note}")
-        self.lbl_order_note.configure(text=f"주문 요청사항: {order_note}")
+        if self.entry_po_file:
+             path = str(first.get("발주서경로", "")).replace("nan", "")
+             if path: self.update_file_entry("발주서경로", path)
 
         # 배송 정보 프리필
         self.entry_shipping_method.insert(0, self.dm.get_client_shipping_method(self.cached_client_name) or "")
@@ -258,6 +297,34 @@ class DeliveryPopup(BasePopup):
 
 
     # Export Methods
+    
+    def export_order_request(self):
+        client_info = self._get_client_info()
+        if client_info is None: return
+
+        main_mgmt_no = self.mgmt_nos[0]
+        rows = self.dm.df_data[self.dm.df_data["관리번호"] == main_mgmt_no]
+        if rows.empty: return
+        first = rows.iloc[0]
+
+        order_info = {
+            "client_name": self.cached_client_name,
+            "mgmt_no": main_mgmt_no,
+            "date": first.get("수주일", ""),
+            "type": first.get("구분", ""),
+            "req_note": first.get("주문요청사항", ""),
+        }
+        
+        items = []
+        for _, row in rows.iterrows():
+            items.append({
+                "item": row.get("품목명", ""),
+                "model": row.get("모델명", ""),
+                "desc": row.get("Description", ""),
+                "qty": float(str(row.get("수량", 0)).replace(",", "") or 0),
+            })
+
+        self._execute_export(self.export_manager.export_order_request_to_pdf, client_info, order_info, items, "출고요청서")
 
     def export_pi(self):
         client_info = self._get_client_info()
