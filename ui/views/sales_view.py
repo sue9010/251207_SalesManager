@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from ui.views.table_view import TableView
+from ui.components.context_menu import ContextMenu
 from src.styles import COLORS, FONTS
 
 class SalesView(ctk.CTkFrame):
@@ -8,6 +9,7 @@ class SalesView(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent")
         self.dm = data_manager
         self.pm = popup_manager
+        self.context_menu = ContextMenu(self)
                 
         self._create_ui()
 
@@ -38,6 +40,8 @@ class SalesView(ctk.CTkFrame):
         # Table View
         self.table_view = TableView(self, self.dm, self.pm)
         self.table_view.pack(fill="both", expand=True)
+        
+        self.table_view.tree.bind("<Button-3>", self.on_right_click)
         
     def get_selected_mgmt_nos(self):
         selection = self.table_view.tree.selection()
@@ -77,3 +81,43 @@ class SalesView(ctk.CTkFrame):
 
     def refresh_data(self):
         self.on_refresh()
+
+    def on_right_click(self, event):
+        # Identify the row under the mouse
+        item = self.table_view.tree.identify_row(event.y)
+        if not item: return
+        
+        # Select the row
+        self.table_view.tree.selection_set(item)
+        
+        # Get item values
+        values = self.table_view.tree.item(item, "values")
+        mgmt_no = values[0]
+        status = values[1]
+        
+        # Clear and populate context menu
+        self.context_menu.clear()
+        
+        # Add Delete option
+        self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, status), text_color=COLORS["danger"])
+        
+        # Show context menu
+        self.context_menu.show(event.x_root, event.y_root)
+
+    def delete_item(self, mgmt_no, status):
+        if not messagebox.askyesno("삭제 확인", f"정말 {status} 건 ({mgmt_no})을 삭제하시겠습니까?"):
+            return
+
+        success = False
+        msg = ""
+
+        if status == "견적":
+            success, msg = self.dm.delete_quote(mgmt_no)
+        elif status == "주문":
+            success, msg = self.dm.delete_order(mgmt_no)
+        
+        if success:
+            messagebox.showinfo("삭제 완료", "삭제되었습니다.")
+            self.refresh_data()
+        else:
+            messagebox.showerror("오류", f"삭제 실패: {msg}")

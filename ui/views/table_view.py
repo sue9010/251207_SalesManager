@@ -5,7 +5,7 @@ import customtkinter as ctk
 import pandas as pd
 
 from src.styles import COLORS, FONT_FAMILY, FONTS
-from ui.components.context_menu import ContextMenu
+
 from tkinter import messagebox
 
 class MultiSelectDropdown(ctk.CTkFrame):
@@ -112,8 +112,6 @@ class TableView(ctk.CTkFrame):
         self.sort_col = "출고예정일"
         self.sort_reverse = False
         
-        self.context_menu = ContextMenu(self)
-        
         self.create_widgets()
         self.refresh_data()
 
@@ -211,7 +209,6 @@ class TableView(ctk.CTkFrame):
         scrollbar.pack(side="right", fill="y")
         
         self.tree.bind("<Double-1>", self.on_double_click)
-        self.tree.bind("<Button-3>", self.on_right_click)
 
     def sort_column(self, col):
         if self.sort_col == col:
@@ -347,69 +344,3 @@ class TableView(ctk.CTkFrame):
                     self.pm.open_order_popup(mgmt_no)
             else:
                 self.pm.open_order_popup(mgmt_no)
-
-    def on_right_click(self, event):
-        item = self.tree.identify_row(event.y)
-        if not item: return
-        
-        self.tree.selection_set(item)
-        values = self.tree.item(item, "values")
-        mgmt_no = values[0]
-        status = values[1]
-        delivery_status = values[2]
-        payment_status = values[3]
-        
-        self.context_menu.clear()
-        
-        if status == "견적":
-            self.context_menu.add_command("견적 복사", lambda: self.pm.open_quote_popup(mgmt_no, copy_mode=True))
-            self.context_menu.add_command("주문 전환", lambda: self.update_status(mgmt_no, "주문"))
-            self.context_menu.add_command("대기 전환", lambda: self.update_status(mgmt_no, "보류"))
-            self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
-            self.context_menu.add_separator()
-            self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, "견적"), text_color=COLORS["danger"])
-            
-        elif status in ["주문", "생산중"]:
-            self.context_menu.add_command("주문 복사", lambda: self.pm.open_order_popup(mgmt_no, copy_mode=True))
-            
-            if status == "주문":
-                self.context_menu.add_command("생산 전환", lambda: self.update_status(mgmt_no, "생산중"))
-            
-            if delivery_status == "대기":
-                self.context_menu.add_command("납품", lambda: self.pm.open_delivery_popup([mgmt_no]))
-            
-            if payment_status == "대기":
-                self.context_menu.add_command("입금", lambda: self.pm.open_payment_popup([mgmt_no]))
-                
-            if delivery_status == "완료" and payment_status == "완료":
-                self.context_menu.add_command("종료", lambda: self.pm.open_after_sales_popup([mgmt_no]))
-
-            self.context_menu.add_command("대기 전환", lambda: self.update_status(mgmt_no, "보류"))
-            self.context_menu.add_command("취소 전환", lambda: self.update_status(mgmt_no, "취소"))
-            self.context_menu.add_separator()
-            self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, "주문"), text_color=COLORS["danger"])
-
-    def delete_item(self, mgmt_no, status):
-        if not messagebox.askyesno("삭제 확인", f"정말 {status} 건 ({mgmt_no})을 삭제하시겠습니까?"):
-            return
-
-        success = False
-        msg = ""
-
-        if status == "견적":
-            success, msg = self.dm.delete_quote(mgmt_no)
-        elif status == "주문":
-            success, msg = self.dm.delete_order(mgmt_no)
-        
-        if success:
-            messagebox.showinfo("삭제 완료", "삭제되었습니다.")
-            self.refresh_data()
-        else:
-            messagebox.showerror("오류", f"삭제 실패: {msg}")
-
-    def update_status(self, mgmt_no, new_status):
-        success, msg = self.dm.update_order_status(mgmt_no, new_status)
-        if success:
-            self.refresh_data()
-        else:
-            messagebox.showerror("오류", msg)
