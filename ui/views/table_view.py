@@ -332,12 +332,7 @@ class TableView(ctk.CTkFrame):
             self.pm.open_quote_popup(mgmt_no)
             
         elif status in ["주문", "생산중"]:
-            if delivery_status == "완료" and payment_status == "완료":
-                self.pm.open_after_sales_popup([mgmt_no])
-            elif delivery_status == "완료":
-                self.pm.open_payment_popup([mgmt_no])
-            else:
-                self.pm.open_delivery_popup([mgmt_no])
+            self.pm.open_order_popup(mgmt_no)
             
         elif status == "종료":
             self.pm.open_complete_popup(mgmt_no)

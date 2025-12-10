@@ -32,17 +32,16 @@ class OrderPopup(BasePopup):
             
         if self.copy_mode and self.copy_src_no:
             self._load_copied_data()
-            
-        # Rename Save Button
-        if hasattr(self, 'btn_save'):
-            self.btn_save.configure(text="주문 저장")
-    
 
     def _create_header(self, parent):
-        # 공통 헤더 사용
-        self._create_common_header(parent, "주문서 작성/수정", self.mgmt_no)
+        # 공통 헤더 사용 (Title + ID)
+        header_frame = ctk.CTkFrame(parent, height=50, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 10))
         
-        # 추가 헤더 (Status) - 별도 프레임에 구성
+        title_text = f"{self.popup_title} #{self.mgmt_no}" if self.mgmt_no else f"새 {self.popup_title}"
+        self.lbl_title = ctk.CTkLabel(header_frame, text=title_text, font=FONTS["header"])
+        self.lbl_title.pack(side="left", padx=10)
+        
         extra_frame = ctk.CTkFrame(parent, fg_color="transparent")
         extra_frame.pack(fill="x", padx=20, pady=(0, 10))
         
@@ -51,18 +50,16 @@ class OrderPopup(BasePopup):
                                           width=100, font=FONTS["main"], state="readonly")
         self.combo_status.pack(side="left", padx=5)
         self.combo_status.set("주문")
-
-        # ID Display (Visible)
-        ctk.CTkLabel(extra_frame, text="관리번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
-        self.entry_id = ctk.CTkEntry(extra_frame, width=120, font=FONTS["main"], state="normal")
-        self.entry_id.insert(0, self.mgmt_no if self.mgmt_no else "NEW")
-        self.entry_id.configure(state="readonly")
+        
+        # 주문번호 표시
+        ctk.CTkLabel(extra_frame, text="주문번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
+        self.entry_id = ctk.CTkEntry(extra_frame, width=120) 
         self.entry_id.pack(side="left")
+        if self.mgmt_no: self.entry_id.insert(0, self.mgmt_no)
+        else: self.entry_id.insert(0, "NEW")
+        self.entry_id.configure(state="readonly")
 
     def _setup_info_panel(self, parent):
-        parent.grid_columnconfigure(0, weight=1)
-        parent.grid_columnconfigure(1, weight=1)
-
         # 1행: 수주일, 구분
         self.entry_date = self.create_grid_input(parent, 0, 0, "수주일", placeholder="YYYY-MM-DD")
         self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
@@ -277,8 +274,6 @@ class OrderPopup(BasePopup):
         for _, row in rows.iterrows(): self._add_item_row(row)
         
         self.title(f"주문 복사 등록 (원본: {self.copy_src_no}) - Sales Manager")
-
-
 
     # ==========================================================================
     # 저장 및 삭제
@@ -519,3 +514,45 @@ class OrderPopup(BasePopup):
             self.entry_id.delete(0, "end")
             self.entry_id.insert(0, new_id)
             self.entry_id.configure(state="readonly")
+
+    def _create_footer(self, parent):
+        self.footer_frame = ctk.CTkFrame(parent, height=60, fg_color="transparent")
+        self.footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
+
+        # 1. 취소 버튼 (항상 표시)
+        self.btn_cancel = ctk.CTkButton(self.footer_frame, text="취소", command=self.destroy, width=80, height=40,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], text_color=COLORS["text"])
+        self.btn_cancel.pack(side="right", padx=5)
+
+        # 2. 신규/복사 vs 기존
+        if not self.mgmt_no or self.copy_mode:
+             # 신규/복사 모드 -> [생성] 버튼
+            self.btn_save = ctk.CTkButton(self.footer_frame, text="생성", command=self.save, width=120, height=40,
+                          fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
+            self.btn_save.pack(side="right", padx=5)
+        else:
+            # 기존 모드
+            current_status = self.combo_status.get()
+            
+            if current_status == "주문":
+                # 주문 상태 -> [주문 수정] [생산 시작]
+                
+                # 주문 수정
+                self.btn_save = ctk.CTkButton(self.footer_frame, text="주문 수정", command=self.save, width=120, height=40,
+                              fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
+                self.btn_save.pack(side="right", padx=5)
+                
+                # 생산 시작
+                self.btn_start_production = ctk.CTkButton(self.footer_frame, text="생산 시작", command=self.start_production, width=120, height=40,
+                                                          fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], font=FONTS["main_bold"])
+                self.btn_start_production.pack(side="right", padx=5)
+            else:
+                # 그 외 상태 -> [주문 저장]
+                self.btn_save = ctk.CTkButton(self.footer_frame, text="주문 저장", command=self.save, width=120, height=40,
+                              fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
+                self.btn_save.pack(side="right", padx=5)
+
+    def start_production(self):
+        if messagebox.askyesno("생산 시작", "주문 상태를 '생산중'으로 변경하고 저장하시겠습니까?", parent=self):
+            self.combo_status.set("생산중")
+            self.save()
