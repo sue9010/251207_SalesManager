@@ -116,12 +116,26 @@ class FileHandler:
         if "clients" in dfs:
             dfs["clients"] = dfs["clients"].fillna("-")
 
+        if "payment" in dfs:
+            # Ensure new columns are string type
+            str_cols = ["세금계산서번호", "세금계산서발행일"]
+            for col in str_cols:
+                if col not in dfs["payment"].columns:
+                    dfs["payment"][col] = ""
+                dfs["payment"][col] = dfs["payment"][col].astype(str).replace("nan", "")
+
         if "delivery" in dfs:
             if "출고번호" not in dfs["delivery"].columns:
                 dfs["delivery"]["출고번호"] = "-"
             for col in Config.DELIVERY_COLUMNS:
-                 if col not in dfs["delivery"].columns: dfs["delivery"][col] = "-"
+                if col not in dfs["delivery"].columns: dfs["delivery"][col] = "-"
             dfs["delivery"] = dfs["delivery"].fillna("-")
+            
+            # Ensure new columns are string type
+            str_cols = ["수출신고번호", "수출신고필증경로"]
+            for col in str_cols:
+                if col in dfs["delivery"].columns:
+                    dfs["delivery"][col] = dfs["delivery"][col].astype(str).replace("nan", "")
 
         return dfs
 

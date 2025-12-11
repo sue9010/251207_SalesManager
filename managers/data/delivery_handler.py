@@ -107,13 +107,13 @@ class DeliveryHandler:
             if new_data_rows:
                 new_data_df = pd.DataFrame(new_data_rows)
                 if not new_data_df.dropna(how='all').empty:
-                    new_data_df = new_data_df.dropna(axis=1, how='all')
+                    # new_data_df = new_data_df.dropna(axis=1, how='all') # Causing FutureWarning
                     dfs["data"] = pd.concat([dfs["data"], new_data_df], ignore_index=True)
 
             if new_delivery_records:
                 new_df = pd.DataFrame(new_delivery_records)
                 if not new_df.dropna(how='all').empty:
-                    new_df = new_df.dropna(axis=1, how='all')
+                    # new_df = new_df.dropna(axis=1, how='all') # Causing FutureWarning
                     dfs["delivery"] = pd.concat([dfs["delivery"], new_df], ignore_index=True)
 
             if not processed_items:

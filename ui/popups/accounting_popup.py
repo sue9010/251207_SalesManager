@@ -1,11 +1,14 @@
 import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
-from tkinterdnd2 import DND_FILES
 import pandas as pd
+import os
+import shutil
+from datetime import datetime
 
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
+from utils.file_dnd import FileDnDManager
 
 class AccountingPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no):
@@ -17,14 +20,12 @@ class AccountingPopup(BasePopup):
             self.mgmt_nos = [mgmt_no]
             self.target_mgmt_no = mgmt_no
 
-        # Input variables (Initialize before super().__init__ calls _create_widgets)
-        # self.var_tax_date = tk.StringVar()
-        # self.var_tax_no = tk.StringVar()
-        # self.var_export_no = tk.StringVar()
-        # self.var_export_file = tk.StringVar()
+        self.dm = data_manager # Initialize dm early for FileDnDManager
+        self.file_manager = FileDnDManager(self)
+        self.entries = {} # {key: widget} for inline editing
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="회계 처리", mgmt_no=self.target_mgmt_no)
-        self.geometry("1200x800")
+        self.geometry("1400x900")
 
     def _setup_info_panel(self, parent):
         """Left Panel Implementation"""
@@ -61,8 +62,8 @@ class AccountingPopup(BasePopup):
         self.tab_view.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.tab_items = self.tab_view.add("품목 상세")
-        self.tab_delivery = self.tab_view.add("출고 이력")
-        self.tab_payment = self.tab_view.add("입금 이력")
+        self.tab_delivery = self.tab_view.add("출고 이력 (수출신고)")
+        self.tab_payment = self.tab_view.add("입금 이력 (세금계산서)")
         
         self._setup_items_tab()
         self._setup_delivery_tab()
@@ -74,13 +75,15 @@ class AccountingPopup(BasePopup):
         self._create_table(self.tab_items, headers, widths, "items_scroll")
 
     def _setup_delivery_tab(self):
-        headers = ["일시", "출고수량", "송장번호", "운송방법", "시리얼번호"]
-        widths = [100, 80, 120, 100, 150]
+        # [변경] 수출신고번호, 수출신고필증 추가
+        headers = ["일시", "출고수량", "송장번호", "운송방법", "수출신고번호", "수출신고필증"]
+        widths = [100, 80, 120, 100, 150, 200]
         self._create_table(self.tab_delivery, headers, widths, "delivery_scroll")
 
     def _setup_payment_tab(self):
-        headers = ["일시", "입금액", "통화", "증빙"]
-        widths = [100, 120, 80, 200]
+        # [변경] 세금계산서번호, 발행일 추가
+        headers = ["일시", "입금액", "통화", "증빙", "세금계산서번호", "발행일"]
+        widths = [100, 120, 60, 150, 150, 120]
         self._create_table(self.tab_payment, headers, widths, "payment_scroll")
 
     def _create_table(self, parent, headers, widths, scroll_attr_name):
@@ -103,18 +106,6 @@ class AccountingPopup(BasePopup):
         value_lbl.pack(side="left", padx=5)
         return value_lbl
 
-    def _on_drop_file(self, event):
-        file_path = event.data
-        if file_path.startswith('{') and file_path.endswith('}'):
-            file_path = file_path[1:-1]
-        self.var_export_file.set(file_path)
-
-    def _open_file_dialog(self):
-        from tkinter import filedialog
-        file_path = filedialog.askopenfilename()
-        if file_path:
-            self.var_export_file.set(file_path)
-
     def _load_data(self):
         # Load Main Data
         df = self.dm.df_data
@@ -136,12 +127,6 @@ class AccountingPopup(BasePopup):
         self.lbl_paid_amount.configure(text=f"{paid:,.0f}")
         self.lbl_unpaid_amount.configure(text=f"{unpaid:,.0f}")
         
-        # Existing Inputs
-        # if pd.notna(row.get("세금계산서발행일")): self.var_tax_date.set(row.get("세금계산서발행일"))
-        # self.var_tax_no.set(row.get("세금계산서번호", "") if pd.notna(row.get("세금계산서번호")) else "")
-        # self.var_export_no.set(row.get("수출신고번호", "") if pd.notna(row.get("수출신고번호")) else "")
-        # self.var_export_file.set(row.get("수출신고필증경로", "") if pd.notna(row.get("수출신고필증경로")) else "")
-        
         # Notes
         self.txt_note.insert("1.0", str(row.get("비고", "")).replace("nan", ""))
         self.txt_note.configure(state="disabled")
@@ -154,6 +139,7 @@ class AccountingPopup(BasePopup):
         self._load_payment_tab()
 
     def _load_items_tab(self, rows):
+        for widget in self.items_scroll.winfo_children(): widget.destroy()
         for _, row in rows.iterrows():
             self._add_row_to_table(self.items_scroll, [
                 row.get("품목명", ""), row.get("모델명", ""), 
@@ -163,29 +149,22 @@ class AccountingPopup(BasePopup):
             ], [120, 120, 60, 100, 100, 80, 100])
 
     def _load_delivery_tab(self):
-        # Filter Delivery Sheet by mgmt_no
+        for widget in self.delivery_scroll.winfo_children(): widget.destroy()
         if hasattr(self.dm, 'df_delivery'):
             df_d = self.dm.df_delivery
             if "관리번호" in df_d.columns:
                 d_rows = df_d[df_d["관리번호"] == self.target_mgmt_no]
-                for _, row in d_rows.iterrows():
-                    self._add_row_to_table(self.delivery_scroll, [
-                        row.get("일시", ""), f"{row.get('출고수량', 0):,.0f}", 
-                        row.get("송장번호", ""), row.get("운송방법", ""), 
-                        row.get("시리얼번호", "")
-                    ], [100, 80, 120, 100, 150])
+                for idx, row in d_rows.iterrows():
+                    self._add_delivery_row(idx, row)
 
     def _load_payment_tab(self):
-        # Filter Payment Sheet
+        for widget in self.payment_scroll.winfo_children(): widget.destroy()
         if hasattr(self.dm, 'df_payment'):
             df_p = self.dm.df_payment
             if "관리번호" in df_p.columns:
                 p_rows = df_p[df_p["관리번호"] == self.target_mgmt_no]
-                for _, row in p_rows.iterrows():
-                    self._add_row_to_table(self.payment_scroll, [
-                        row.get("일시", ""), f"{row.get('입금액', 0):,.0f}", 
-                        row.get("통화", ""), row.get("외화입금증빙경로", "")
-                    ], [100, 120, 80, 200])
+                for idx, row in p_rows.iterrows():
+                    self._add_payment_row(idx, row)
 
     def _add_row_to_table(self, parent, values, widths):
         row_frame = ctk.CTkFrame(parent, fg_color="transparent", height=30)
@@ -193,24 +172,135 @@ class AccountingPopup(BasePopup):
         for v, w in zip(values, widths):
             ctk.CTkLabel(row_frame, text=str(v).replace("nan", ""), width=w, anchor="w").pack(side="left", padx=2)
 
-    def save(self):
-        # Update Data Sheet
-        df = self.dm.df_data
-        mask = df["관리번호"] == self.target_mgmt_no
+    def _add_delivery_row(self, idx, row):
+        row_frame = ctk.CTkFrame(self.delivery_scroll, fg_color="transparent", height=30)
+        row_frame.pack(fill="x", pady=1)
         
-        if mask.any():
-            # df.loc[mask, "세금계산서발행일"] = self.var_tax_date.get()
-            # df.loc[mask, "세금계산서번호"] = self.var_tax_no.get()
-            # df.loc[mask, "수출신고번호"] = self.var_export_no.get()
-            # df.loc[mask, "수출신고필증경로"] = self.var_export_file.get()
+        # Read-only fields
+        ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=100, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=f"{row.get('출고수량', 0):,.0f}", width=80, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("송장번호", "")), width=120, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("운송방법", "")), width=100, anchor="w").pack(side="left", padx=2)
+        
+        # Editable: Export No
+        entry_export_no = ctk.CTkEntry(row_frame, width=150, height=24)
+        entry_export_no.pack(side="left", padx=2)
+        entry_export_no.insert(0, str(row.get("수출신고번호", "")).replace("nan", ""))
+        self.entries[f"delivery_export_no_{idx}"] = entry_export_no
+        
+        # Editable: Export File
+        file_frame = ctk.CTkFrame(row_frame, width=200, height=30, fg_color="transparent")
+        file_frame.pack(side="left", padx=2)
+        file_frame.pack_propagate(False)
+        
+        key = f"delivery_export_file_{idx}"
+        entry_file = ctk.CTkEntry(file_frame, placeholder_text="파일", height=24)
+        entry_file.pack(side="left", fill="x", expand=True)
+        
+        btn_open = ctk.CTkButton(file_frame, text="..", width=24, height=24,
+                                 command=lambda: self.file_manager.open_file(key))
+        btn_open.pack(side="left", padx=1)
+        
+        self.file_manager.file_entries[key] = entry_file
+        if self.file_manager.DND_AVAILABLE:
+            self.file_manager._setup_dnd(entry_file, key)
             
-            self.dm.save_data()
-            messagebox.showinfo("성공", "저장되었습니다.", parent=self)
-            if self.refresh_callback:
-                self.refresh_callback()
-            self.destroy()
+        current_path = row.get("수출신고필증경로", "")
+        if current_path and str(current_path) != "nan":
+            self.file_manager.update_file_entry(key, str(current_path))
+
+    def _add_payment_row(self, idx, row):
+        row_frame = ctk.CTkFrame(self.payment_scroll, fg_color="transparent", height=30)
+        row_frame.pack(fill="x", pady=1)
+        
+        # Read-only fields
+        ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=100, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=f"{row.get('입금액', 0):,.0f}", width=120, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("통화", "")), width=60, anchor="w").pack(side="left", padx=2)
+        
+        # Proof File (Read-only view)
+        proof_path = str(row.get("외화입금증빙경로", ""))
+        if proof_path and proof_path != "nan":
+             ctk.CTkButton(row_frame, text="증빙", width=50, height=24, 
+                           command=lambda p=proof_path: self.open_file(p)).pack(side="left", padx=2)
         else:
-            messagebox.showerror("오류", "데이터를 찾을 수 없습니다.", parent=self)
+             ctk.CTkLabel(row_frame, text="-", width=50).pack(side="left", padx=2)
+             
+        # Spacer for alignment
+        ctk.CTkLabel(row_frame, text="", width=90).pack(side="left", padx=2)
+
+        # Editable: Tax Invoice No
+        entry_tax_no = ctk.CTkEntry(row_frame, width=150, height=24)
+        entry_tax_no.pack(side="left", padx=2)
+        entry_tax_no.insert(0, str(row.get("세금계산서번호", "")).replace("nan", ""))
+        self.entries[f"payment_tax_no_{idx}"] = entry_tax_no
+        
+        # Editable: Tax Invoice Date
+        entry_tax_date = ctk.CTkEntry(row_frame, width=120, height=24, placeholder_text="YYYY-MM-DD")
+        entry_tax_date.pack(side="left", padx=2)
+        entry_tax_date.insert(0, str(row.get("세금계산서발행일", "")).replace("nan", ""))
+        self.entries[f"payment_tax_date_{idx}"] = entry_tax_date
+
+    def save_data(self):
+        """Save changes to Delivery and Payment sheets"""
+        
+        # 1. Update Delivery Data
+        if hasattr(self.dm, 'df_delivery'):
+            for key, widget in self.entries.items():
+                if key.startswith("delivery_export_no_"):
+                    idx = int(key.split("_")[-1])
+                    if idx in self.dm.df_delivery.index:
+                        self.dm.df_delivery.at[idx, "수출신고번호"] = widget.get()
+            
+            # Save Files
+            for key, widget in self.file_manager.file_entries.items():
+                if key.startswith("delivery_export_file_"):
+                    idx = int(key.split("_")[-1])
+                    path = widget.get()
+                    if path and idx in self.dm.df_delivery.index:
+                        # If path is not already in attachment root, save it
+                        if not path.startswith(self.dm.attachment_root):
+                            d_no = self.dm.df_delivery.at[idx, "출고번호"]
+                            client = self.lbl_client.cget("text")
+                            safe_client = "".join([c for c in client if c.isalnum() or c in (' ', '_')]).strip()
+                            info_text = f"{safe_client}_{d_no}_Export"
+                            success, msg, new_path = self.file_manager.save_file(key, "수출", "Export", info_text)
+                            if success:
+                                self.dm.df_delivery.at[idx, "수출신고필증경로"] = new_path
+                        else:
+                             self.dm.df_delivery.at[idx, "수출신고필증경로"] = path
+
+        # 2. Update Payment Data
+        if hasattr(self.dm, 'df_payment'):
+             for key, widget in self.entries.items():
+                if key.startswith("payment_tax_no_"):
+                    idx = int(key.split("_")[-1])
+                    if idx in self.dm.df_payment.index:
+                        self.dm.df_payment.at[idx, "세금계산서번호"] = widget.get()
+                elif key.startswith("payment_tax_date_"):
+                    idx = int(key.split("_")[-1])
+                    if idx in self.dm.df_payment.index:
+                        self.dm.df_payment.at[idx, "세금계산서발행일"] = widget.get()
+
+        # Save to Excel
+        success, msg = self.dm.save_data()
+        if success:
+            messagebox.showinfo("성공", "저장되었습니다.", parent=self)
+            self._load_data() # Reload to reflect changes
+        else:
+            messagebox.showerror("실패", f"저장 실패: {msg}", parent=self)
+
+    def close_order(self):
+        """Set order status to '종료'"""
+        if messagebox.askyesno("종결", "정말 이 주문을 종결 처리하시겠습니까?\n종결 후에는 수정이 제한될 수 있습니다.", parent=self):
+            try:
+                self.dm.update_order_status(self.target_mgmt_no, "종료")
+                messagebox.showinfo("완료", "주문이 종결되었습니다.", parent=self)
+                if self.refresh_callback:
+                    self.refresh_callback()
+                self.destroy()
+            except Exception as e:
+                messagebox.showerror("오류", f"상태 업데이트 실패: {e}", parent=self)
 
     def _create_footer(self, parent):
         footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -220,26 +310,21 @@ class AccountingPopup(BasePopup):
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], 
                       text_color=COLORS["text"]).pack(side="left")
         
-        ctk.CTkButton(footer_frame, text="회계처리", command=self.on_accounting_btn, width=120, 
-                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"]).pack(side="right")
+        # Right side buttons
+        btn_frame = ctk.CTkFrame(footer_frame, fg_color="transparent")
+        btn_frame.pack(side="right")
+        
+        ctk.CTkButton(btn_frame, text="저장", command=self.save_data, width=100, 
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"]).pack(side="left", padx=5)
+                      
+        ctk.CTkButton(btn_frame, text="종결", command=self.close_order, width=100, 
+                      fg_color=COLORS["success"], hover_color=COLORS["success_hover"]).pack(side="left", padx=5)
 
-    def on_accounting_btn(self):
-        from ui.popups.mini_accounting_popup import MiniAccountingPopup
-        def after_close():
-            # Update order status to '종료'
-            try:
-                self.dm.update_order_status(self.target_mgmt_no, "종료")
-            except Exception as e:
-                messagebox.showerror("오류", f"상태 업데이트 실패: {e}", parent=self)
-                return
-            # Notify user of completion
-            messagebox.showinfo("완료", "회계처리가 완료되었습니다.", parent=self)
-            # Refresh main view and close this popup
-            if self.refresh_callback:
-                self.refresh_callback()
-            self.destroy()
-        MiniAccountingPopup(self, self.dm, after_close, self.target_mgmt_no)
-
+    def open_file(self, path):
+         if path and os.path.exists(path):
+            try: os.startfile(path)
+            except Exception as e: messagebox.showerror("에러", f"파일을 열 수 없습니다.\n{e}", parent=self)
+            
     def _on_popup_closed(self):
         if self.refresh_callback:
             self.refresh_callback()

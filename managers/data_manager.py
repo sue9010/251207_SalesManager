@@ -90,6 +90,12 @@ class DataManager:
         return self.file_handler.save_to_excel()
         # TODO: 구매 데이터 저장 로직도 save_purchase_data() 등으로 분리하거나 통합 필요
 
+    def save_data(self, sheet_type=None):
+        """
+        데이터를 저장합니다. sheet_type은 호환성을 위해 유지하지만, 현재는 전체 저장을 수행합니다.
+        """
+        return self.save_to_excel()
+
     def create_backup(self):
         return self.file_handler.create_backup()
 

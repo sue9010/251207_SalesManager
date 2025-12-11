@@ -206,7 +206,7 @@ class PaymentHandler:
             if new_payment_records:
                 payment_df_new = pd.DataFrame(new_payment_records)
                 if not payment_df_new.dropna(how='all').empty:
-                    payment_df_new = payment_df_new.dropna(axis=1, how='all')
+                    # payment_df_new = payment_df_new.dropna(axis=1, how='all') # Causing FutureWarning
                     dfs["payment"] = pd.concat([dfs["payment"], payment_df_new], ignore_index=True)
 
             # 5. 최종 재계산

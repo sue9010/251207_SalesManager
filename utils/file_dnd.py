@@ -18,6 +18,7 @@ class FileDnDManager:
         self.dm = parent_popup.dm
         self.file_entries = {} # {key: entry_widget}
         self.full_paths = {}   # {key: full_path}
+        self.DND_AVAILABLE = DND_AVAILABLE
 
     def create_file_input_row(self, parent, label, key, placeholder="파일을 드래그하거나 열기 버튼을 클릭하세요", height=28):
         """Standard file input row creation"""
@@ -43,7 +44,7 @@ class FileDnDManager:
         self.file_entries[key] = entry
         
         # [변경] tkinterdnd2 적용
-        if DND_AVAILABLE:
+        if self.DND_AVAILABLE:
             self._setup_dnd(entry, key)
         
         return entry, btn_open, btn_delete
@@ -150,6 +151,9 @@ class FileDnDManager:
             current_path = self.file_entries[key].get().strip()
             
         if not current_path: return True, "", "" 
+        
+        # Clean up path (remove surrounding quotes if any)
+        current_path = current_path.strip('"').strip("'")
 
         if not os.path.exists(current_path):
              return False, f"파일을 찾을 수 없습니다: {current_path}", ""
