@@ -382,41 +382,8 @@ class CompletePopup(BasePopup):
         
         self._create_file_cell(row_frame, row.get("운송장경로", ""), 150, "delivery", row.name, "운송장경로", extra_data)
         
-        # [변경] 수출신고필증 (FileDnDManager 사용 + 저장 버튼)
-        export_frame = ctk.CTkFrame(row_frame, width=250, fg_color="transparent")
-        export_frame.pack(side="left", padx=2, fill="y")
-        export_frame.pack_propagate(False)
-        
-        export_key = f"export_complete_{row.name}"
-        # Create file input manually to fit layout
-        entry = ctk.CTkEntry(export_frame, placeholder_text="드래그 또는 선택", height=24)
-        entry.pack(side="left", fill="x", expand=True)
-        
-        btn_open = ctk.CTkButton(export_frame, text="열기", width=40, height=24,
-                      command=lambda: self.file_manager.open_file(export_key),
-                      fg_color=COLORS["bg_light"], text_color=COLORS["text"])
-        btn_open.pack(side="left", padx=(2, 0))
-        
-        btn_del = ctk.CTkButton(export_frame, text="X", width=30, height=24,
-                      command=lambda: self.file_manager.clear_entry(export_key),
-                      fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"])
-        btn_del.pack(side="left", padx=(2, 0))
-        
-        # Save Button
-        btn_save = ctk.CTkButton(export_frame, text="💾", width=30, height=24,
-                      command=lambda: self.save_delivery_export_file(row.name, export_key, extra_data),
-                      fg_color=COLORS["success"], hover_color=COLORS["success_hover"])
-        btn_save.pack(side="left", padx=(2, 0))
-        
-        # Register to FileManager
-        self.file_manager.file_entries[export_key] = entry
-        if self.file_manager.DND_AVAILABLE:
-            self.file_manager._setup_dnd(entry, export_key)
-            
-        # Set initial value
-        current_path = row.get("수출신고필증경로", "")
-        if current_path and str(current_path) != "nan":
-            self.file_manager.update_file_entry(export_key, str(current_path))
+        # [변경] 수출신고필증 (통일된 UI 사용)
+        self._create_file_cell(row_frame, row.get("수출신고필증경로", ""), 250, "delivery", row.name, "수출신고필증경로", extra_data)
 
         self._create_cell(row_frame, row.get("비고", ""), 150)
 
@@ -466,13 +433,22 @@ class CompletePopup(BasePopup):
                 # 파일명: 업체명_관리번호_입금액_timestamp
                 new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{extra_data.get('amount')}_{timestamp}{ext}"
             elif sheet_type == "delivery":
-                target_dir = os.path.join(self.dm.attachment_root, "납품")
-                # 파일명: 업체명_관리번호_출고번호_timestamp (출고번호 없으면 그냥 timestamp)
-                d_no = extra_data.get("delivery_no", "")
-                if d_no and d_no != "-":
-                     new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{d_no}_{timestamp}{ext}"
+                if col_name == "수출신고필증경로":
+                    target_dir = os.path.join(self.dm.attachment_root, "수출")
+                    # 파일명: 업체명_관리번호_출고번호_Export_timestamp
+                    d_no = extra_data.get("delivery_no", "")
+                    if d_no and d_no != "-":
+                         new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{d_no}_Export_{timestamp}{ext}"
+                    else:
+                         new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_Export_{timestamp}{ext}"
                 else:
-                     new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{timestamp}{ext}"
+                    target_dir = os.path.join(self.dm.attachment_root, "납품")
+                    # 파일명: 업체명_관리번호_출고번호_timestamp (출고번호 없으면 그냥 timestamp)
+                    d_no = extra_data.get("delivery_no", "")
+                    if d_no and d_no != "-":
+                         new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{d_no}_{timestamp}{ext}"
+                    else:
+                         new_filename = f"{safe_client}_{extra_data.get('mgmt_no')}_{timestamp}{ext}"
             
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
@@ -505,30 +481,6 @@ class CompletePopup(BasePopup):
 
         except Exception as e:
             messagebox.showerror("오류", f"파일 업로드 중 오류 발생: {e}", parent=self)
-
-    # [변경] 출고 건별 수출신고필증 저장 메서드 추가
-    def save_delivery_export_file(self, row_idx, key, extra_data):
-        """출고 건별 수출신고필증 저장"""
-        if not self.file_manager.file_entries.get(key).get():
-            messagebox.showwarning("경고", "파일이 선택되지 않았습니다.", parent=self)
-            return
-
-        safe_client = str(extra_data.get("client", "")).replace("/", "_").replace("\\", "_")
-        d_no = extra_data.get("delivery_no", "")
-        info_text = f"{safe_client}_{d_no}_Export"
-        
-        success, msg, path = self.file_manager.save_file(key, "수출", "Export", info_text)
-        
-        if success and path:
-            # Update DataFrame
-            if "수출신고필증경로" not in self.dm.df_delivery.columns:
-                self.dm.df_delivery["수출신고필증경로"] = ""
-                
-            self.dm.df_delivery.at[row_idx, "수출신고필증경로"] = path
-            self.dm.save_data("delivery")
-            messagebox.showinfo("성공", "수출신고필증이 저장되었습니다.", parent=self)
-        elif not success:
-            messagebox.showerror("실패", f"저장 실패: {msg}", parent=self)
 
     def open_file(self, path):
         if path:
