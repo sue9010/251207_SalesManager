@@ -31,7 +31,7 @@ class ProductionPopup(BasePopup):
         self.cached_client_name = "" 
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=self.mgmt_nos[0])
-        self.geometry("1100x620")
+        self.geometry("1200x620")
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -89,8 +89,8 @@ class ProductionPopup(BasePopup):
     def _setup_items_panel(self, parent):
         ctk.CTkLabel(parent, text="납품 품목 리스트", font=FONTS["header"]).pack(anchor="w", padx=15, pady=15)
         
-        headers = ["품명", "모델명", "시리얼", "잔여", "출고"]
-        widths = [150, 150, 100, 50, 70]
+        headers = ["품명", "모델명", "시리얼", "주문", "기납품", "잔여", "출고"]
+        widths = [150, 150, 100, 60, 60, 60, 70]
         
         header_frame = ctk.CTkFrame(parent, height=35, fg_color=COLORS["bg_dark"])
         header_frame.pack(fill="x", padx=15)
@@ -122,20 +122,55 @@ class ProductionPopup(BasePopup):
     def on_delivery_btn(self):
         # Collect delivery items
         delivery_items = []
+        df = self.dm.df_data
+        
         for index, item_info in self.item_widgets_map.items():
             entry_widget = item_info["entry"]
             row_data = item_info["row_data"]
-            try: deliver_qty = float(entry_widget.get().replace(",", ""))
-            except: deliver_qty = 0
+            indices = item_info["indices"]
             
-            if deliver_qty > 0:
-                delivery_items.append({
-                    "idx": index,
-                    "mgmt_no": row_data.get("관리번호", ""),
-                    "serial_no": str(row_data.get("시리얼번호", "-")),
-                    "deliver_qty": deliver_qty
-                })
-        
+            try: total_deliver_qty = float(entry_widget.get().replace(",", ""))
+            except: total_deliver_qty = 0
+            
+            if total_deliver_qty <= 0:
+                continue
+                
+            # Distribute quantity across indices (FIFO)
+            remaining_to_deliver = total_deliver_qty
+            
+            for idx in indices:
+                if remaining_to_deliver <= 0:
+                    break
+                    
+                # Get current remaining qty for this row from DB
+                try: 
+                    current_row_qty = float(str(df.loc[idx, "수량"]).replace(",", ""))
+                except: 
+                    current_row_qty = 0
+                
+                # Skip if this row is already fully delivered (though aggregation logic should handle this, double check)
+                if df.loc[idx, "Delivery Status"] == "완료":
+                    continue
+                    
+                allocate_qty = min(remaining_to_deliver, current_row_qty)
+                
+                if allocate_qty > 0:
+                    delivery_items.append({
+                        "idx": idx,
+                        "mgmt_no": df.loc[idx, "관리번호"],
+                        "serial_no": str(df.loc[idx, "시리얼번호"]),
+                        "deliver_qty": allocate_qty
+                    })
+                    remaining_to_deliver -= allocate_qty
+            
+            # If there is still remaining quantity to deliver but no rows to allocate to, 
+            # it implies over-delivery beyond total remaining. 
+            # We can either error out or just add to the last row. 
+            # For safety, let's warn if we couldn't allocate everything.
+            if remaining_to_deliver > 0.000001: # Float comparison
+                 messagebox.showwarning("경고", f"입력한 출고 수량이 잔여 수량보다 많습니다.\n(초과분: {remaining_to_deliver:g})", parent=self)
+                 return
+
         if not delivery_items:
             messagebox.showwarning("경고", "납품할 품목의 수량을 입력해주세요.", parent=self)
             return
@@ -209,12 +244,41 @@ class ProductionPopup(BasePopup):
              if path: self.update_file_entry("발주서경로", path)
 
         # 품목 리스트
-        target_rows = rows[~rows["Status"].isin(["납품완료/입금대기", "완료", "취소", "보류"])]
+        # Status가 취소/보류가 아닌 모든 행을 가져옴 (완료 포함)
+        target_rows = rows[~rows["Status"].isin(["취소", "보류"])]
+        
+        # 데이터 집계 (Aggregation)
+        aggregated_items = {}
         for index, row_data in target_rows.iterrows():
-            item_data = row_data.to_dict()
-            key = (str(row_data.get("관리번호", "")).strip(), str(row_data.get("모델명", "")).strip(), str(row_data.get("Description", "")).strip())
-            item_data["시리얼번호"] = serial_map.get(key, "-")
-            self._add_delivery_item_row(index, item_data)
+            key = (str(row_data.get("모델명", "")).strip(), str(row_data.get("Description", "")).strip())
+            
+            if key not in aggregated_items:
+                aggregated_items[key] = {
+                    "품목명": row_data.get("품목명", ""),
+                    "모델명": row_data.get("모델명", ""),
+                    "Description": row_data.get("Description", ""),
+                    "시리얼번호": serial_map.get(key, "-"), # 대표 시리얼 (또는 목록)
+                    "total_qty": 0,
+                    "delivered_qty": 0,
+                    "indices": []
+                }
+            
+            # 수량 집계
+            try: qty = float(str(row_data.get("수량", 0)).replace(",", ""))
+            except: qty = 0
+            
+            aggregated_items[key]["total_qty"] += qty
+            aggregated_items[key]["indices"].append(index)
+            
+            # 기납품 수량 집계 (Delivery Status가 완료인 경우)
+            if row_data.get("Delivery Status") == "완료":
+                aggregated_items[key]["delivered_qty"] += qty
+
+        # UI 표시
+        for i, (key, item_data) in enumerate(aggregated_items.items()):
+            # 잔여 수량 계산
+            item_data["current_qty"] = item_data["total_qty"] - item_data["delivered_qty"]
+            self._add_delivery_item_row(i, item_data)
 
     def _add_delivery_item_row(self, row_index, item_data):
         row_frame = ctk.CTkFrame(self.scroll_items, fg_color="transparent", height=40)
@@ -227,18 +291,29 @@ class ProductionPopup(BasePopup):
         add_label(item_data.get("모델명", ""), 150)
         add_label(item_data.get("시리얼번호", "-"), 100, "center", COLORS["primary"])
         
-        try: current_qty = float(str(item_data.get("수량", "0")).replace(",", ""))
-        except: current_qty = 0.0
-        add_label(f"{current_qty:g}", 50)
+        # 주문 수량
+        total_qty = item_data.get("total_qty", 0)
+        add_label(f"{total_qty:g}", 60)
+        
+        # 기납품 수량
+        delivered_qty = item_data.get("delivered_qty", 0)
+        add_label(f"{delivered_qty:g}", 60)
+        
+        # 잔여 수량
+        current_qty = item_data.get("current_qty", 0)
+        add_label(f"{current_qty:g}", 60)
         
         entry_deliver_qty = ctk.CTkEntry(row_frame, width=70, justify="center", fg_color=COLORS["bg_light"], border_color=COLORS["primary"])
         entry_deliver_qty.pack(side="left", padx=2)
-        entry_deliver_qty.insert(0, f"{current_qty:g}")
+        
+        # 기본 출고 수량은 잔여 수량 (0이면 0)
+        default_val = current_qty if current_qty > 0 else 0
+        entry_deliver_qty.insert(0, f"{default_val:g}")
 
         self.item_widgets_map[row_index] = {
-            "current_qty": current_qty,
+            "indices": item_data["indices"], # 집계된 모든 행의 인덱스 리스트
             "entry": entry_deliver_qty,
-            "row_data": item_data
+            "row_data": item_data # 집계된 데이터
         }
 
 
