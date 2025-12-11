@@ -11,6 +11,7 @@ class MiniPaymentPopup(BasePopup):
         # BasePopup expects a single mgmt_no for title generation usually, but we can pass the first one
         super().__init__(parent, data_manager, refresh_callback, popup_title="입금 처리", mgmt_no=mgmt_nos[0])
         self.geometry("500x340")
+        self.after(100, lambda: self.entry_amount.focus_set())
 
     def _create_widgets(self):
         self.configure(fg_color=COLORS["bg_dark"])

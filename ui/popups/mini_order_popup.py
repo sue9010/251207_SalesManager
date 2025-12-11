@@ -6,7 +6,7 @@ import customtkinter as ctk
 from src.styles import COLORS, FONTS
 from utils.file_dnd import FileDnDManager
 
-class OrderConfirmPopup(ctk.CTkToplevel):
+class MiniOrderPopup(ctk.CTkToplevel):
     def __init__(self, parent, data_manager, mgmt_no, on_confirm_callback):
         super().__init__(parent)
         self.dm = data_manager
@@ -25,6 +25,7 @@ class OrderConfirmPopup(ctk.CTkToplevel):
         
         self._create_widgets()
         
+        self.after(100, lambda: self.entry_po_no.focus_set())
     def _create_widgets(self):
         # Header
         header_frame = ctk.CTkFrame(self, fg_color="transparent")

@@ -37,6 +37,9 @@ class QuotePopup(BasePopup):
         if self.copy_mode and self.copy_src_no:
             self._load_copied_data()
 
+        # [신규] 팝업 열릴 때 업체명 입력창에 포커스
+        self.after(100, lambda: self.entry_client.focus_set())
+
     def _create_header(self, parent):
         # 공통 헤더 사용 (Title + ID)
         header_frame = self._create_common_header(parent, "견적서 작성/수정", self.mgmt_no)
@@ -213,6 +216,9 @@ class QuotePopup(BasePopup):
             # 2. 국가 확인 및 조건부 필드 업데이트
             country = str(client_row.iloc[0].get("국가", ""))
             self._update_conditional_fields(country)
+            
+            # 3. 유효기간 자동 계산 (견적일 + 30일)
+            self._calculate_valid_until()
         else:
             self.lbl_client_note.configure(text="")
             # 클라이언트가 선택되지 않았거나 찾을 수 없을 경우 기본값으로 리셋
@@ -709,7 +715,7 @@ class QuotePopup(BasePopup):
             self.btn_confirm.pack(side="right", padx=5)
 
     def confirm_order(self):
-        from ui.popups.order_confirm_popup import OrderConfirmPopup
+        from ui.popups.mini_order_popup import MiniOrderPopup
         
         def on_confirm(confirm_data):
             success, msg = self.dm.confirm_order(self.mgmt_no, confirm_data)
@@ -720,4 +726,4 @@ class QuotePopup(BasePopup):
             else:
                 messagebox.showerror("실패", msg, parent=self)
                 
-        OrderConfirmPopup(self, self.dm, self.mgmt_no, on_confirm)
+        MiniOrderPopup(self, self.dm, self.mgmt_no, on_confirm)

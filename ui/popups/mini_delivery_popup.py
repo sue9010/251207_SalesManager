@@ -10,7 +10,7 @@ class MiniDeliveryPopup(BasePopup):
         self.delivery_items = delivery_items
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=mgmt_nos[0])
         self.geometry("500x300")
-
+        self.after(100, lambda: self.entry_invoice.focus_set())
     def _create_widgets(self):
         self.configure(fg_color=COLORS["bg_dark"])
         
