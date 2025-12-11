@@ -342,6 +342,9 @@ class TableView(ctk.CTkFrame):
             
         elif status == "생산중":
             self.pm.open_production_popup([mgmt_no])
+
+        elif status == "회계처리":
+            self.pm.open_accounting_popup([mgmt_no])
             
         elif status == "종료":
             self.pm.open_complete_popup(mgmt_no)

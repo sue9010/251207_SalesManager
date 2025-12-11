@@ -9,6 +9,7 @@ from ui.popups.settings_popup import SettingsPopup
 from ui.popups.packing_list_popup import PackingListPopup
 from ui.popups.after_sales_popup import AfterSalesPopup
 from ui.popups.purchase_popup import PurchasePopup
+from ui.popups.accounting_popup import AccountingPopup
 
 
 class PopupManager:
@@ -46,3 +47,6 @@ class PopupManager:
 
     def open_purchase_popup(self, mgmt_no=None, copy_mode=False):
         win = PurchasePopup(self.parent, self.dm, self.refresh_callback, mgmt_no, copy_mode=copy_mode)
+
+    def open_accounting_popup(self, mgmt_nos):
+        win = AccountingPopup(self.parent, self.dm, self.refresh_callback, mgmt_nos)
