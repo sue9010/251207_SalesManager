@@ -104,7 +104,7 @@ class TableView(ctk.CTkFrame):
         self.pm = popup_manager
         
         self.all_statuses = [
-            "견적", "주문", "생산중", "종료","취소", "보류"
+            "견적", "주문", "생산중", "회계처리", "종료","취소", "보류"
         ]
         
         self.default_statuses = [s for s in self.all_statuses if s not in ["종료", "취소","보류"]]

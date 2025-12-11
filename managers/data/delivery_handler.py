@@ -111,6 +111,23 @@ class DeliveryHandler:
             if not processed_items:
                 return False, "처리된 항목이 없습니다."
 
+            # Check for "회계처리" status update for affected mgmt_nos
+            affected_mgmt_nos = set()
+            for req in update_requests:
+                idx = req["idx"]
+                if idx in dfs["data"].index:
+                    mgmt_no = dfs["data"].at[idx, "관리번호"]
+                    affected_mgmt_nos.add(mgmt_no)
+            
+            for mgmt_no in affected_mgmt_nos:
+                current_rows = dfs["data"][dfs["data"]["관리번호"] == mgmt_no]
+                if not current_rows.empty:
+                    all_paid = (current_rows["Payment Status"] == "완료").all()
+                    all_delivered = (current_rows["Delivery Status"] == "완료").all()
+                    
+                    if all_paid and all_delivered:
+                        dfs["data"].loc[current_rows.index, "Status"] = "회계처리"
+
             mgmt_no_log = row_data.get('관리번호', '') if row_data is not None else "Unknown"
             log_msg = f"번호 [{mgmt_no_log}...] 납품 처리(출고번호: {delivery_no}) / {', '.join(processed_items)}"
             self.dm.log_handler.add_log_to_dfs(dfs, "납품 처리", log_msg)

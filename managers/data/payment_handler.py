@@ -58,6 +58,16 @@ class PaymentHandler:
             else:
                 data_df.at[idx, "Payment Status"] = "대기"
 
+        # Check for "회계처리" status update
+        # Re-fetch rows for this mgmt_no to check overall status
+        current_rows = data_df[data_df["관리번호"] == mgmt_no]
+        if not current_rows.empty:
+            all_paid = (current_rows["Payment Status"] == "완료").all()
+            all_delivered = (current_rows["Delivery Status"] == "완료").all()
+            
+            if all_paid and all_delivered:
+                data_df.loc[current_rows.index, "Status"] = "회계처리"
+
     def add_payment(self, payment_data: dict) -> tuple[bool, str]:
         def update(dfs):
             new_df = pd.DataFrame([payment_data])
