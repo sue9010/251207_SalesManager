@@ -166,18 +166,10 @@ class ProductionPopup(BasePopup):
                     delivery_items.append({
                         "idx": idx,
                         "mgmt_no": df.loc[idx, "관리번호"],
-                        "serial_no": str(df.loc[idx, "시리얼번호"]),
+                        "serial_no": item_info["row_data"].get("시리얼번호", "-"),
                         "deliver_qty": allocate_qty
                     })
                     remaining_to_deliver -= allocate_qty
-            
-            # If there is still remaining quantity to deliver but no rows to allocate to, 
-            # it implies over-delivery beyond total remaining. 
-            # We can either error out or just add to the last row. 
-            # For safety, let's warn if we couldn't allocate everything.
-            if remaining_to_deliver > 0.000001: # Float comparison
-                 messagebox.showwarning("경고", f"입력한 출고 수량이 잔여 수량보다 많습니다.\n(초과분: {remaining_to_deliver:g})", parent=self)
-                 return
 
         if not delivery_items:
             messagebox.showwarning("경고", "납품할 품목의 수량을 입력해주세요.", parent=self)
@@ -185,7 +177,7 @@ class ProductionPopup(BasePopup):
 
         # Open Mini Delivery Popup
         self.attributes("-topmost", False)
-        MiniDeliveryPopup(self, self.dm, self.refresh_callback, self.mgmt_nos, delivery_items)
+        MiniDeliveryPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, delivery_items)
         self.attributes("-topmost", True)
 
     def on_payment_btn(self):
@@ -201,8 +193,21 @@ class ProductionPopup(BasePopup):
 
         # Open Mini Payment Popup
         self.attributes("-topmost", False)
-        MiniPaymentPopup(self, self.dm, self.refresh_callback, self.mgmt_nos, unpaid_amount)
+        MiniPaymentPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, unpaid_amount)
         self.attributes("-topmost", True)
+
+    def _on_popup_closed(self):
+        """Mini Popup이 닫힐 때 호출되는 콜백"""
+        if self.refresh_callback:
+            self.refresh_callback() # 부모 뷰 리프레시
+        
+        # 현재 팝업 데이터 리프레시
+        # 기존 위젯 제거
+        for widget in self.scroll_items.winfo_children():
+            widget.destroy()
+        self.item_widgets_map.clear()
+        
+        self._load_data() # 데이터 재로드
 
     def _create_full_width_input(self, parent, row, label_text):
         f = ctk.CTkFrame(parent, fg_color="transparent")
@@ -257,6 +262,7 @@ class ProductionPopup(BasePopup):
             paid_amount = rows["기수금액"].sum()
             unpaid_amount = total_amount - paid_amount
             
+
             self._set_entry_value(self.entry_total_amount, f"{total_amount:,.0f}")
             self._set_entry_value(self.entry_paid_amount, f"{paid_amount:,.0f}")
             self._set_entry_value(self.entry_unpaid_amount, f"{unpaid_amount:,.0f}")
@@ -270,14 +276,19 @@ class ProductionPopup(BasePopup):
         # 데이터 집계 (Aggregation)
         aggregated_items = {}
         for index, row_data in target_rows.iterrows():
-            key = (str(row_data.get("모델명", "")).strip(), str(row_data.get("Description", "")).strip())
+            model = str(row_data.get("모델명", "")).strip()
+            desc = str(row_data.get("Description", "")).strip()
+            mgmt = str(row_data.get("관리번호", "")).strip()
+            
+            key = (model, desc)
+            serial_key = (mgmt, model, desc)
             
             if key not in aggregated_items:
                 aggregated_items[key] = {
                     "품목명": row_data.get("품목명", ""),
                     "모델명": row_data.get("모델명", ""),
                     "Description": row_data.get("Description", ""),
-                    "시리얼번호": serial_map.get(key, "-"), # 대표 시리얼 (또는 목록)
+                    "시리얼번호": serial_map.get(serial_key, "-"), # 대표 시리얼 (또는 목록)
                     "total_qty": 0,
                     "delivered_qty": 0,
                     "indices": []
@@ -289,7 +300,6 @@ class ProductionPopup(BasePopup):
             
             aggregated_items[key]["total_qty"] += qty
             aggregated_items[key]["indices"].append(index)
-            
             # 기납품 수량 집계 (Delivery Status가 완료인 경우)
             if row_data.get("Delivery Status") == "완료":
                 aggregated_items[key]["delivered_qty"] += qty

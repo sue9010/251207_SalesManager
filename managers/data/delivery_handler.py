@@ -49,6 +49,8 @@ class DeliveryHandler:
             
             row_data = None
             
+            new_data_rows = []
+
             for req in update_requests:
                 idx = req["idx"]
                 if idx not in dfs["data"].index: continue
@@ -98,14 +100,20 @@ class DeliveryHandler:
                         "송장번호": invoice_no, "운송방법": shipping_method,
                     })
                     if "운송장경로" in new_row: new_row["운송장경로"] = ""
-                    if not pd.DataFrame([new_row]).dropna(how='all').empty:
-                        dfs["data"] = pd.concat([dfs["data"], pd.DataFrame([new_row])], ignore_index=True)
+                    new_data_rows.append(new_row)
                 
                 processed_items.append(f"{row_data.get('품목명','')} ({deliver_qty}개)")
+
+            if new_data_rows:
+                new_data_df = pd.DataFrame(new_data_rows)
+                if not new_data_df.dropna(how='all').empty:
+                    new_data_df = new_data_df.dropna(axis=1, how='all')
+                    dfs["data"] = pd.concat([dfs["data"], new_data_df], ignore_index=True)
 
             if new_delivery_records:
                 new_df = pd.DataFrame(new_delivery_records)
                 if not new_df.dropna(how='all').empty:
+                    new_df = new_df.dropna(axis=1, how='all')
                     dfs["delivery"] = pd.concat([dfs["delivery"], new_df], ignore_index=True)
 
             if not processed_items:
