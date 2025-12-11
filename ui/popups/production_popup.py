@@ -30,8 +30,8 @@ class ProductionPopup(BasePopup):
         self.current_delivery_no = ""
         self.cached_client_name = "" 
         
-        super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=self.mgmt_nos[0])
-        self.geometry("1200x620")
+        super().__init__(parent, data_manager, refresh_callback, popup_title="납품/입금 처리", mgmt_no=self.mgmt_nos[0])
+        self.geometry("1200x750") # Increased height for new fields
 
     def _create_header(self, parent):
         header_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -85,6 +85,17 @@ class ProductionPopup(BasePopup):
         f_po_file = ctk.CTkFrame(parent, fg_color="transparent")
         f_po_file.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         self.entry_po_file, _, _ = self.create_file_input_row(f_po_file, "발주서 파일", "발주서경로")
+
+        # --- Financial Info Section ---
+        ctk.CTkLabel(parent, text="재무 정보", font=FONTS["header"]).grid(row=10, column=0, columnspan=2, sticky="w", padx=5, pady=(15, 5))
+
+        # Row 11: Total Amount, Paid Amount
+        self.entry_total_amount = self.create_grid_input(parent, 11, 0, "주문금액")
+        self.entry_paid_amount = self.create_grid_input(parent, 11, 1, "입금금액")
+        
+        # Row 12: Unpaid Amount
+        self.entry_unpaid_amount = self.create_grid_input(parent, 12, 0, "미수금액")
+        self.entry_unpaid_amount.configure(text_color=COLORS["danger"])
 
     def _setup_items_panel(self, parent):
         ctk.CTkLabel(parent, text="납품 품목 리스트", font=FONTS["header"]).pack(anchor="w", padx=15, pady=15)
@@ -199,7 +210,7 @@ class ProductionPopup(BasePopup):
     def _create_full_width_input(self, parent, row, label_text):
         f = ctk.CTkFrame(parent, fg_color="transparent")
         f.grid(row=row, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        ctk.CTkLabel(f, text=label_text, width=80, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        ctk.CTkLabel(f, text=label_text, width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
         entry = ctk.CTkEntry(f, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
         entry.pack(side="left", fill="x", expand=True)
         return entry
@@ -242,6 +253,18 @@ class ProductionPopup(BasePopup):
         if self.entry_po_file:
              path = str(first.get("발주서경로", "")).replace("nan", "")
              if path: self.update_file_entry("발주서경로", path)
+
+        # 재무 정보 계산 및 표시
+        try:
+            total_amount = rows["합계금액"].sum()
+            paid_amount = rows["기수금액"].sum()
+            unpaid_amount = total_amount - paid_amount
+            
+            self._set_entry_value(self.entry_total_amount, f"{total_amount:,.0f}")
+            self._set_entry_value(self.entry_paid_amount, f"{paid_amount:,.0f}")
+            self._set_entry_value(self.entry_unpaid_amount, f"{unpaid_amount:,.0f}")
+        except Exception as e:
+            print(f"Error calculating financial info: {e}")
 
         # 품목 리스트
         # Status가 취소/보류가 아닌 모든 행을 가져옴 (완료 포함)
