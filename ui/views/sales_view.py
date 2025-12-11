@@ -92,11 +92,22 @@ class SalesView(ctk.CTkFrame):
         # Clear and populate context menu
         self.context_menu.clear()
         
+        # Add Copy option
+        self.context_menu.add_command("복사", lambda: self.copy_item(mgmt_no, status), text_color=COLORS["text"])
+        
         # Add Delete option
         self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, status), text_color=COLORS["danger"])
         
         # Show context menu
         self.context_menu.show(event.x_root, event.y_root)
+
+    def copy_item(self, mgmt_no, status):
+        if status == "견적":
+            self.pm.open_quote_popup(mgmt_no, copy_mode=True)
+        elif status == "주문":
+            self.pm.open_order_popup(mgmt_no, copy_mode=True)
+        else:
+            messagebox.showinfo("알림", "복사할 수 없는 항목입니다.")
 
     def delete_item(self, mgmt_no, status):
         if not messagebox.askyesno("삭제 확인", f"정말 {status} 건 ({mgmt_no})을 삭제하시겠습니까?"):
