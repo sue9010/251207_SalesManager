@@ -212,6 +212,39 @@ class AccountingPopup(BasePopup):
         else:
             messagebox.showerror("오류", "데이터를 찾을 수 없습니다.", parent=self)
 
+    def _create_footer(self, parent):
+        footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        footer_frame.pack(fill="x", pady=(10, 0), side="bottom")
+        
+        ctk.CTkButton(footer_frame, text="닫기", command=self.destroy, width=100, 
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], 
+                      text_color=COLORS["text"]).pack(side="left")
+        
+        ctk.CTkButton(footer_frame, text="회계처리", command=self.on_accounting_btn, width=120, 
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"]).pack(side="right")
+
+    def on_accounting_btn(self):
+        from ui.popups.mini_accounting_popup import MiniAccountingPopup
+        def after_close():
+            # Update order status to '종료'
+            try:
+                self.dm.update_order_status(self.target_mgmt_no, "종료")
+            except Exception as e:
+                messagebox.showerror("오류", f"상태 업데이트 실패: {e}", parent=self)
+                return
+            # Notify user of completion
+            messagebox.showinfo("완료", "회계처리가 완료되었습니다.", parent=self)
+            # Refresh main view and close this popup
+            if self.refresh_callback:
+                self.refresh_callback()
+            self.destroy()
+        MiniAccountingPopup(self, self.dm, after_close, self.target_mgmt_no)
+
+    def _on_popup_closed(self):
+        if self.refresh_callback:
+            self.refresh_callback()
+        self._load_data()
+
     # Required Abstract Methods
     def delete(self): pass
     def _generate_new_id(self): pass
