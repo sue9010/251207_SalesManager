@@ -99,16 +99,44 @@ class PaymentHandler:
             try: current_user = getpass.getuser()
             except: current_user = "Unknown"
 
-            remaining_payment = payment_amount
-
-            # 3. 미수금 차감 시뮬레이션
+            # 전체 미수금액 계산
+            total_unpaid = 0
             for idx in indices:
-                if remaining_payment <= 0: break
+                try: unpaid = float(dfs["data"].at[idx, "미수금액"])
+                except: unpaid = 0
+                total_unpaid += unpaid
+
+            # 전체 차액 확인 및 수수료 결정
+            remaining_deposit = payment_amount
+            remaining_fee = 0
+            
+            # 통화 확인 (첫 번째 항목 기준)
+            first_idx = indices[0]
+            currency = str(dfs["data"].at[first_idx, "통화"]).upper()
+            threshold = 200 if currency != "KRW" else 5000
+
+            diff = total_unpaid - payment_amount
+            
+            # 차액이 양수이고(미수금 남음) 임계값 이내인 경우
+            if 0 < diff <= threshold:
+                is_fee = False
+                if confirm_fee_callback:
+                    # 전체 항목에 대한 수수료 확인
+                    item_count = len(indices)
+                    item_name = str(dfs["data"].at[first_idx, "품목명"])
+                    if item_count > 1:
+                        item_name += f" 외 {item_count-1}건"
+                    
+                    is_fee = confirm_fee_callback(item_name, diff, currency)
+                
+                if is_fee:
+                    remaining_fee = diff
+
+            # 3. 입금 및 수수료 배분
+            for idx in indices:
+                if remaining_deposit <= 0 and remaining_fee <= 0: break
                 
                 mgmt_no = dfs["data"].at[idx, "관리번호"]
-                currency = str(dfs["data"].at[idx, "통화"]).upper()
-                threshold = 200 if currency != "KRW" else 5000
-                
                 if mgmt_no not in batch_summary:
                     batch_summary[mgmt_no] = {'deposit': 0, 'fee': 0, 'currency': currency}
 
@@ -119,28 +147,29 @@ class PaymentHandler:
                     actual_pay = 0
                     fee_pay = 0
                     
-                    if remaining_payment >= unpaid:
-                        actual_pay = unpaid
-                    else:
-                        diff = unpaid - remaining_payment
-                        if diff <= threshold:
-                            item_name = str(dfs["data"].at[idx, "품목명"])
-                            is_fee = False
-                            if confirm_fee_callback:
-                                is_fee = confirm_fee_callback(item_name, diff, currency)
-                            
-                            if is_fee:
-                                actual_pay = remaining_payment
-                                fee_pay = diff
-                            else:
-                                actual_pay = remaining_payment
+                    # 1) 입금액 배분
+                    if remaining_deposit > 0:
+                        if remaining_deposit >= unpaid:
+                            actual_pay = unpaid
+                            remaining_deposit -= unpaid
                         else:
-                            actual_pay = remaining_payment
+                            actual_pay = remaining_deposit
+                            remaining_deposit = 0
+                    
+                    # 2) 수수료 배분 (입금액 배분 후 남은 미수금에 대해)
+                    remaining_unpaid = unpaid - actual_pay
+                    if remaining_unpaid > 0 and remaining_fee > 0:
+                        # 수수료는 남은 미수금을 털어내는 것이므로, 
+                        # 남은 수수료 총액 내에서 해당 항목의 잔여 미수금만큼 할당
+                        if remaining_fee >= remaining_unpaid:
+                            fee_pay = remaining_unpaid
+                            remaining_fee -= remaining_unpaid
+                        else:
+                            fee_pay = remaining_fee
+                            remaining_fee = 0
 
                     batch_summary[mgmt_no]['deposit'] += actual_pay
                     batch_summary[mgmt_no]['fee'] += fee_pay
-                    
-                    remaining_payment -= actual_pay
 
             # 4. Payment 시트에 이력 기록
             new_payment_records = []

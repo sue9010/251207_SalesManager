@@ -102,7 +102,7 @@ class MiniPaymentPopup(BasePopup):
 
         def confirm_fee(item_name, diff, curr):
             return messagebox.askyesno("수수료 처리 확인", 
-                                       f"[{item_name}] 항목의 잔액이 {diff:,.0f} ({curr}) 남습니다.\n"
+                                       f"[{item_name}] 의 총 잔액이 {diff:,.0f} ({curr}) 남습니다.\n"
                                        f"이를 수수료로 처리하여 '완납' 하시겠습니까?", parent=self)
 
         success, msg = self.dm.process_payment(

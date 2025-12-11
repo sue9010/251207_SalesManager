@@ -44,9 +44,6 @@ class ProductionPopup(BasePopup):
         self.lbl_id = ctk.CTkLabel(top_row, text="MGMT-000000", font=FONTS["main"], text_color=COLORS["text_dim"])
         self.lbl_id.pack(side="left")
         
-        ctk.CTkLabel(top_row, text="납품 대기", font=FONTS["small"], fg_color=COLORS["primary"], 
-                     text_color="white", corner_radius=10, width=80).pack(side="left", padx=10)
-
     def _setup_info_panel(self, parent):
         parent.grid_columnconfigure(0, weight=1)
         parent.grid_columnconfigure(1, weight=1)
