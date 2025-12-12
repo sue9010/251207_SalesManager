@@ -66,12 +66,11 @@ class DeliveryHandler:
                     "시리얼번호": req["serial_no"], "출고수량": deliver_qty,
                     "송장번호": invoice_no, "운송방법": shipping_method,
                     "작업자": current_user, "비고": "일괄 납품 처리",
-                    "작업자": current_user, "비고": "일괄 납품 처리",
                     "운송장경로": waybill_path,
                     "CI경로": ci_path, "PL경로": pl_path
                 })
 
-                # 데이터 업데이트 (완전 출고 vs 부분 출고)
+                # 데이터 업데이트 (완전 출고 vs 부분 출고) 
                 is_full = abs(deliver_qty - db_qty) < 0.000001
                 
                 price = float(str(row_data.get("단가", 0)).replace(",", "") or 0)

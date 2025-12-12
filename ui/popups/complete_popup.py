@@ -20,7 +20,7 @@ class CompletePopup(BasePopup):
         ],
         "payment": [
             ("일시", 150), ("구분", 80), ("입금액", 100), ("통화", 60), 
-            ("작업자", 80), ("외화증빙", 80), ("송금상세", 80)
+            ("작업자", 80), ("세금계산서번호", 120), ("발행일", 100), ("외화증빙", 80), ("송금상세", 80)
         ],
         "delivery": [
             ("처리일시", 150), ("출고일", 100), ("품목명", 200), ("출고수량", 80), 
@@ -374,6 +374,8 @@ class CompletePopup(BasePopup):
         self._create_cell(row_frame, row.get("입금액", 0), widths[2], "right", True)
         self._create_cell(row_frame, row.get("통화", ""), widths[3], "center")
         self._create_cell(row_frame, row.get("작업자", ""), widths[4], "center")
+        self._create_cell(row_frame, row.get("세금계산서번호", ""), widths[5], "center")
+        self._create_cell(row_frame, row.get("세금계산서발행일", ""), widths[6], "center")
         
         # extra_data 생성 (파일명용)
         # Payment: 업체명_관리번호_입금액
@@ -386,8 +388,8 @@ class CompletePopup(BasePopup):
             "date": row.get("일시", datetime.datetime.now().strftime("%Y-%m-%d"))
         }
 
-        self._create_file_cell(row_frame, row.get("외화입금증빙경로", ""), widths[5], "payment", row.name, "외화입금증빙경로", extra_data)
-        self._create_file_cell(row_frame, row.get("송금상세경로", ""), widths[6],  "payment", row.name, "송금상세경로", extra_data)
+        self._create_file_cell(row_frame, row.get("외화입금증빙경로", ""), widths[7], "payment", row.name, "외화입금증빙경로", extra_data)
+        self._create_file_cell(row_frame, row.get("송금상세경로", ""), widths[8],  "payment", row.name, "송금상세경로", extra_data)
 
     def _add_delivery_row(self, row):
         row_frame = ctk.CTkFrame(self.scroll_delivery, fg_color="transparent", height=30)
