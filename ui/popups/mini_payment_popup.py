@@ -3,11 +3,16 @@ from datetime import datetime
 from tkinter import messagebox
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
+from utils.file_dnd import FileDnDManager
 
 class MiniPaymentPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_nos, unpaid_amount):
         self.mgmt_nos = mgmt_nos
         self.unpaid_amount = unpaid_amount
+        
+        self.dm = data_manager
+        self.file_manager = FileDnDManager(self)
+        
         # BasePopup expects a single mgmt_no for title generation usually, but we can pass the first one
         super().__init__(parent, data_manager, refresh_callback, popup_title="입금 처리", mgmt_no=mgmt_nos[0])
         self.geometry("500x340")
@@ -49,6 +54,11 @@ class MiniPaymentPopup(BasePopup):
         
         self.entry_amount = ctk.CTkEntry(amt_frame, height=30)
         self.entry_amount.pack(side="left", fill="x", expand=True)
+
+        # 3. File Inputs (Foreign Proof & Remittance Detail)
+        # Using pack for these as create_file_input_row uses pack
+        self.entry_file_foreign, _, _, _ = self.file_manager.create_file_input_row(parent, "외화입금증빙", "외화입금증빙경로")
+        self.entry_file_remit, _, _, _ = self.file_manager.create_file_input_row(parent, "송금상세", "송금상세경로")
 
     def _create_footer(self, parent):
         footer = ctk.CTkFrame(parent, fg_color="transparent")

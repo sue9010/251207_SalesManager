@@ -214,9 +214,10 @@ class AccountingPopup(BasePopup):
         entry_file = ctk.CTkEntry(file_frame, placeholder_text="파일", height=24)
         entry_file.pack(side="left", fill="x", expand=True)
         
-        btn_open = ctk.CTkButton(file_frame, text="..", width=24, height=24,
-                                 command=lambda: self.file_manager.open_file(key))
-        btn_open.pack(side="left", padx=1)
+        btn_del = ctk.CTkButton(file_frame, text="X", width=24, height=24,
+                                 command=lambda: self.file_manager.clear_entry(key),
+                                 fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"])
+        btn_del.pack(side="left", padx=1)
         
         self.file_manager.file_entries[key] = entry_file
         if self.file_manager.DND_AVAILABLE:
