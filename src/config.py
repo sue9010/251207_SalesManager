@@ -8,7 +8,6 @@ class Config:
     DEFAULT_PURCHASE_DATA_PATH = "purchase_data.xlsx"
     DEFAULT_ATTACHMENT_ROOT = "attachments"
     DEFAULT_PRODUCTION_REQUEST_PATH = "production_request.xlsx"
-    DEFAULT_ORDER_REQUEST_DIR = "order_requests"
     CONFIG_FILENAME = "config.json"
     
     # 폼(템플릿) 파일 경로 (항상 attachments/forms 참조)

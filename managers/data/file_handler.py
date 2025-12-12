@@ -19,24 +19,21 @@ class FileHandler:
                     self.dm.attachment_root = data.get("attachment_root", Config.DEFAULT_ATTACHMENT_ROOT)
                     self.dm.production_request_path = data.get("production_request_path", Config.DEFAULT_PRODUCTION_REQUEST_PATH)
                     self.dm.purchase_data_path = data.get("purchase_data_path", Config.DEFAULT_PURCHASE_DATA_PATH)
-                    self.dm.order_request_dir = data.get("order_request_dir", Config.DEFAULT_ORDER_REQUEST_DIR)
             except: pass
 
-    def save_config(self, new_path=None, new_theme=None, new_attachment_dir=None, new_prod_path=None, new_order_req_dir=None, new_purchase_path=None):
+    def save_config(self, new_path=None, new_theme=None, new_attachment_dir=None, new_prod_path=None, new_purchase_path=None):
         if new_path: self.dm.current_excel_path = new_path
         if new_theme: self.dm.current_theme = new_theme
         if new_attachment_dir: self.dm.attachment_root = new_attachment_dir
         if new_prod_path: self.dm.production_request_path = new_prod_path
         if new_purchase_path: self.dm.purchase_data_path = new_purchase_path
-        if new_order_req_dir: self.dm.order_request_dir = new_order_req_dir
         
         data = {
             "excel_path": self.dm.current_excel_path,
             "theme": self.dm.current_theme,
             "attachment_root": self.dm.attachment_root,
             "production_request_path": self.dm.production_request_path,
-            "purchase_data_path": self.dm.purchase_data_path,
-            "order_request_dir": self.dm.order_request_dir
+            "purchase_data_path": self.dm.purchase_data_path
         }
         try:
             with open(Config.CONFIG_FILENAME, "w", encoding="utf-8") as f:
@@ -202,7 +199,9 @@ class FileHandler:
         """구매 엑셀 파일을 로드하여 DataFrame 반환"""
         if not os.path.exists(self.dm.purchase_data_path):
             try:
-                os.makedirs(os.path.dirname(self.dm.purchase_data_path), exist_ok=True)
+                dirname = os.path.dirname(self.dm.purchase_data_path)
+                if dirname:
+                    os.makedirs(dirname, exist_ok=True)
                 with pd.ExcelWriter(self.dm.purchase_data_path, engine="openpyxl") as writer:
                     pd.DataFrame(columns=Config.PURCHASE_COLUMNS).to_excel(writer, sheet_name="Data", index=False)
                 return pd.DataFrame(columns=Config.PURCHASE_COLUMNS), "새로운 구매 데이터 파일 생성됨"

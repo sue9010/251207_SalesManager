@@ -29,7 +29,6 @@ class DataManager:
         self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH # 구매 엑셀 경로
         self.attachment_root = Config.DEFAULT_ATTACHMENT_ROOT
         self.production_request_path = Config.DEFAULT_PRODUCTION_REQUEST_PATH
-        self.order_request_dir = Config.DEFAULT_ORDER_REQUEST_DIR 
         
         self.current_theme = "Dark"
         self.is_dev_mode = False
@@ -50,7 +49,7 @@ class DataManager:
     def load_config(self):
         self.file_handler.load_config()
         # config 로드 후 경로 업데이트 확인
-        self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH
+        # self.purchase_data_path = Config.DEFAULT_PURCHASE_DATA_PATH # Removed to fix overwrite issue
 
     def save_config(self, *args, **kwargs):
         self.file_handler.save_config(*args, **kwargs)
