@@ -11,6 +11,22 @@ from src.styles import COLORS, FONTS
 from utils.file_dnd import FileDnDManager
 
 class AccountingPopup(BasePopup):
+    # 컬럼 설정 정의 (헤더명, 너비)
+    COL_SPECS = {
+        "items": [
+            ("품목명", 120), ("모델명", 120), ("수량", 60), ("단가", 100), 
+            ("공급가액", 100), ("세액", 80), ("합계금액", 100)
+        ],
+        "delivery": [
+            ("일시", 100), ("출고수량", 80), ("송장번호", 120), ("운송방법", 100), 
+            ("수출신고번호", 150), ("수출신고필증", 200)
+        ],
+        "payment": [
+            ("일시", 100), ("입금액", 120), ("통화", 60), ("증빙", 150), 
+            ("세금계산서번호", 150), ("발행일", 120)
+        ]
+    }
+
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no):
         # Handle list argument for mgmt_no
         if isinstance(mgmt_no, list):
@@ -70,20 +86,18 @@ class AccountingPopup(BasePopup):
         self._setup_payment_tab()
 
     def _setup_items_tab(self):
-        headers = ["품목명", "모델명", "수량", "단가", "공급가액", "세액", "합계금액"]
-        widths = [120, 120, 60, 100, 100, 80, 100]
+        headers = [h for h, w in self.COL_SPECS["items"]]
+        widths = [w for h, w in self.COL_SPECS["items"]]
         self._create_table(self.tab_items, headers, widths, "items_scroll")
 
     def _setup_delivery_tab(self):
-        # [변경] 수출신고번호, 수출신고필증 추가
-        headers = ["일시", "출고수량", "송장번호", "운송방법", "수출신고번호", "수출신고필증"]
-        widths = [100, 80, 120, 100, 150, 200]
+        headers = [h for h, w in self.COL_SPECS["delivery"]]
+        widths = [w for h, w in self.COL_SPECS["delivery"]]
         self._create_table(self.tab_delivery, headers, widths, "delivery_scroll")
 
     def _setup_payment_tab(self):
-        # [변경] 세금계산서번호, 발행일 추가
-        headers = ["일시", "입금액", "통화", "증빙", "세금계산서번호", "발행일"]
-        widths = [100, 120, 60, 150, 150, 120]
+        headers = [h for h, w in self.COL_SPECS["payment"]]
+        widths = [w for h, w in self.COL_SPECS["payment"]]
         self._create_table(self.tab_payment, headers, widths, "payment_scroll")
 
     def _create_table(self, parent, headers, widths, scroll_attr_name):
@@ -140,13 +154,14 @@ class AccountingPopup(BasePopup):
 
     def _load_items_tab(self, rows):
         for widget in self.items_scroll.winfo_children(): widget.destroy()
+        widths = [w for h, w in self.COL_SPECS["items"]]
         for _, row in rows.iterrows():
             self._add_row_to_table(self.items_scroll, [
                 row.get("품목명", ""), row.get("모델명", ""), 
                 f"{row.get('수량', 0):,.0f}", f"{row.get('단가', 0):,.0f}", 
                 f"{row.get('공급가액', 0):,.0f}", f"{row.get('세액', 0):,.0f}", 
                 f"{row.get('합계금액', 0):,.0f}"
-            ], [120, 120, 60, 100, 100, 80, 100])
+            ], widths)
 
     def _load_delivery_tab(self):
         for widget in self.delivery_scroll.winfo_children(): widget.destroy()
@@ -176,20 +191,22 @@ class AccountingPopup(BasePopup):
         row_frame = ctk.CTkFrame(self.delivery_scroll, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=1)
         
+        widths = [w for h, w in self.COL_SPECS["delivery"]]
+        
         # Read-only fields
-        ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=100, anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=f"{row.get('출고수량', 0):,.0f}", width=80, anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=str(row.get("송장번호", "")), width=120, anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=str(row.get("운송방법", "")), width=100, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=widths[0], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=f"{row.get('출고수량', 0):,.0f}", width=widths[1], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("송장번호", "")), width=widths[2], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("운송방법", "")), width=widths[3], anchor="w").pack(side="left", padx=2)
         
         # Editable: Export No
-        entry_export_no = ctk.CTkEntry(row_frame, width=150, height=24)
+        entry_export_no = ctk.CTkEntry(row_frame, width=widths[4], height=24)
         entry_export_no.pack(side="left", padx=2)
         entry_export_no.insert(0, str(row.get("수출신고번호", "")).replace("nan", ""))
         self.entries[f"delivery_export_no_{idx}"] = entry_export_no
         
         # Editable: Export File
-        file_frame = ctk.CTkFrame(row_frame, width=200, height=30, fg_color="transparent")
+        file_frame = ctk.CTkFrame(row_frame, width=widths[5], height=30, fg_color="transparent")
         file_frame.pack(side="left", padx=2)
         file_frame.pack_propagate(False)
         
@@ -213,30 +230,33 @@ class AccountingPopup(BasePopup):
         row_frame = ctk.CTkFrame(self.payment_scroll, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=1)
         
+        widths = [w for h, w in self.COL_SPECS["payment"]]
+        
         # Read-only fields
-        ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=100, anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=f"{row.get('입금액', 0):,.0f}", width=120, anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=str(row.get("통화", "")), width=60, anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=widths[0], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=f"{row.get('입금액', 0):,.0f}", width=widths[1], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("통화", "")), width=widths[2], anchor="w").pack(side="left", padx=2)
         
         # Proof File (Read-only view)
+        proof_frame = ctk.CTkFrame(row_frame, width=widths[3], height=30, fg_color="transparent")
+        proof_frame.pack(side="left", padx=2)
+        proof_frame.pack_propagate(False)
+
         proof_path = str(row.get("외화입금증빙경로", ""))
         if proof_path and proof_path != "nan":
-             ctk.CTkButton(row_frame, text="증빙", width=50, height=24, 
+             ctk.CTkButton(proof_frame, text="증빙", width=50, height=24, 
                            command=lambda p=proof_path: self.open_file(p)).pack(side="left", padx=2)
         else:
-             ctk.CTkLabel(row_frame, text="-", width=50).pack(side="left", padx=2)
+             ctk.CTkLabel(proof_frame, text="-", width=50).pack(side="left", padx=2)
              
-        # Spacer for alignment
-        ctk.CTkLabel(row_frame, text="", width=90).pack(side="left", padx=2)
-
         # Editable: Tax Invoice No
-        entry_tax_no = ctk.CTkEntry(row_frame, width=150, height=24)
+        entry_tax_no = ctk.CTkEntry(row_frame, width=widths[4], height=24)
         entry_tax_no.pack(side="left", padx=2)
         entry_tax_no.insert(0, str(row.get("세금계산서번호", "")).replace("nan", ""))
         self.entries[f"payment_tax_no_{idx}"] = entry_tax_no
         
         # Editable: Tax Invoice Date
-        entry_tax_date = ctk.CTkEntry(row_frame, width=120, height=24, placeholder_text="YYYY-MM-DD")
+        entry_tax_date = ctk.CTkEntry(row_frame, width=widths[5], height=24, placeholder_text="YYYY-MM-DD")
         entry_tax_date.pack(side="left", padx=2)
         entry_tax_date.insert(0, str(row.get("세금계산서발행일", "")).replace("nan", ""))
         self.entries[f"payment_tax_date_{idx}"] = entry_tax_date
