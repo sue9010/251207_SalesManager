@@ -12,6 +12,7 @@ from src.styles import COLORS, FONTS
 from managers.export_manager import ExportManager 
 from ui.popups.mini_payment_popup import MiniPaymentPopup
 from ui.popups.mini_delivery_popup import MiniDeliveryPopup
+from ui.popups.mini_accounting_popup import MiniAccountingPopup
 
 class ProductionPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_nos):
@@ -94,6 +95,10 @@ class ProductionPopup(BasePopup):
         self.entry_unpaid_amount = self.create_grid_input(parent, 12, 0, "미수금액")
         self.entry_unpaid_amount.configure(text_color=COLORS["danger"])
 
+        # Row 13: Tax Invoice Issued, Unissued
+        self.entry_tax_issued_amount = self.create_grid_input(parent, 13, 0, "계산서 발행금액")
+        self.entry_tax_unissued_amount = self.create_grid_input(parent, 13, 1, "미발행금액")
+
     def _setup_items_panel(self, parent):
         ctk.CTkLabel(parent, text="납품 품목 리스트", font=FONTS["header"]).pack(anchor="w", padx=15, pady=15)
         
@@ -125,6 +130,11 @@ class ProductionPopup(BasePopup):
         # 입금 버튼
         ctk.CTkButton(footer_frame, text="입금", command=self.on_payment_btn, width=150, height=45,
                       fg_color=COLORS["success"], hover_color=COLORS["success_hover"], 
+                      font=FONTS["header"]).pack(side="right", padx=5)
+
+        # 계산서 발행 버튼
+        ctk.CTkButton(footer_frame, text="계산서 발행", command=self.on_tax_invoice_btn, width=150, height=45,
+                      fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], 
                       font=FONTS["header"]).pack(side="right", padx=5)
 
     def on_delivery_btn(self):
@@ -196,6 +206,20 @@ class ProductionPopup(BasePopup):
         MiniPaymentPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, unpaid_amount)
         self.attributes("-topmost", True)
 
+    def on_tax_invoice_btn(self):
+        # Calculate unpaid amount for default
+        rows = self.dm.df_data[self.dm.df_data["관리번호"].isin(self.mgmt_nos)]
+        total_amount = rows["합계금액"].sum()
+        paid_amount = rows["기수금액"].sum()
+        unpaid_amount = total_amount - paid_amount
+        
+        if unpaid_amount < 0: unpaid_amount = 0
+
+        # Open Mini Accounting Popup
+        self.attributes("-topmost", False)
+        MiniAccountingPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, default_amount=unpaid_amount)
+        self.attributes("-topmost", True)
+
     def _on_popup_closed(self):
         """Mini Popup이 닫힐 때 호출되는 콜백"""
         if self.refresh_callback:
@@ -262,10 +286,20 @@ class ProductionPopup(BasePopup):
             paid_amount = rows["기수금액"].sum()
             unpaid_amount = total_amount - paid_amount
             
+            # 세금계산서 발행 금액 계산
+            tax_issued_amount = 0
+            if hasattr(self.dm, 'df_tax_invoice') and not self.dm.df_tax_invoice.empty:
+                t_rows = self.dm.df_tax_invoice[self.dm.df_tax_invoice["관리번호"].isin(self.mgmt_nos)]
+                if not t_rows.empty:
+                    tax_issued_amount = pd.to_numeric(t_rows["금액"], errors='coerce').sum()
+            
+            tax_unissued_amount = total_amount - tax_issued_amount
 
             self._set_entry_value(self.entry_total_amount, f"{total_amount:,.0f}")
             self._set_entry_value(self.entry_paid_amount, f"{paid_amount:,.0f}")
             self._set_entry_value(self.entry_unpaid_amount, f"{unpaid_amount:,.0f}")
+            self._set_entry_value(self.entry_tax_issued_amount, f"{tax_issued_amount:,.0f}")
+            self._set_entry_value(self.entry_tax_unissued_amount, f"{tax_unissued_amount:,.0f}")
         except Exception as e:
             print(f"Error calculating financial info: {e}")
 
@@ -306,7 +340,6 @@ class ProductionPopup(BasePopup):
 
         # UI 표시
         for i, (key, item_data) in enumerate(aggregated_items.items()):
-            # 잔여 수량 계산
             item_data["current_qty"] = item_data["total_qty"] - item_data["delivered_qty"]
             self._add_delivery_item_row(i, item_data)
 

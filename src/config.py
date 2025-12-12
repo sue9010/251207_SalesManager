@@ -65,3 +65,6 @@ class Config:
     
     # 검색 대상 컬럼
     SEARCH_TARGET_COLS = ["업체명", "모델명", "Description", "관리번호"]
+    
+    SHEET_TAX_INVOICE = "TaxInvoice"
+    TAX_INVOICE_COLUMNS = ["관리번호", "발행일", "금액", "세금계산서번호", "비고"]

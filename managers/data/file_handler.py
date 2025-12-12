@@ -49,12 +49,13 @@ class FileHandler:
         elif key == "log": return Config.LOG_COLUMNS
         elif key == "memo": return Config.MEMO_COLUMNS
         elif key == "memo_log": return Config.MEMO_LOG_COLUMNS
+        elif key == "tax_invoice": return Config.TAX_INVOICE_COLUMNS
         return []
 
     def read_all_sheets(self) -> dict[str, pd.DataFrame]:
         dfs = {}
         if not os.path.exists(self.dm.current_excel_path):
-            keys = ["clients", "data", "payment", "delivery", "log", "memo", "memo_log"]
+            keys = ["clients", "data", "payment", "delivery", "log", "memo", "memo_log", "tax_invoice"]
             for key in keys:
                 dfs[key] = pd.DataFrame(columns=self._get_columns_for_key(key))
             return dfs
@@ -71,7 +72,8 @@ class FileHandler:
                         Config.SHEET_DELIVERY: "delivery",
                         Config.SHEET_LOG: "log",
                         Config.SHEET_MEMO: "memo",
-                        Config.SHEET_MEMO_LOG: "memo_log"
+                        Config.SHEET_MEMO_LOG: "memo_log",
+                        Config.SHEET_TAX_INVOICE: "tax_invoice"
                     }
                     
                     for sheet_name, key in sheet_map.items():
@@ -89,7 +91,7 @@ class FileHandler:
             return {}
 
     def normalize_all(self, dfs: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
-        keys = ["clients", "data", "payment", "delivery", "log", "memo", "memo_log"]
+        keys = ["clients", "data", "payment", "delivery", "log", "memo", "memo_log", "tax_invoice"]
         for key in keys:
             if key not in dfs:
                 dfs[key] = pd.DataFrame(columns=self._get_columns_for_key(key))
@@ -134,6 +136,15 @@ class FileHandler:
                 if col in dfs["delivery"].columns:
                     dfs["delivery"][col] = dfs["delivery"][col].astype(str).replace("nan", "")
 
+        if "tax_invoice" in dfs:
+            for col in Config.TAX_INVOICE_COLUMNS:
+                if col not in dfs["tax_invoice"].columns: dfs["tax_invoice"][col] = "-"
+            dfs["tax_invoice"] = dfs["tax_invoice"].fillna("-")
+            
+            # Numeric columns
+            if "금액" in dfs["tax_invoice"].columns:
+                dfs["tax_invoice"]["금액"] = pd.to_numeric(dfs["tax_invoice"]["금액"], errors='coerce').fillna(0)
+
         return dfs
 
     def write_all_sheets(self, dfs: dict[str, pd.DataFrame]) -> None:
@@ -145,7 +156,8 @@ class FileHandler:
                 "delivery": Config.SHEET_DELIVERY,
                 "log": Config.SHEET_LOG,
                 "memo": Config.SHEET_MEMO,
-                "memo_log": Config.SHEET_MEMO_LOG
+                "memo_log": Config.SHEET_MEMO_LOG,
+                "tax_invoice": Config.SHEET_TAX_INVOICE
             }
             for key, sheet_name in sheet_map.items():
                 if key in dfs:
@@ -162,7 +174,9 @@ class FileHandler:
             self.dm.df_delivery = dfs["delivery"]
             self.dm.df_log = dfs["log"]
             self.dm.df_memo = dfs["memo"]
+            self.dm.df_memo = dfs["memo"]
             self.dm.df_memo_log = dfs["memo_log"]
+            self.dm.df_tax_invoice = dfs["tax_invoice"]
             
             if os.path.exists(self.dm.current_excel_path):
                 self.dm.last_file_timestamp = os.path.getmtime(self.dm.current_excel_path)
@@ -189,6 +203,7 @@ class FileHandler:
                 self.dm.df_log.to_excel(writer, sheet_name=Config.SHEET_LOG, index=False)
                 self.dm.df_memo.to_excel(writer, sheet_name=Config.SHEET_MEMO, index=False)
                 self.dm.df_memo_log.to_excel(writer, sheet_name=Config.SHEET_MEMO_LOG, index=False)
+                self.dm.df_tax_invoice.to_excel(writer, sheet_name=Config.SHEET_TAX_INVOICE, index=False)
             return True, "저장 완료"
         except PermissionError:
             return False, "엑셀 파일이 열려있습니다."

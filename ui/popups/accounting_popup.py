@@ -9,6 +9,7 @@ from datetime import datetime
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
 from utils.file_dnd import FileDnDManager
+from ui.popups.mini_accounting_popup import MiniAccountingPopup
 
 class AccountingPopup(BasePopup):
     # 컬럼 설정 정의 (헤더명, 너비)
@@ -22,8 +23,10 @@ class AccountingPopup(BasePopup):
             ("수출신고번호", 150), ("수출신고필증", 200)
         ],
         "payment": [
-            ("일시", 100), ("입금액", 120), ("통화", 60), ("증빙", 150), 
-            ("세금계산서번호", 150), ("발행일", 120)
+            ("일시", 100), ("입금액", 120), ("통화", 60), ("증빙", 150)
+        ],
+        "tax_invoice": [
+            ("발행일", 100), ("금액", 120), ("세금계산서번호", 150), ("비고", 200)
         ]
     }
 
@@ -85,11 +88,13 @@ class AccountingPopup(BasePopup):
         
         self.tab_items = self.tab_view.add("품목 상세")
         self.tab_delivery = self.tab_view.add("출고 이력 (수출신고)")
-        self.tab_payment = self.tab_view.add("입금 이력 (세금계산서)")
+        self.tab_payment = self.tab_view.add("입금 이력")
+        self.tab_tax_invoice = self.tab_view.add("세금계산서")
         
         self._setup_items_tab()
         self._setup_delivery_tab()
         self._setup_payment_tab()
+        self._setup_tax_invoice_tab()
 
     def _setup_items_tab(self):
         headers = [h for h, w in self.COL_SPECS["items"]]
@@ -105,6 +110,18 @@ class AccountingPopup(BasePopup):
         headers = [h for h, w in self.COL_SPECS["payment"]]
         widths = [w for h, w in self.COL_SPECS["payment"]]
         self._create_table(self.tab_payment, headers, widths, "payment_scroll")
+
+    def _setup_tax_invoice_tab(self):
+        # Header + Add Button
+        header_frame = ctk.CTkFrame(self.tab_tax_invoice, height=40, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 5))
+        
+        ctk.CTkButton(header_frame, text="계산서 추가", command=self._on_add_tax_invoice_btn, width=100,
+                      fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"]).pack(side="right", padx=5)
+
+        headers = [h for h, w in self.COL_SPECS["tax_invoice"]]
+        widths = [w for h, w in self.COL_SPECS["tax_invoice"]]
+        self._create_table(self.tab_tax_invoice, headers, widths, "tax_invoice_scroll")
 
     def _create_table(self, parent, headers, widths, scroll_attr_name):
         # Header
@@ -149,11 +166,10 @@ class AccountingPopup(BasePopup):
         
         # 세금계산서 발행 금액 합계 계산
         tax_total = 0
-        if not self.dm.df_payment.empty:
-            p_rows = self.dm.df_payment[self.dm.df_payment["관리번호"].astype(str) == str(self.target_mgmt_no)]
-            if not p_rows.empty and "세금계산서번호" in p_rows.columns:
-                valid_tax = p_rows[p_rows["세금계산서번호"].notna() & (p_rows["세금계산서번호"].astype(str).str.strip() != "") & (p_rows["세금계산서번호"].astype(str) != "-")]
-                tax_total = pd.to_numeric(valid_tax["입금액"], errors='coerce').sum()
+        if hasattr(self.dm, 'df_tax_invoice') and not self.dm.df_tax_invoice.empty:
+            t_rows = self.dm.df_tax_invoice[self.dm.df_tax_invoice["관리번호"].astype(str) == str(self.target_mgmt_no)]
+            if not t_rows.empty:
+                tax_total = pd.to_numeric(t_rows["금액"], errors='coerce').sum()
         
         self.lbl_tax_invoice_total.configure(text=f"{tax_total:,.0f}")
         
@@ -184,6 +200,7 @@ class AccountingPopup(BasePopup):
         self._load_items_tab(rows)
         self._load_delivery_tab()
         self._load_payment_tab()
+        self._load_tax_invoice_tab()
 
     def _load_items_tab(self, rows):
         for widget in self.items_scroll.winfo_children(): widget.destroy()
@@ -213,6 +230,15 @@ class AccountingPopup(BasePopup):
                 p_rows = df_p[df_p["관리번호"] == self.target_mgmt_no]
                 for idx, row in p_rows.iterrows():
                     self._add_payment_row(idx, row)
+
+    def _load_tax_invoice_tab(self):
+        for widget in self.tax_invoice_scroll.winfo_children(): widget.destroy()
+        if hasattr(self.dm, 'df_tax_invoice'):
+            df_t = self.dm.df_tax_invoice
+            if "관리번호" in df_t.columns:
+                t_rows = df_t[df_t["관리번호"].astype(str) == str(self.target_mgmt_no)]
+                for idx, row in t_rows.iterrows():
+                    self._add_tax_invoice_row(idx, row)
 
     def _add_row_to_table(self, parent, values, widths):
         row_frame = ctk.CTkFrame(parent, fg_color="transparent", height=30)
@@ -298,22 +324,8 @@ class AccountingPopup(BasePopup):
         # Iterate through all delivery rows to find matches
         if hasattr(self.dm, 'df_delivery'):
             df_d = self.dm.df_delivery
-            # We need to find indices that match this invoice_no AND are in the current popup view
-            # But simpler is to iterate through self.entries keys which we know are loaded
             
             target_indices = []
-            # Find indices with same invoice_no in the dataframe
-            # Note: We only care about rows related to this popup's mgmt_nos if we want to limit scope,
-            # but usually invoice_no is unique enough or we want to sync across the board?
-            # Requirement says "송장번호가 동일한 항목", implying within the current view or globally?
-            # Usually within the current view (shipment history of this order/project).
-            # Let's limit to the rows currently displayed (which are filtered by target_mgmt_no in _load_delivery_tab)
-            
-            # Wait, _load_delivery_tab filters by self.target_mgmt_no. 
-            # If we have multiple mgmt_nos (e.g. grouped order), we should check all of them.
-            # But currently _load_delivery_tab only loads for self.target_mgmt_no.
-            # So we only sync within the currently visible rows.
-            
             d_rows = df_d[df_d["관리번호"] == self.target_mgmt_no]
             for idx, row in d_rows.iterrows():
                 if str(row.get("송장번호")) == invoice_no:
@@ -359,18 +371,30 @@ class AccountingPopup(BasePopup):
                            command=lambda p=proof_path: self.open_file(p)).pack(side="left", padx=2)
         else:
              ctk.CTkLabel(proof_frame, text="-", width=50).pack(side="left", padx=2)
-             
+
+    def _add_tax_invoice_row(self, idx, row):
+        row_frame = ctk.CTkFrame(self.tax_invoice_scroll, fg_color="transparent", height=30)
+        row_frame.pack(fill="x", pady=1)
+        
+        widths = [w for h, w in self.COL_SPECS["tax_invoice"]]
+        
+        # Read-only: Issue Date, Amount
+        ctk.CTkLabel(row_frame, text=str(row.get("발행일", "")), width=widths[0], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=f"{row.get('금액', 0):,.0f}", width=widths[1], anchor="w").pack(side="left", padx=2)
+        
         # Editable: Tax Invoice No
-        entry_tax_no = ctk.CTkEntry(row_frame, width=widths[4], height=24)
+        entry_tax_no = ctk.CTkEntry(row_frame, width=widths[2], height=24)
         entry_tax_no.pack(side="left", padx=2)
         entry_tax_no.insert(0, str(row.get("세금계산서번호", "")).replace("nan", ""))
-        self.entries[f"payment_tax_no_{idx}"] = entry_tax_no
-        
-        # Editable: Tax Invoice Date
-        entry_tax_date = ctk.CTkEntry(row_frame, width=widths[5], height=24, placeholder_text="YYYY-MM-DD")
-        entry_tax_date.pack(side="left", padx=2)
-        entry_tax_date.insert(0, str(row.get("세금계산서발행일", "")).replace("nan", ""))
-        self.entries[f"payment_tax_date_{idx}"] = entry_tax_date
+        self.entries[f"tax_invoice_no_{idx}"] = entry_tax_no
+
+        # Read-only: Note
+        ctk.CTkLabel(row_frame, text=str(row.get("비고", "")), width=widths[3], anchor="w").pack(side="left", padx=2)
+
+    def _on_add_tax_invoice_btn(self):
+        self.attributes("-topmost", False)
+        MiniAccountingPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, default_amount=0)
+        self.attributes("-topmost", True)
 
     def save_data(self, silent=False):
         """Save changes to Delivery and Payment sheets"""
@@ -401,17 +425,13 @@ class AccountingPopup(BasePopup):
                         else:
                              self.dm.df_delivery.at[idx, "수출신고필증경로"] = path
 
-        # 2. Update Payment Data
-        if hasattr(self.dm, 'df_payment'):
+        # 2. Update Tax Invoice Data
+        if hasattr(self.dm, 'df_tax_invoice'):
              for key, widget in self.entries.items():
-                if key.startswith("payment_tax_no_"):
+                if key.startswith("tax_invoice_no_"):
                     idx = int(key.split("_")[-1])
-                    if idx in self.dm.df_payment.index:
-                        self.dm.df_payment.at[idx, "세금계산서번호"] = widget.get()
-                elif key.startswith("payment_tax_date_"):
-                    idx = int(key.split("_")[-1])
-                    if idx in self.dm.df_payment.index:
-                        self.dm.df_payment.at[idx, "세금계산서발행일"] = widget.get()
+                    if idx in self.dm.df_tax_invoice.index:
+                        self.dm.df_tax_invoice.at[idx, "세금계산서번호"] = widget.get()
 
         # Save to Excel
         success, msg = self.dm.save_data()

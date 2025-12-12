@@ -23,6 +23,7 @@ class DataManager:
         
         # [신규] 구매 관련 DataFrame 추가
         self.df_purchase = pd.DataFrame(columns=Config.PURCHASE_COLUMNS)
+        self.df_tax_invoice = pd.DataFrame(columns=Config.TAX_INVOICE_COLUMNS)
         
         # Paths (Config에서 로드됨)
         self.current_excel_path = Config.DEFAULT_EXCEL_PATH
@@ -224,6 +225,18 @@ class DataManager:
 
     def save_purchase_data(self):
         return self.file_handler.save_purchase_data()
+
+    def add_tax_invoice(self, tax_data: dict) -> tuple[bool, str]:
+        def update(dfs):
+            new_df = pd.DataFrame([tax_data])
+            if not new_df.dropna(how='all').empty:
+                dfs["tax_invoice"] = pd.concat([dfs["tax_invoice"], new_df], ignore_index=True)
+            
+            mgmt_no = tax_data.get("관리번호")
+            self.log_handler.add_log_to_dfs(dfs, "세금계산서 등록", f"관리번호: {mgmt_no}, 금액: {tax_data.get('금액')}")
+            return True, ""
+        return self.execute_transaction(update)
+
 
     # Common methods
     def set_dev_mode(self, enabled):
