@@ -62,6 +62,8 @@ FONTS = {
     "header": (FONT_FAMILY, 16, "bold"),     # 섹션 헤더
     "main": (FONT_FAMILY, 12),               # 일반 본문
     "main_bold": (FONT_FAMILY, 12, "bold"),  # 강조 본문
+    "header_large": (FONT_FAMILY, 24, "bold"), # 큰 헤더
+    "sub": (FONT_FAMILY, 11),                # 부가 설명
     "small": (FONT_FAMILY, 10),              # 작은 텍스트
 }
 

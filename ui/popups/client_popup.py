@@ -28,7 +28,17 @@ class ClientPopup(BasePopup):
         super().__init__(parent, data_manager, refresh_callback, popup_title="업체", mgmt_no=client_name)
         
         # Override geometry if needed, BasePopup is 1100x750, ClientPopup was 900x660
-        self.geometry("900x900")
+        # Modern Sidebar Layout Size
+        self.geometry("850x700")
+        
+        self._setup_shortcuts()
+
+    def _setup_shortcuts(self):
+        """네비게이션 단축키 설정 (F1~F4)"""
+        self.bind("<F1>", lambda e: self.select_page("basic"))
+        self.bind("<F2>", lambda e: self.select_page("finance"))
+        self.bind("<F3>", lambda e: self.select_page("logistics"))
+        self.bind("<F4>", lambda e: self.select_page("manage"))
 
     def _setup_items_panel(self, parent):
         # ClientPopup does not have an items list (products), so we hide or destroy the items panel
@@ -41,92 +51,157 @@ class ClientPopup(BasePopup):
         
         # Expand info_panel to fill
         if hasattr(self, 'info_panel'):
-            self.info_panel.configure(width=None) # Allow expansion
-            self.info_panel.pack(side="left", fill="both", expand=True, padx=10)
+            self.info_panel.configure(width=None, fg_color="transparent") # Transparent for better layering
+            self.info_panel.pack(side="left", fill="both", expand=True, padx=0, pady=0)
 
     def _setup_info_panel(self, parent):
         # Parent is self.info_panel
         parent.pack_propagate(True)
         
-        # Use two columns within the info panel
-        parent.columnconfigure(0, weight=1)
-        parent.columnconfigure(1, weight=1)
-        parent.rowconfigure(0, weight=1) # Columns row
-        parent.rowconfigure(1, weight=0) # Bottom row
+        # Main Layout: Sidebar (Left) + Content (Right)
+        parent.columnconfigure(0, weight=0) # Sidebar fixed width
+        parent.columnconfigure(1, weight=1) # Content expands
+        parent.rowconfigure(0, weight=1)
         
-        left_col = ctk.CTkFrame(parent, fg_color="transparent")
-        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=10)
+        # --- Sidebar ---
+        self.sidebar_frame = ctk.CTkFrame(parent, width=200, corner_radius=10, fg_color=COLORS["bg_medium"])
+        self.sidebar_frame.grid(row=0, column=0, sticky="nsew", pady=20, padx=(20, 0))
+        self.sidebar_frame.pack_propagate(False)
         
-        right_col = ctk.CTkFrame(parent, fg_color="transparent")
-        right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
+        ctk.CTkLabel(self.sidebar_frame, text="설정 메뉴", font=FONTS["header"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(20, 10))
         
-        # --- Left Column ---
-        # 1. 기본 정보
-        ctk.CTkLabel(left_col, text="기본 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        basic_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        basic_frame.pack(fill="x", pady=(0, 20))
+        self.nav_buttons = {}
+        self.pages = {}
         
-        self.entries["업체명"] = self.create_input_row(basic_frame, "업체명")
-        self.entries["국가"] = self.create_input_row(basic_frame, "국가")
-        self.entries["통화"] = self.create_combo_row(basic_frame, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"])
-        self.entries["주소"] = self.create_input_row(basic_frame, "주소")
+        # Navigation Buttons
+        menus = [
+            ("basic", "기본 정보(F1)"),
+            ("finance", "금융 정보(F2)"),
+            ("logistics", "물류/수출(F3)"),
+            ("manage", "문서/기타(F4)")
+        ]
+        
+        for key, text in menus:
+            btn = ctk.CTkButton(self.sidebar_frame, text=text, height=40, corner_radius=6, anchor="w",
+                                fg_color="transparent", text_color=COLORS["text"],
+                                hover_color=COLORS["bg_light"],
+                                font=FONTS["main"],
+                                command=lambda k=key: self.select_page(k))
+            btn.pack(fill="x", padx=10, pady=2)
+            self.nav_buttons[key] = btn
 
-        # 2. 금융 정보
-        ctk.CTkLabel(left_col, text="금융 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        bank_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        bank_frame.pack(fill="x", pady=(0, 10))
-
-        self.entries["결제방법"] = self.create_input_row(bank_frame, "결제방법")
-        self.entries["예금주"] = self.create_input_row(bank_frame, "예금주")
-        self.entries["계좌번호"] = self.create_input_row(bank_frame, "계좌번호")
-        self.entries["은행명"] = self.create_input_row(bank_frame, "은행명")
-        self.entries["은행주소"] = self.create_input_row(bank_frame, "은행주소")
-        self.entries["Swift Code"] = self.create_input_row(bank_frame, "Swift Code")
-
-        # --- Right Column ---
-        # 3. 담당자 정보
-        ctk.CTkLabel(right_col, text="담당자 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        contact_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        contact_frame.pack(fill="x", pady=(0, 20))
+        # --- Content Area ---
+        self.content_area = ctk.CTkFrame(parent, fg_color="transparent")
+        self.content_area.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        self.content_area.grid_rowconfigure(0, weight=1)
+        self.content_area.grid_columnconfigure(0, weight=1)
         
-        self.entries["담당자"] = self.create_input_row(contact_frame, "담당자")
-        self.entries["전화번호"] = self.create_input_row(contact_frame, "전화번호")
-        self.entries["이메일"] = self.create_input_row(contact_frame, "이메일")
+        # Create Pages
+        self._create_page_basic("basic")
+        self._create_page_finance("finance")
+        self._create_page_logistics("logistics")
+        self._create_page_manage("manage")
+        
+        # Select first page by default
+        self.select_page("basic")
 
-        # 4. 수출/물류 정보
-        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(40, 5))
-        logistics_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        logistics_frame.pack(fill="x", pady=(0, 10))
-        
-        self.entries["수출허가구분"] = self.create_input_row(logistics_frame, "수출허가구분")
-        self.entries["수출허가번호"] = self.create_input_row(logistics_frame, "수출허가번호")
-        self.entries["만료일"] = self.create_input_row(logistics_frame, "만료일", placeholder="YYYY-MM-DD")
-        self.entries["운송계정"] = self.create_input_row(logistics_frame, "운송계정")
-        self.entries["운송방법"] = self.create_input_row(logistics_frame, "운송방법")
+    def select_page(self, page_key):
+        # Show selected page
+        for key, frame in self.pages.items():
+            if key == page_key:
+                frame.grid(row=0, column=0, sticky="nsew")
+            else:
+                frame.grid_forget()
+                
+        # Update button styles
+        for key, btn in self.nav_buttons.items():
+            if key == page_key:
+                btn.configure(fg_color=COLORS["primary"], text_color="white", hover_color=COLORS["primary_hover"])
+            else:
+                btn.configure(fg_color="transparent", text_color=COLORS["text"], hover_color=COLORS["bg_light"])
 
-        # --- Bottom Section ---
-        bottom_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+    def _create_page_basic(self, key):
+        frame = ctk.CTkFrame(self.content_area, fg_color=COLORS["bg_medium"], corner_radius=10)
+        self.pages[key] = frame
         
-        # 5. 증빙 서류
-        ctk.CTkLabel(bottom_frame, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        doc_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
-        doc_frame.pack(fill="x", pady=(0, 15))
+        ctk.CTkLabel(frame, text="기본 정보", font=FONTS["header_large"], text_color=COLORS["text"]).pack(anchor="w", padx=20, pady=(20, 5))
+        ctk.CTkLabel(frame, text="업체의 기본 식별 정보와 담당자 연락처를 관리합니다.", font=FONTS["sub"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(0, 20))
         
-        entry, _, _ = self.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로")
+        # Content Container
+        content = ctk.CTkFrame(frame, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Section 1: Company Info
+        self.entries["업체명"] = self.create_input_row(content, "업체명")
+        self.entries["국가"] = self.create_input_row(content, "국가")
+        self.entries["통화"] = self.create_combo_row(content, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"])
+        self.entries["주소"] = self.create_input_row(content, "주소")
+        
+        ctk.CTkFrame(content, height=2, fg_color=COLORS["bg_light"]).pack(fill="x", pady=20) # Divider
+        
+        # Section 2: Contact Info
+        ctk.CTkLabel(content, text="담당자 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 10))
+        self.entries["담당자"] = self.create_input_row(content, "담당자")
+        self.entries["전화번호"] = self.create_input_row(content, "전화번호")
+        self.entries["이메일"] = self.create_input_row(content, "이메일")
+
+    def _create_page_finance(self, key):
+        frame = ctk.CTkFrame(self.content_area, fg_color=COLORS["bg_medium"], corner_radius=10)
+        self.pages[key] = frame
+        
+        ctk.CTkLabel(frame, text="금융 정보", font=FONTS["header_large"], text_color=COLORS["text"]).pack(anchor="w", padx=20, pady=(20, 5))
+        ctk.CTkLabel(frame, text="결제 및 계좌 정보를 관리합니다.", font=FONTS["sub"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(0, 20))
+        
+        content = ctk.CTkFrame(frame, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        self.entries["결제방법"] = self.create_input_row(content, "결제방법")
+        self.entries["예금주"] = self.create_input_row(content, "예금주")
+        self.entries["계좌번호"] = self.create_input_row(content, "계좌번호")
+        self.entries["은행명"] = self.create_input_row(content, "은행명")
+        self.entries["은행주소"] = self.create_input_row(content, "은행주소")
+        self.entries["Swift Code"] = self.create_input_row(content, "Swift Code")
+
+    def _create_page_logistics(self, key):
+        frame = ctk.CTkFrame(self.content_area, fg_color=COLORS["bg_medium"], corner_radius=10)
+        self.pages[key] = frame
+        
+        ctk.CTkLabel(frame, text="물류/수출 정보", font=FONTS["header_large"], text_color=COLORS["text"]).pack(anchor="w", padx=20, pady=(20, 5))
+        ctk.CTkLabel(frame, text="수출 허가 및 운송 관련 정보를 관리합니다.", font=FONTS["sub"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(0, 20))
+        
+        content = ctk.CTkFrame(frame, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        self.entries["수출허가구분"] = self.create_input_row(content, "수출허가구분")
+        self.entries["수출허가번호"] = self.create_input_row(content, "수출허가번호")
+        self.entries["만료일"] = self.create_input_row(content, "만료일", placeholder="YYYY-MM-DD")
+        self.entries["운송계정"] = self.create_input_row(content, "운송계정")
+        self.entries["운송방법"] = self.create_input_row(content, "운송방법")
+
+    def _create_page_manage(self, key):
+        frame = ctk.CTkFrame(self.content_area, fg_color=COLORS["bg_medium"], corner_radius=10)
+        self.pages[key] = frame
+        
+        ctk.CTkLabel(frame, text="문서 및 기타", font=FONTS["header_large"], text_color=COLORS["text"]).pack(anchor="w", padx=20, pady=(20, 5))
+        ctk.CTkLabel(frame, text="관련 증빙 서류와 특이사항을 관리합니다.", font=FONTS["sub"], text_color=COLORS["text_dim"]).pack(anchor="w", padx=20, pady=(0, 20))
+        
+        content = ctk.CTkFrame(frame, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        ctk.CTkLabel(content, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 10))
+        
+        entry, _, _ = self.create_file_input_row(content, "사업자등록증", "사업자등록증경로")
         self.entries["사업자등록증경로"] = entry
 
-        entry_export, _, _ = self.create_file_input_row(doc_frame, "수출허가서", "수출허가서경로")
+        entry_export, _, _ = self.create_file_input_row(content, "수출허가서", "수출허가서경로")
         self.entries["수출허가서경로"] = entry_export
-
-        # 6. 기타 특이사항
-        ctk.CTkLabel(bottom_frame, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
-        note_frame = ctk.CTkFrame(bottom_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
-        note_frame.pack(fill="x")
         
-        self.entry_note = ctk.CTkTextbox(note_frame, height=80, border_width=2, 
+        ctk.CTkFrame(content, height=2, fg_color=COLORS["bg_light"]).pack(fill="x", pady=20) # Divider
+        
+        ctk.CTkLabel(content, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 10))
+        self.entry_note = ctk.CTkTextbox(content, height=100, border_width=2, 
                                          border_color=COLORS["entry_border"], fg_color=COLORS["entry_bg"])
-        self.entry_note.pack(fill="x", padx=5, pady=5)
+        self.entry_note.pack(fill="both", expand=True)
         self.entries["특이사항"] = self.entry_note
 
     def _load_data(self):
