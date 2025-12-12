@@ -64,6 +64,7 @@ class AccountingPopup(BasePopup):
         self.lbl_total_amount = self._add_info_row(fin_frame, "주문금액")
         self.lbl_paid_amount = self._add_info_row(fin_frame, "입금금액")
         self.lbl_unpaid_amount = self._add_info_row(fin_frame, "미수금액", text_color=COLORS["danger"])
+        self.lbl_tax_invoice_total = self._add_info_row(fin_frame, "세금계산서 합계")
 
         # Notes (Read Only for reference)
         ctk.CTkLabel(parent, text="비고 / 요청사항", font=FONTS["header"]).pack(anchor="w", pady=(0, 10), padx=10)
@@ -145,6 +146,16 @@ class AccountingPopup(BasePopup):
         self.lbl_total_amount.configure(text=f"{total:,.0f}")
         self.lbl_paid_amount.configure(text=f"{paid:,.0f}")
         self.lbl_unpaid_amount.configure(text=f"{unpaid:,.0f}")
+        
+        # 세금계산서 발행 금액 합계 계산
+        tax_total = 0
+        if not self.dm.df_payment.empty:
+            p_rows = self.dm.df_payment[self.dm.df_payment["관리번호"].astype(str) == str(self.target_mgmt_no)]
+            if not p_rows.empty and "세금계산서번호" in p_rows.columns:
+                valid_tax = p_rows[p_rows["세금계산서번호"].notna() & (p_rows["세금계산서번호"].astype(str).str.strip() != "") & (p_rows["세금계산서번호"].astype(str) != "-")]
+                tax_total = pd.to_numeric(valid_tax["입금액"], errors='coerce').sum()
+        
+        self.lbl_tax_invoice_total.configure(text=f"{tax_total:,.0f}")
         
         # Notes
         self.txt_note.insert("1.0", str(row.get("비고", "")).replace("nan", ""))
