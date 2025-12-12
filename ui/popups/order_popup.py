@@ -56,8 +56,6 @@ class OrderPopup(BasePopup):
         self.combo_status = ctk.CTkComboBox(extra_frame, values=["주문", "생산중", "완료", "취소", "보류"], 
                                           width=100, font=FONTS["main"], state="readonly")
         self.combo_status.pack(side="left", padx=5)
-        self.combo_status.set("주문")
-        
         # 주문번호 표시
         ctk.CTkLabel(extra_frame, text="주문번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
         self.entry_id = ctk.CTkEntry(extra_frame, width=120) 
@@ -65,8 +63,15 @@ class OrderPopup(BasePopup):
         if self.mgmt_no: self.entry_id.insert(0, self.mgmt_no)
         else: self.entry_id.insert(0, "NEW")
         self.entry_id.configure(state="readonly")
+        
+        # [신규] 업체 특이사항 라벨
+        self.lbl_client_note = ctk.CTkLabel(extra_frame, text="", text_color=COLORS["danger"], font=FONTS["main_bold"])
+        self.lbl_client_note.pack(side="left", padx=(20, 0))
 
     def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
         # 1행: 수주일, 구분
         self.entry_date = self.create_grid_input(parent, 0, 0, "수주일", placeholder="YYYY-MM-DD")
         self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
@@ -167,7 +172,7 @@ class OrderPopup(BasePopup):
         # 합계 표시 영역
         total_frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
         total_frame.pack(fill="x", padx=20, pady=10)
-        
+
     def on_type_change(self, type_val): self._calculate_totals()
 
     def on_currency_change(self, currency):
@@ -184,6 +189,238 @@ class OrderPopup(BasePopup):
         # Recalculate all rows
         for row in self.item_rows: self.calculate_row(row)
 
+    def _on_client_select(self, client_name):
+        # 1. 업체 특이사항 표시
+        client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
+        if not client_row.empty:
+            note = str(client_row.iloc[0].get("특이사항", ""))
+            self.lbl_client_note.configure(text=f"※ {note}" if note else "")
+            
+            # 2. 통화 설정 및 관련 필드(세율, 구분) 업데이트
+            currency = str(client_row.iloc[0].get("통화", "KRW"))
+            self.combo_currency.set(currency)
+            self.on_currency_change(currency)
+            
+            # 3. 국가 확인 및 조건부 필드 업데이트
+            country = str(client_row.iloc[0].get("국가", ""))
+            self._update_conditional_fields(country)
+            
+            # 4. 비고란에 특이사항 자동 입력 (기존 내용이 없을 때만)
+            current_note = self.entry_note.get("1.0", "end-1c").strip()
+            if not current_note and note:
+                self.entry_note.insert("1.0", note)
+                
+        else:
+            self.lbl_client_note.configure(text="")
+            self._update_conditional_fields("")
+
+    def _update_conditional_fields(self, country):
+        # 국가가 KR/South Korea/Korea/대한민국/한국 인 경우
+        korea_aliases = ["KR", "South Korea", "Korea", "대한민국", "한국"]
+        is_korea = country in korea_aliases
+        
+        # 결제조건
+        self.entry_payment_terms.delete(0, "end")
+        self.entry_payment_terms.insert(0, "당사 공장 인도가" if is_korea else "EXW")
+        self.combo_status.set("주문")
+        self._generate_new_id()
+            
+        if self.copy_mode and self.copy_src_no:
+            self._load_copied_data()
+
+        # [신규] 품목 추가 단축키 (Ctrl + +)
+        self.bind("<Control-plus>", self._on_add_item_shortcut)
+        self.bind("<Control-equal>", self._on_add_item_shortcut)
+
+        # [신규] 저장/생성 단축키 (Ctrl + Enter)
+        self.bind("<Control-Return>", lambda e: self.save())
+
+    def _create_header(self, parent):
+        # 공통 헤더 사용 (Title + ID)
+        header_frame = ctk.CTkFrame(parent, height=50, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 10))
+        
+        title_text = f"{self.popup_title} #{self.mgmt_no}" if self.mgmt_no else f"새 {self.popup_title}"
+        self.lbl_title = ctk.CTkLabel(header_frame, text=title_text, font=FONTS["header"])
+        self.lbl_title.pack(side="left", padx=10)
+        
+        extra_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        extra_frame.pack(fill="x", padx=20, pady=(0, 10))
+        
+        ctk.CTkLabel(extra_frame, text="상태:", font=FONTS["main_bold"]).pack(side="left")
+        self.combo_status = ctk.CTkComboBox(extra_frame, values=["주문", "생산중", "완료", "취소", "보류"], 
+                                          width=100, font=FONTS["main"], state="readonly")
+        self.combo_status.pack(side="left", padx=5)
+        # 주문번호 표시
+        ctk.CTkLabel(extra_frame, text="주문번호:", font=FONTS["main_bold"]).pack(side="left", padx=(20, 5))
+        self.entry_id = ctk.CTkEntry(extra_frame, width=120) 
+        self.entry_id.pack(side="left")
+        if self.mgmt_no: self.entry_id.insert(0, self.mgmt_no)
+        else: self.entry_id.insert(0, "NEW")
+        self.entry_id.configure(state="readonly")
+        
+        # [신규] 업체 특이사항 라벨
+        self.lbl_client_note = ctk.CTkLabel(extra_frame, text="", text_color=COLORS["danger"], font=FONTS["main_bold"])
+        self.lbl_client_note.pack(side="left", padx=(20, 0))
+
+    def _setup_info_panel(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_columnconfigure(1, weight=1)
+
+        # 1행: 수주일, 구분
+        self.entry_date = self.create_grid_input(parent, 0, 0, "수주일", placeholder="YYYY-MM-DD")
+        self.combo_type = self.create_grid_combo(parent, 0, 1, "구분", ["내수", "수출"], command=self.on_type_change)
+
+        # 2행: 통화, 세율
+        self.combo_currency = self.create_grid_combo(parent, 1, 0, "통화", ["KRW", "USD", "EUR", "CNY", "JPY"], command=self.on_currency_change)
+        self.entry_tax_rate = self.create_grid_input(parent, 1, 1, "세율(%)")
+
+        # 3행: 프로젝트명
+        f_project = ctk.CTkFrame(parent, fg_color="transparent")
+        f_project.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_project, text="프로젝트명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_project = ctk.CTkEntry(f_project, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_project.pack(side="left", fill="x", expand=True)
+
+        # 4행: 업체명
+        f_client = ctk.CTkFrame(parent, fg_color="transparent")
+        f_client.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_client, text="업체명", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        
+        client_names = self.dm.df_clients["업체명"].unique().tolist() if not self.dm.df_clients.empty else []
+        self.entry_client = AutocompleteEntry(f_client, completevalues=client_names, command=self._on_client_select,
+                                              height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_client.pack(side="left", fill="x", expand=True)
+
+        # 5행: 결제조건, 지급조건
+        self.entry_payment_terms = self.create_grid_input(parent, 4, 0, "결제조건")
+        self.entry_payment_cond = self.create_grid_input(parent, 4, 1, "지급조건")
+
+        # 6행: 발주서 No.
+        f_po = ctk.CTkFrame(parent, fg_color="transparent")
+        f_po.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_po, text="발주서 No.", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_po_no = ctk.CTkEntry(f_po, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_po_no.pack(side="left", fill="x", expand=True)
+
+        # 7행: 주문요청
+        f_req = ctk.CTkFrame(parent, fg_color="transparent")
+        f_req.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_req, text="주문요청", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left")
+        self.entry_req = ctk.CTkTextbox(f_req, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_req.pack(side="left", fill="x", expand=True)
+
+        # 8행: 비고
+        f_note = ctk.CTkFrame(parent, fg_color="transparent")
+        f_note.grid(row=7, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(f_note, text="비고", width=60, anchor="w", font=FONTS["main"], text_color=COLORS["text_dim"]).pack(side="left", anchor="n", pady=5)
+        self.entry_note = ctk.CTkTextbox(f_note, height=60, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
+        self.entry_note.pack(side="left", fill="x", expand=True)
+
+        # 9행: 발주서 파일
+        f_file = ctk.CTkFrame(parent, fg_color="transparent")
+        f_file.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.entry_order_file, _, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
+
+        # 10행: 버튼 (견적서발행, 출고요청서, PI발행)
+        f_btn = ctk.CTkFrame(parent, fg_color="transparent")
+        f_btn.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=(20, 5))
+        
+        ctk.CTkButton(f_btn, text="📄 견적서 발행 (PDF)", command=self.export_quote, height=30, width=120,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+
+        ctk.CTkButton(f_btn, text="📄 출고요청서 (PDF)", command=self.export_order_request, height=30, width=120,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+                      
+        ctk.CTkButton(f_btn, text="📄 PI 발행 (PDF)", command=self.export_pi, height=30, width=120,
+                      fg_color=COLORS["bg_light"], hover_color=COLORS["primary_hover"], 
+                      text_color=COLORS["text"], font=FONTS["main_bold"]).pack(side="left", padx=5, expand=True)
+
+    def _setup_items_panel(self, parent):
+        # 타이틀 & 추가 버튼
+        title_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        title_frame.pack(fill="x", padx=15, pady=15)
+        
+        ctk.CTkLabel(title_frame, text="주문 품목 리스트", font=FONTS["header"]).pack(side="left")
+        
+        ctk.CTkButton(title_frame, text="+ 품목 추가", command=self._add_item_row, width=100, height=30,
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"]).pack(side="right")
+        
+        # 헤더 (BasePopup.COL_CONFIG 사용)
+        configs = [
+            self.COL_CONFIG["item"], self.COL_CONFIG["model"], self.COL_CONFIG["desc"],
+            self.COL_CONFIG["qty"], self.COL_CONFIG["price"], self.COL_CONFIG["supply"],
+            self.COL_CONFIG["tax"], self.COL_CONFIG["total"], self.COL_CONFIG["delete"]
+        ]
+        
+        header_frame = ctk.CTkFrame(parent, height=35, fg_color=COLORS["bg_dark"])
+        header_frame.pack(fill="x", padx=15)
+        
+        for conf in configs:
+            ctk.CTkLabel(header_frame, text=conf["header"], width=conf["width"], font=FONTS["main_bold"]).pack(side="left", padx=2)
+            
+        self.scroll_items = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        self.scroll_items.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # 합계 표시 영역
+        total_frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
+        total_frame.pack(fill="x", padx=20, pady=10)
+
+    def on_type_change(self, type_val): self._calculate_totals()
+
+    def on_currency_change(self, currency):
+        if currency == "KRW":
+            self.entry_tax_rate.delete(0, "end")
+            self.entry_tax_rate.insert(0, "10")
+            self.combo_type.set("내수")
+        else:
+            self.entry_tax_rate.delete(0, "end")
+            self.entry_tax_rate.insert(0, "0")
+            self.combo_type.set("수출")
+        self._calculate_totals()
+        
+        # Recalculate all rows
+        for row in self.item_rows: self.calculate_row(row)
+
+    def _on_client_select(self, client_name):
+        # 1. 업체 특이사항 표시
+        client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
+        if not client_row.empty:
+            note = str(client_row.iloc[0].get("특이사항", ""))
+            self.lbl_client_note.configure(text=f"※ {note}" if note else "")
+            
+            # 2. 통화 설정 및 관련 필드(세율, 구분) 업데이트
+            currency = str(client_row.iloc[0].get("통화", "KRW"))
+            self.combo_currency.set(currency)
+            self.on_currency_change(currency)
+            
+            # 3. 국가 확인 및 조건부 필드 업데이트
+            country = str(client_row.iloc[0].get("국가", ""))
+            self._update_conditional_fields(country)
+            
+            # 4. 비고란에 특이사항 자동 입력 (기존 내용이 없을 때만)
+            current_note = self.entry_note.get("1.0", "end-1c").strip()
+            if not current_note and note:
+                self.entry_note.insert("1.0", note)
+                
+        else:
+            self.lbl_client_note.configure(text="")
+            self._update_conditional_fields("")
+
+    def _update_conditional_fields(self, country):
+        # 국가가 KR/South Korea/Korea/대한민국/한국 인 경우
+        korea_aliases = ["KR", "South Korea", "Korea", "대한민국", "한국"]
+        is_korea = country in korea_aliases
+        
+        # 결제조건
+        self.entry_payment_terms.delete(0, "end")
+        self.entry_payment_terms.insert(0, "당사 공장 인도가" if is_korea else "EXW")
+        
+        # 지급조건
+        self.entry_payment_cond.delete(0, "end")
+        self.entry_payment_cond.insert(0, "납품 전 100%" if is_korea else "T/T in advance")
 
     def _load_data(self):
         df = self.dm.df_data
@@ -239,6 +476,9 @@ class OrderPopup(BasePopup):
         
         self._on_client_select(client_name)
         for _, row in rows.iterrows(): self._add_item_row(row)
+        
+        # 데이터 로드 후 버튼 상태 업데이트
+        self._update_action_buttons()
 
     def _load_copied_data(self):
         df = self.dm.df_data
@@ -281,6 +521,7 @@ class OrderPopup(BasePopup):
         for _, row in rows.iterrows(): self._add_item_row(row)
         
         self.title(f"주문 복사 등록 (원본: {self.copy_src_no}) - Sales Manager")
+        self._update_action_buttons()
 
     # ==========================================================================
     # 저장 및 삭제
@@ -534,11 +775,22 @@ class OrderPopup(BasePopup):
         self.btn_cancel = ctk.CTkButton(self.footer_frame, text="취소", command=self.destroy, width=80, height=40,
                       fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], text_color=COLORS["text"])
         self.btn_cancel.pack(side="right", padx=5)
+        
+        # Action Buttons Container
+        self.action_btn_frame = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
+        self.action_btn_frame.pack(side="right", padx=5)
+        
+        self._update_action_buttons()
+
+    def _update_action_buttons(self):
+        # Clear existing buttons in action_btn_frame
+        for widget in self.action_btn_frame.winfo_children():
+            widget.destroy()
 
         # 2. 신규/복사 vs 기존
         if not self.mgmt_no or self.copy_mode:
              # 신규/복사 모드 -> [생성] 버튼
-            self.btn_save = ctk.CTkButton(self.footer_frame, text="생성", command=self.save, width=120, height=40,
+            self.btn_save = ctk.CTkButton(self.action_btn_frame, text="생성", command=self.save, width=120, height=40,
                           fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
             self.btn_save.pack(side="right", padx=5)
         else:
@@ -548,18 +800,19 @@ class OrderPopup(BasePopup):
             if current_status == "주문":
                 # 주문 상태 -> [주문 수정] [생산 시작]
                 
+                # 생산 시작
+                self.btn_start_production = ctk.CTkButton(self.action_btn_frame, text="생산 시작", command=self.start_production, width=120, height=40,
+                                                          fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], font=FONTS["main_bold"])
+                self.btn_start_production.pack(side="right", padx=5)
+
                 # 주문 수정
-                self.btn_save = ctk.CTkButton(self.footer_frame, text="주문 수정", command=self.save, width=120, height=40,
+                self.btn_save = ctk.CTkButton(self.action_btn_frame, text="주문 수정", command=self.save, width=120, height=40,
                               fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
                 self.btn_save.pack(side="right", padx=5)
                 
-                # 생산 시작
-                self.btn_start_production = ctk.CTkButton(self.footer_frame, text="생산 시작", command=self.start_production, width=120, height=40,
-                                                          fg_color=COLORS["secondary"], hover_color=COLORS["secondary_hover"], font=FONTS["main_bold"])
-                self.btn_start_production.pack(side="right", padx=5)
             else:
                 # 그 외 상태 -> [주문 저장]
-                self.btn_save = ctk.CTkButton(self.footer_frame, text="주문 저장", command=self.save, width=120, height=40,
+                self.btn_save = ctk.CTkButton(self.action_btn_frame, text="주문 저장", command=self.save, width=120, height=40,
                               fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"], font=FONTS["main_bold"])
                 self.btn_save.pack(side="right", padx=5)
 
