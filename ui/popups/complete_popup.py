@@ -12,6 +12,22 @@ from src.styles import COLORS, FONTS
 from src.config import Config
 
 class CompletePopup(BasePopup):
+    # 컬럼 설정 정의 (헤더명, 너비)
+    COL_SPECS = {
+        "items": [
+            ("모델명", 150), ("Description", 200), ("수량", 60), ("단가", 100), 
+            ("공급가액", 100), ("세액", 80), ("합계금액", 100), ("시리얼 번호", 120)
+        ],
+        "payment": [
+            ("일시", 150), ("구분", 80), ("입금액", 100), ("통화", 60), 
+            ("작업자", 80), ("외화증빙", 80), ("송금상세", 80)
+        ],
+        "delivery": [
+            ("처리일시", 150), ("출고일", 100), ("품목명", 200), ("출고수량", 80), 
+            ("송장번호", 120), ("운송장파일", 80), ("수출신고필증", 80), ("비고", 150)
+        ]
+    }
+
     def __init__(self, parent, data_manager, refresh_callback, mgmt_no):
         # 탭 뷰 참조 변수 초기화
         self.tabview = None
@@ -96,41 +112,30 @@ class CompletePopup(BasePopup):
         self._setup_delivery_history_tab(self.tabview.tab("납품 이력"))
 
     def _setup_items_tab(self, parent):
-        # 헤더 설정 (시리얼 번호 맨 뒤로 이동)
-        headers = ["모델명", "Description", "수량", "단가", "공급가액", "세액", "합계금액", "시리얼 번호"]
-        widths = [150, 200, 60, 100, 100, 80, 100, 120]
-        
         header_frame = ctk.CTkFrame(parent, height=30, fg_color=COLORS["bg_light"])
         header_frame.pack(fill="x", padx=5, pady=5)
         
-        for h, w in zip(headers, widths):
+        for h, w in self.COL_SPECS["items"]:
             ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
             
         self.scroll_items = ctk.CTkScrollableFrame(parent, fg_color="transparent")
         self.scroll_items.pack(fill="both", expand=True, padx=5, pady=5)
 
     def _setup_payment_history_tab(self, parent):
-        headers = ["일시", "구분", "입금액", "통화", "작업자", "외화증빙", "송금상세"]
-        widths = [150, 80, 100, 60, 80, 150, 150]
-        
         header_frame = ctk.CTkFrame(parent, height=30, fg_color=COLORS["bg_light"])
         header_frame.pack(fill="x", padx=5, pady=5)
         
-        for h, w in zip(headers, widths):
+        for h, w in self.COL_SPECS["payment"]:
             ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
             
         self.scroll_payment = ctk.CTkScrollableFrame(parent, fg_color="transparent")
         self.scroll_payment.pack(fill="both", expand=True, padx=5, pady=5)
 
     def _setup_delivery_history_tab(self, parent):
-        # [변경] 수출신고필증 헤더 추가
-        headers = ["처리일시", "출고일", "품목명", "출고수량", "송장번호", "운송장파일", "수출신고필증", "비고"]
-        widths = [150, 100, 200, 80, 120, 150, 250, 150]
-        
         header_frame = ctk.CTkFrame(parent, height=30, fg_color=COLORS["bg_light"])
         header_frame.pack(fill="x", padx=5, pady=5)
         
-        for h, w in zip(headers, widths):
+        for h, w in self.COL_SPECS["delivery"]:
             ctk.CTkLabel(header_frame, text=h, width=w, font=FONTS["main_bold"]).pack(side="left", padx=2)
             
         self.scroll_delivery = ctk.CTkScrollableFrame(parent, fg_color="transparent")
@@ -324,28 +329,31 @@ class CompletePopup(BasePopup):
         row_frame = ctk.CTkFrame(self.scroll_items, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=2)
         
-        self._create_cell(row_frame, item_data.get("모델명", ""), 150, "center")
+        widths = [w for _, w in self.COL_SPECS["items"]]
         
-        self._create_cell(row_frame, item_data.get("Description", ""), 200, "center")
-        self._create_cell(row_frame, item_data.get("수량", 0), 60, "center", True)
-        self._create_cell(row_frame, item_data.get("단가", 0), 100, "right", True)
-        self._create_cell(row_frame, item_data.get("공급가액", 0), 100, "right", True)
-        self._create_cell(row_frame, item_data.get("세액", 0), 80, "right", True)
-        self._create_cell(row_frame, item_data.get("합계금액", 0), 100, "right", True)
+        self._create_cell(row_frame, item_data.get("모델명", ""), widths[0], "center")
+        self._create_cell(row_frame, item_data.get("Description", ""), widths[1], "center")
+        self._create_cell(row_frame, item_data.get("수량", 0), widths[2], "center", True)
+        self._create_cell(row_frame, item_data.get("단가", 0), widths[3], "right", True)
+        self._create_cell(row_frame, item_data.get("공급가액", 0), widths[4], "right", True)
+        self._create_cell(row_frame, item_data.get("세액", 0), widths[5], "right", True)
+        self._create_cell(row_frame, item_data.get("합계금액", 0), widths[6], "right", True)
 
         serial = str(item_data.get("시리얼번호", "-"))
-        ctk.CTkLabel(row_frame, text=serial, width=120, font=FONTS["main"], anchor="center", text_color=COLORS["primary"]).pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=serial, width=widths[7], font=FONTS["main"], anchor="center", text_color=COLORS["primary"]).pack(side="left", padx=2)
 
     def _add_payment_row(self, row):
         row_frame = ctk.CTkFrame(self.scroll_payment, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=2)
         row_frame.pack_propagate(False)
         
-        self._create_cell(row_frame, row.get("일시", ""), 150, "center")
-        self._create_cell(row_frame, row.get("구분", ""), 80, "center")
-        self._create_cell(row_frame, row.get("입금액", 0), 100, "right", True)
-        self._create_cell(row_frame, row.get("통화", ""), 60, "center")
-        self._create_cell(row_frame, row.get("작업자", ""), 80, "center")
+        widths = [w for _, w in self.COL_SPECS["payment"]]
+        
+        self._create_cell(row_frame, row.get("일시", ""), widths[0], "center")
+        self._create_cell(row_frame, row.get("구분", ""), widths[1], "center")
+        self._create_cell(row_frame, row.get("입금액", 0), widths[2], "right", True)
+        self._create_cell(row_frame, row.get("통화", ""), widths[3], "center")
+        self._create_cell(row_frame, row.get("작업자", ""), widths[4], "center")
         
         # extra_data 생성 (파일명용)
         # Payment: 업체명_관리번호_입금액
@@ -358,19 +366,21 @@ class CompletePopup(BasePopup):
             "date": row.get("일시", datetime.datetime.now().strftime("%Y-%m-%d"))
         }
 
-        self._create_file_cell(row_frame, row.get("외화입금증빙경로", ""), 150, "payment", row.name, "외화입금증빙경로", extra_data)
-        self._create_file_cell(row_frame, row.get("송금상세경로", ""), 150,  "payment", row.name, "송금상세경로", extra_data)
+        self._create_file_cell(row_frame, row.get("외화입금증빙경로", ""), widths[5], "payment", row.name, "외화입금증빙경로", extra_data)
+        self._create_file_cell(row_frame, row.get("송금상세경로", ""), widths[6],  "payment", row.name, "송금상세경로", extra_data)
 
     def _add_delivery_row(self, row):
         row_frame = ctk.CTkFrame(self.scroll_delivery, fg_color="transparent", height=30)
         row_frame.pack(fill="x", pady=2)
         row_frame.pack_propagate(False)
         
-        self._create_cell(row_frame, row.get("일시", ""), 150, "center")
-        self._create_cell(row_frame, row.get("출고일", ""), 100, "center")
-        self._create_cell(row_frame, row.get("품목명", ""), 200, "center")
-        self._create_cell(row_frame, row.get("출고수량", 0), 80, "center", True)
-        self._create_cell(row_frame, row.get("송장번호", ""), 120, "center")
+        widths = [w for _, w in self.COL_SPECS["delivery"]]
+        
+        self._create_cell(row_frame, row.get("일시", ""), widths[0], "center")
+        self._create_cell(row_frame, row.get("출고일", ""), widths[1], "center")
+        self._create_cell(row_frame, row.get("품목명", ""), widths[2], "center")
+        self._create_cell(row_frame, row.get("출고수량", 0), widths[3], "center", True)
+        self._create_cell(row_frame, row.get("송장번호", ""), widths[4], "center")
         
         # extra_data 생성 (파일명용)
         # Delivery: 업체명_관리번호_출고번호
@@ -380,12 +390,12 @@ class CompletePopup(BasePopup):
             "delivery_no": row.get("출고번호", "")
         }
         
-        self._create_file_cell(row_frame, row.get("운송장경로", ""), 150, "delivery", row.name, "운송장경로", extra_data)
+        self._create_file_cell(row_frame, row.get("운송장경로", ""), widths[5], "delivery", row.name, "운송장경로", extra_data)
         
         # [변경] 수출신고필증 (통일된 UI 사용)
-        self._create_file_cell(row_frame, row.get("수출신고필증경로", ""), 250, "delivery", row.name, "수출신고필증경로", extra_data)
+        self._create_file_cell(row_frame, row.get("수출신고필증경로", ""), widths[6], "delivery", row.name, "수출신고필증경로", extra_data)
 
-        self._create_cell(row_frame, row.get("비고", ""), 150)
+        self._create_cell(row_frame, row.get("비고", ""), widths[7])
 
 
     def _add_file_row(self, title, path):
