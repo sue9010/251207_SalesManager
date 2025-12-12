@@ -182,6 +182,20 @@ class OrderHandler:
             return True, ""
         return self.dm.execute_transaction(update)
 
+    def update_order_fields(self, mgmt_no: str, updates: dict) -> tuple[bool, str]:
+        def update(dfs):
+            mask = dfs["data"]["관리번호"] == mgmt_no
+            if not mask.any(): return False, "항목을 찾을 수 없습니다."
+            
+            for key, value in updates.items():
+                if key in dfs["data"].columns:
+                    dfs["data"].loc[mask, key] = value
+            
+            # 로그는 선택사항이지만 남기는 것이 좋음
+            self.dm.log_handler.add_log_to_dfs(dfs, "정보 업데이트", f"번호 [{mgmt_no}] 필드 업데이트")
+            return True, ""
+        return self.dm.execute_transaction(update)
+
     def confirm_order(self, mgmt_no: str, confirm_data: dict) -> tuple[bool, str]:
         def update(dfs):
             mask = dfs["data"]["관리번호"] == mgmt_no

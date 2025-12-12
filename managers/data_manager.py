@@ -171,6 +171,9 @@ class DataManager:
     def update_order_status(self, mgmt_no, new_status, updates=None):
         return self.order_handler.update_status(mgmt_no, new_status, updates)
 
+    def update_order_fields(self, mgmt_no, updates):
+        return self.order_handler.update_order_fields(mgmt_no, updates)
+
     def confirm_order(self, mgmt_no, confirm_data):
         return self.order_handler.confirm_order(mgmt_no, confirm_data)
 
@@ -191,8 +194,8 @@ class DataManager:
     def add_delivery(self, delivery_data):
         return self.delivery_handler.add_delivery(delivery_data)
 
-    def process_delivery(self, delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests):
-        return self.delivery_handler.process_delivery(delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests)
+    def process_delivery(self, delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests, ci_path=None, pl_path=None):
+        return self.delivery_handler.process_delivery(delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests, ci_path, pl_path)
 
     def export_to_production_request(self, rows_data):
         return self.delivery_handler.export_to_production_request(rows_data)

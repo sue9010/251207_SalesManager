@@ -24,7 +24,7 @@ class CompletePopup(BasePopup):
         ],
         "delivery": [
             ("처리일시", 150), ("출고일", 100), ("품목명", 200), ("출고수량", 80), 
-            ("송장번호", 120), ("운송장파일", 80), ("수출신고필증", 80), ("비고", 150)
+            ("송장번호", 120), ("운송장파일", 80), ("수출신고필증", 80), ("CI", 50), ("PL", 50), ("비고", 150)
         ]
     }
 
@@ -290,6 +290,26 @@ class CompletePopup(BasePopup):
         client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
         if not client_row.empty:
             if self._add_file_row("사업자등록증", client_row.iloc[0].get("사업자등록증경로")): has_files = True
+
+        # 5-3. 견적서, 출고요청서, PI (Data 시트)
+        if self._add_file_row("견적서", first.get("견적서경로")): has_files = True
+        if self._add_file_row("출고요청서", first.get("출고요청서경로")): has_files = True
+        if self._add_file_row("Proforma Invoice", first.get("PI경로")): has_files = True
+
+        # 5-4. CI, PL (Delivery 시트 - 최신순)
+        if not current_deliveries.empty:
+            # Sort by date desc
+            sorted_del = current_deliveries.sort_values(by="일시", ascending=False)
+            # Find first valid CI/PL
+            ci_path = None
+            pl_path = None
+            for _, d_row in sorted_del.iterrows():
+                if not ci_path and d_row.get("CI경로"): ci_path = d_row.get("CI경로")
+                if not pl_path and d_row.get("PL경로"): pl_path = d_row.get("PL경로")
+                if ci_path and pl_path: break
+            
+            if self._add_file_row("Commercial Invoice", ci_path): has_files = True
+            if self._add_file_row("Packing List", pl_path): has_files = True
                 
         if not has_files:
             ctk.CTkLabel(self.files_scroll, text="첨부 파일 없음", font=FONTS["small"], text_color=COLORS["text_dim"]).pack(pady=20)
@@ -395,7 +415,11 @@ class CompletePopup(BasePopup):
         # [변경] 수출신고필증 (통일된 UI 사용)
         self._create_file_cell(row_frame, row.get("수출신고필증경로", ""), widths[6], "delivery", row.name, "수출신고필증경로", extra_data)
 
-        self._create_cell(row_frame, row.get("비고", ""), widths[7])
+        # [신규] CI / PL
+        self._create_file_cell(row_frame, row.get("CI경로", ""), widths[7], "delivery", row.name, "CI경로", extra_data)
+        self._create_file_cell(row_frame, row.get("PL경로", ""), widths[8], "delivery", row.name, "PL경로", extra_data)
+
+        self._create_cell(row_frame, row.get("비고", ""), widths[9])
 
 
     def _add_file_row(self, title, path):

@@ -15,7 +15,7 @@ class ExportManager:
             import win32com.client
             import pythoncom
         except ImportError:
-            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.\n설치: pip install pywin32"
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.\n설치: pip install pywin32", None
 
         temp_xlsx_path = None
         excel = None
@@ -33,7 +33,7 @@ class ExportManager:
             template_path = os.path.join(Config.FORMS_DIR, template_filename)
 
             if not os.path.exists(template_path):
-                return False, f"견적서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
+                return False, f"견적서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}", None
 
             wb = openpyxl.load_workbook(template_path)
             ws = wb.active
@@ -67,10 +67,15 @@ class ExportManager:
             else:
                 pdf_filename = f"Quotation_{client_name}_{mgmt_no}.pdf"
             
-            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="견적서")
+            success, msg, server_path = self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="견적서")
+            
+            if success and server_path:
+                self.datamanager.update_order_fields(mgmt_no, {"견적서경로": server_path})
+                
+            return success, msg, server_path
 
         except Exception as e:
-            return False, f"오류 발생: {str(e)}"
+            return False, f"오류 발생: {str(e)}", None
         
         finally:
             if wb:
@@ -82,7 +87,7 @@ class ExportManager:
             import win32com.client
             import pythoncom
         except ImportError:
-            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다."
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.", None
 
         temp_xlsx_path = None
         excel = None
@@ -92,7 +97,7 @@ class ExportManager:
         try:
             template_path = os.path.join(Config.FORMS_DIR, "order_request_form.xlsx")
             if not os.path.exists(template_path):
-                return False, f"출고요청서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
+                return False, f"출고요청서 양식 파일을 찾을 수 없습니다.\n경로: {template_path}", None
 
             wb = openpyxl.load_workbook(template_path)
             ws = wb.active
@@ -125,10 +130,15 @@ class ExportManager:
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_')]).strip()
             pdf_filename = f"출고요청서_{client_safe}_{order_info['mgmt_no']}.pdf"
 
-            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="출고요청서")
+            success, msg, server_path = self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="출고요청서")
+            
+            if success and server_path:
+                self.datamanager.update_order_fields(order_info['mgmt_no'], {"출고요청서경로": server_path})
+                
+            return success, msg, server_path
 
         except Exception as e:
-            return False, f"오류 발생: {str(e)}"
+            return False, f"오류 발생: {str(e)}", None
             
         finally:
             if wb:
@@ -140,7 +150,7 @@ class ExportManager:
             import win32com.client
             import pythoncom
         except ImportError:
-            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다."
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.", None
 
         temp_xlsx_path = None
         excel = None
@@ -151,7 +161,7 @@ class ExportManager:
             template_path = os.path.join(Config.FORMS_DIR, "PI.xlsx")
             
             if not os.path.exists(template_path):
-                return False, f"PI 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
+                return False, f"PI 양식 파일을 찾을 수 없습니다.\n경로: {template_path}", None
 
             wb = openpyxl.load_workbook(template_path)
             ws = wb.active
@@ -181,10 +191,15 @@ class ExportManager:
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_', '-')]).strip()
             pdf_filename = f"PI_{client_safe}_{order_info['mgmt_no']}.pdf"
             
-            return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Proforma Invoice")
+            success, msg, server_path = self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Proforma Invoice")
+            
+            if success and server_path:
+                self.datamanager.update_order_fields(order_info['mgmt_no'], {"PI경로": server_path})
+                
+            return success, msg, server_path
 
         except Exception as e:
-            return False, f"오류 발생: {str(e)}"
+            return False, f"오류 발생: {str(e)}", None
             
         finally:
             if wb:
@@ -196,7 +211,7 @@ class ExportManager:
             import win32com.client
             import pythoncom
         except ImportError:
-            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다."
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.", None
 
         temp_xlsx_path = None
         excel = None
@@ -207,7 +222,7 @@ class ExportManager:
             template_path = os.path.join(Config.FORMS_DIR, "CI.xlsx")
             
             if not os.path.exists(template_path):
-                return False, f"CI 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
+                return False, f"CI 양식 파일을 찾을 수 없습니다.\n경로: {template_path}", None
 
             wb = openpyxl.load_workbook(template_path)
             ws = wb.active
@@ -264,12 +279,18 @@ class ExportManager:
                 safe_write("A32", ", ".join(serial_list))
 
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_', '-')]).strip()
-            pdf_filename = f"CI_{client_safe}_{order_info['mgmt_no']}.pdf"
+
+            # [변경] 송장번호가 있으면 파일명에 포함
+            invoice_no = order_info.get('invoice_no', '')
+            if invoice_no:
+                pdf_filename = f"CI_{client_safe}_{order_info['mgmt_no']}_{invoice_no}.pdf"
+            else:
+                pdf_filename = f"CI_{client_safe}_{order_info['mgmt_no']}.pdf"
 
             return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Commercial Invoice")
 
         except Exception as e:
-            return False, f"오류 발생: {str(e)}"
+            return False, f"오류 발생: {str(e)}", None
             
         finally:
             if wb:
@@ -281,7 +302,7 @@ class ExportManager:
             import win32com.client
             import pythoncom
         except ImportError:
-            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다."
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.", None
 
         temp_xlsx_path = None
         excel = None
@@ -292,7 +313,7 @@ class ExportManager:
             template_path = os.path.join(Config.FORMS_DIR, "PL.xlsx")
             
             if not os.path.exists(template_path):
-                return False, f"PL 양식 파일을 찾을 수 없습니다.\n경로: {template_path}"
+                return False, f"PL 양식 파일을 찾을 수 없습니다.\n경로: {template_path}", None
 
             wb = openpyxl.load_workbook(template_path)
             ws = wb.active
@@ -374,12 +395,18 @@ class ExportManager:
                 safe_write("A36", ", ".join(serial_list))
 
             client_safe = "".join([c for c in order_info['client_name'] if c.isalnum() or c in (' ', '_', '-')]).strip()
-            pdf_filename = f"PL_{client_safe}_{order_info['mgmt_no']}.pdf"
+
+            # [변경] 송장번호가 있으면 파일명에 포함
+            invoice_no = order_info.get('invoice_no', '')
+            if invoice_no:
+                pdf_filename = f"PL_{client_safe}_{order_info['mgmt_no']}_{invoice_no}.pdf"
+            else:
+                pdf_filename = f"PL_{client_safe}_{order_info['mgmt_no']}.pdf"
 
             return self._convert_and_save_pdf(wb, pdf_filename, server_folder_name="Packing List")
 
         except Exception as e:
-            return False, f"오류 발생: {str(e)}"
+            return False, f"오류 발생: {str(e)}", None
             
         finally:
             if wb:
@@ -402,7 +429,7 @@ class ExportManager:
             import win32com.client
             import pythoncom
         except ImportError:
-            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다."
+            return False, "PDF 변환을 위해 pywin32 라이브러리가 필요합니다.", None
 
         try:
             desktop = os.path.join(os.path.expanduser("~"), "Desktop")
@@ -429,7 +456,7 @@ class ExportManager:
             try:
                 wb_opened.ExportAsFixedFormat(0, desktop_pdf_path)
             except Exception as e:
-                return False, f"PDF 변환 실패: {e}"
+                return False, f"PDF 변환 실패: {e}", None
             
             wb_opened.Close(SaveChanges=False)
             wb_opened = None
@@ -458,11 +485,12 @@ class ExportManager:
                 
                 if copied_to_server:
                     msg += f"\n\n서버에도 저장되었습니다.\n{server_pdf_path}"
+                    return True, msg, server_pdf_path
             
-            return True, msg
+            return True, msg, None
 
         except Exception as e:
-            return False, f"PDF 처리 중 오류 발생: {str(e)}"
+            return False, f"PDF 처리 중 오류 발생: {str(e)}", None
             
         finally:
             if wb_opened:

@@ -4,6 +4,7 @@ from tkinter import messagebox
 from ui.popups.base_popup import BasePopup
 from src.styles import COLORS, FONTS
 from utils.file_dnd import FileDnDManager
+from managers.export_manager import ExportManager
 
 class MiniDeliveryPopup(BasePopup):
     def __init__(self, parent, data_manager, refresh_callback, mgmt_nos, delivery_items):
@@ -12,10 +13,15 @@ class MiniDeliveryPopup(BasePopup):
         
         self.dm = data_manager
         self.file_manager = FileDnDManager(self)
+        self.export_manager = ExportManager(self.dm)
+        
+        self.ci_path = None
+        self.pl_path = None
         
         super().__init__(parent, data_manager, refresh_callback, popup_title="납품 처리", mgmt_no=mgmt_nos[0])
-        self.geometry("500x300")
+        self.geometry("500x350") # Height increased for new buttons
         self.after(100, lambda: self.entry_invoice.focus_set())
+
     def _create_widgets(self):
         self.configure(fg_color=COLORS["bg_dark"])
         
@@ -58,6 +64,16 @@ class MiniDeliveryPopup(BasePopup):
         f_waybill = ctk.CTkFrame(form_frame, fg_color="transparent")
         f_waybill.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=5)
         self.entry_file_waybill, _, _, _ = self.file_manager.create_file_input_row(f_waybill, "", "운송장경로")
+        
+        # 5. Export CI/PL Buttons
+        ctk.CTkLabel(form_frame, text="문서발행", font=FONTS["main_bold"]).grid(row=4, column=0, sticky="w", pady=5)
+        f_export = ctk.CTkFrame(form_frame, fg_color="transparent")
+        f_export.grid(row=4, column=1, sticky="ew", padx=(10, 0), pady=5)
+        
+        ctk.CTkButton(f_export, text="CI 발행", command=self.export_ci, 
+                      fg_color=COLORS["secondary"], width=80).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(f_export, text="PL 발행", command=self.export_pl, 
+                      fg_color=COLORS["secondary"], width=80).pack(side="left")
 
         # Load Client Shipping Info
         self._load_client_shipping_info()
@@ -86,6 +102,81 @@ class MiniDeliveryPopup(BasePopup):
         ctk.CTkButton(footer, text="취소", command=self.destroy, fg_color=COLORS["bg_light"], text_color=COLORS["text"], width=80).pack(side="left")
         ctk.CTkButton(footer, text="저장", command=self.save, fg_color=COLORS["primary"], width=80).pack(side="right")
 
+    def _get_order_info(self):
+        invoice_no = self.entry_invoice.get().strip()
+        if not invoice_no:
+            messagebox.showwarning("경고", "송장번호를 먼저 입력해주세요.", parent=self)
+            return None, None, None
+            
+        # Get full order data for the first mgmt_no
+        mgmt_no = self.mgmt_nos[0]
+        rows = self.dm.df_data[self.dm.df_data["관리번호"] == mgmt_no]
+        if rows.empty:
+            messagebox.showerror("오류", "주문 정보를 찾을 수 없습니다.", parent=self)
+            return None, None, None
+            
+        row = rows.iloc[0]
+        client_name = row["업체명"]
+        
+        # Client Info
+        client_info = {}
+        c_rows = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
+        if not c_rows.empty:
+            client_info = c_rows.iloc[0].to_dict()
+            
+        # Order Info
+        order_info = {
+            'client_name': client_name,
+            'mgmt_no': mgmt_no,
+            'date': datetime.now().strftime("%Y-%m-%d"),
+            'po_no': row.get("발주서번호", ""),
+            'invoice_no': invoice_no # Pass invoice_no for filename
+        }
+        
+        # Items (Using delivery_items which has updated qty)
+        # But we need full item details (model, desc, price, etc.)
+        # self.delivery_items is list of dicts with keys: idx, serial_no, deliver_qty
+        
+        items = []
+        for item_req in self.delivery_items:
+            idx = item_req['idx']
+            if idx in self.dm.df_data.index:
+                data_row = self.dm.df_data.loc[idx]
+                items.append({
+                    'model': data_row.get('모델명', ''),
+                    'desc': data_row.get('Description', ''),
+                    'qty': item_req['deliver_qty'],
+                    'price': data_row.get('단가', 0),
+                    'amount': float(data_row.get('단가', 0)) * float(item_req['deliver_qty']),
+                    'currency': 'USD', # Default or fetch from somewhere? Assuming USD for now or from purchase?
+                    'serial': item_req['serial_no'],
+                    'po_no': data_row.get('발주서번호', '')
+                })
+                
+        return client_info, order_info, items
+
+    def export_ci(self):
+        client_info, order_info, items = self._get_order_info()
+        if not client_info: return
+        
+        success, msg, path = self.export_manager.export_ci_to_pdf(client_info, order_info, items)
+        if success:
+            self.ci_path = path
+            messagebox.showinfo("성공", f"CI가 발행되었습니다.\n{msg}", parent=self)
+        else:
+            messagebox.showerror("실패", f"CI 발행 실패: {msg}", parent=self)
+
+    def export_pl(self):
+        client_info, order_info, items = self._get_order_info()
+        if not client_info: return
+        
+        success, msg, path = self.export_manager.export_pl_to_pdf(client_info, order_info, items)
+        if success:
+            self.pl_path = path
+            messagebox.showinfo("성공", f"PL이 발행되었습니다.\n{msg}", parent=self)
+        else:
+            messagebox.showerror("실패", f"PL 발행 실패: {msg}", parent=self)
+
     def save(self):
         date = self.entry_date.get()
         invoice_no = self.entry_invoice.get()
@@ -113,7 +204,9 @@ class MiniDeliveryPopup(BasePopup):
             invoice_no,
             ship_method,
             waybill_path,
-            self.delivery_items
+            self.delivery_items,
+            ci_path=self.ci_path,
+            pl_path=self.pl_path
         )
 
         if success:

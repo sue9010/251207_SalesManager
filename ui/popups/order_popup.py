@@ -420,7 +420,7 @@ class OrderPopup(BasePopup):
                 "total": float(row["total"].get().replace(",", "") or 0)
             })
 
-        success, result = self.export_manager.export_quote_to_pdf(
+        success, result, _ = self.export_manager.export_quote_to_pdf(
             client_row.iloc[0], quote_info, items
         )
         
@@ -463,7 +463,7 @@ class OrderPopup(BasePopup):
                 "qty": float(row["qty"].get().replace(",", "") or 0),
             })
 
-        success, result = self.export_manager.export_order_request_to_pdf(
+        success, result, _ = self.export_manager.export_order_request_to_pdf(
             client_row.iloc[0], order_info, items
         )
         
@@ -507,7 +507,7 @@ class OrderPopup(BasePopup):
                 "amount": float(row["supply"].get().replace(",", "") or 0)
             })
 
-        success, result = self.export_manager.export_pi_to_pdf(
+        success, result, _ = self.export_manager.export_pi_to_pdf(
             client_row.iloc[0], order_info, items
         )
         

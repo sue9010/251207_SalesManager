@@ -39,7 +39,7 @@ class DeliveryHandler:
             return True, ""
         return self.dm.execute_transaction(update)
 
-    def process_delivery(self, delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests):
+    def process_delivery(self, delivery_no, delivery_date, invoice_no, shipping_method, waybill_path, update_requests, ci_path=None, pl_path=None):
         def update(dfs):
             processed_items = []
             new_delivery_records = []
@@ -66,7 +66,9 @@ class DeliveryHandler:
                     "시리얼번호": req["serial_no"], "출고수량": deliver_qty,
                     "송장번호": invoice_no, "운송방법": shipping_method,
                     "작업자": current_user, "비고": "일괄 납품 처리",
-                    "운송장경로": waybill_path
+                    "작업자": current_user, "비고": "일괄 납품 처리",
+                    "운송장경로": waybill_path,
+                    "CI경로": ci_path, "PL경로": pl_path
                 })
 
                 # 데이터 업데이트 (완전 출고 vs 부분 출고)
