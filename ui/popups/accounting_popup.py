@@ -72,6 +72,11 @@ class AccountingPopup(BasePopup):
         self.txt_req_note = ctk.CTkTextbox(parent, height=60, fg_color=COLORS["bg_dark"], text_color=COLORS["text"])
         self.txt_req_note.pack(fill="x", padx=10)
 
+        # Related Documents
+        ctk.CTkLabel(parent, text="관련 문서", font=FONTS["header"]).pack(anchor="w", pady=(10, 10), padx=10)
+        self.files_scroll = ctk.CTkScrollableFrame(parent, fg_color=COLORS["bg_dark"], height=100)
+        self.files_scroll.pack(fill="x", padx=10, pady=(0, 10))
+
     def _setup_items_panel(self, parent):
         """Right Panel Implementation"""
         self.tab_view = ctk.CTkTabview(parent)
@@ -146,6 +151,23 @@ class AccountingPopup(BasePopup):
         self.txt_note.configure(state="disabled")
         self.txt_req_note.insert("1.0", str(row.get("주문요청사항", "")).replace("nan", ""))
         self.txt_req_note.configure(state="disabled")
+
+        # Load Files
+        for widget in self.files_scroll.winfo_children(): widget.destroy()
+        has_files = False
+        
+        # 1. Purchase Order (from Data sheet)
+        if self._add_file_row("주문서(발주서)", row.get("발주서경로")): has_files = True
+        
+        # 2. Business Registration (from Client sheet)
+        client_name = row.get("업체명", "")
+        if client_name:
+            client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
+            if not client_row.empty:
+                if self._add_file_row("사업자등록증", client_row.iloc[0].get("사업자등록증경로")): has_files = True
+                
+        if not has_files:
+            ctk.CTkLabel(self.files_scroll, text="첨부 파일 없음", font=FONTS["small"], text_color=COLORS["text_dim"]).pack(pady=10)
 
         # Load Tabs
         self._load_items_tab(rows)
@@ -339,7 +361,7 @@ class AccountingPopup(BasePopup):
         entry_tax_date.insert(0, str(row.get("세금계산서발행일", "")).replace("nan", ""))
         self.entries[f"payment_tax_date_{idx}"] = entry_tax_date
 
-    def save_data(self):
+    def save_data(self, silent=False):
         """Save changes to Delivery and Payment sheets"""
         
         # 1. Update Delivery Data
@@ -383,14 +405,21 @@ class AccountingPopup(BasePopup):
         # Save to Excel
         success, msg = self.dm.save_data()
         if success:
-            messagebox.showinfo("성공", "저장되었습니다.", parent=self)
+            if not silent:
+                messagebox.showinfo("성공", "저장되었습니다.", parent=self)
             self._load_data() # Reload to reflect changes
+            return True
         else:
             messagebox.showerror("실패", f"저장 실패: {msg}", parent=self)
+            return False
 
     def close_order(self):
         """Set order status to '종료'"""
         if messagebox.askyesno("종결", "정말 이 주문을 종결 처리하시겠습니까?\n종결 후에는 수정이 제한될 수 있습니다.", parent=self):
+            # Auto-save before closing
+            if not self.save_data(silent=True):
+                return
+
             try:
                 self.dm.update_order_status(self.target_mgmt_no, "종료")
                 messagebox.showinfo("완료", "주문이 종결되었습니다.", parent=self)
@@ -417,6 +446,32 @@ class AccountingPopup(BasePopup):
                       
         ctk.CTkButton(btn_frame, text="종결", command=self.close_order, width=100, 
                       fg_color=COLORS["success"], hover_color=COLORS["success_hover"]).pack(side="left", padx=5)
+
+    def _add_file_row(self, title, path):
+        if path is None: path = ""
+        path = str(path).strip()
+        if not path or path == "-" or path.lower() == "nan" or path.lower() == "none":
+            return False
+            
+        row = ctk.CTkFrame(self.files_scroll, fg_color="transparent")
+        row.pack(fill="x", pady=2)
+        
+        # 1. Button (Right)
+        ctk.CTkButton(row, text="열기", width=50, height=24,
+                      fg_color=COLORS["primary"], hover_color=COLORS["primary_hover"],
+                      command=lambda p=os.path.normpath(path): self.open_file(p)).pack(side="right", padx=5)
+        
+        # 2. Icon & Title
+        ctk.CTkLabel(row, text="📄", font=FONTS["main"]).pack(side="left", padx=(5, 5))
+        ctk.CTkLabel(row, text=title, font=FONTS["main_bold"], width=100, anchor="w").pack(side="left")
+        
+        # 3. Filename
+        file_name = os.path.basename(path)
+        if len(file_name) > 20:
+            file_name = file_name[:17] + "..."
+            
+        ctk.CTkLabel(row, text=file_name, font=FONTS["small"], text_color=COLORS["text_dim"]).pack(side="left", padx=5)
+        return True
 
     def open_file(self, path):
          if path and os.path.exists(path):
