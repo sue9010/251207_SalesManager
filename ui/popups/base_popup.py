@@ -230,6 +230,11 @@ class BasePopup(ctk.CTkToplevel):
         frame.destroy()
         self._calculate_totals()
 
+    def _on_add_item_shortcut(self, event=None):
+        row_widgets = self._add_item_row()
+        if row_widgets and "item" in row_widgets:
+            row_widgets["item"].focus_set()
+
     def _create_common_header(self, parent, title_text, id_text):
         """공통 헤더 생성 로직"""
         top_frame = ctk.CTkFrame(parent, fg_color="transparent")

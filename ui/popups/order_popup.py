@@ -33,6 +33,10 @@ class OrderPopup(BasePopup):
         if self.copy_mode and self.copy_src_no:
             self._load_copied_data()
 
+        # [신규] 품목 추가 단축키 (Ctrl + +)
+        self.bind("<Control-plus>", self._on_add_item_shortcut)
+        self.bind("<Control-equal>", self._on_add_item_shortcut)
+
     def _create_header(self, parent):
         # 공통 헤더 사용 (Title + ID)
         header_frame = ctk.CTkFrame(parent, height=50, fg_color="transparent")

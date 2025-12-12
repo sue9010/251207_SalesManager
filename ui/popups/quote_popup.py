@@ -39,6 +39,10 @@ class QuotePopup(BasePopup):
 
         # [신규] 팝업 열릴 때 업체명 입력창에 포커스
         self.after(100, lambda: self.entry_client.focus_set())
+        
+        # [신규] 품목 추가 단축키 (Ctrl + +)
+        self.bind("<Control-plus>", self._on_add_item_shortcut)
+        self.bind("<Control-equal>", self._on_add_item_shortcut)
 
     def _create_header(self, parent):
         # 공통 헤더 사용 (Title + ID)
