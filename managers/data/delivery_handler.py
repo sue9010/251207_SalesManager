@@ -60,7 +60,7 @@ class DeliveryHandler:
                 deliver_qty = min(req["deliver_qty"], db_qty)
                 
                 new_delivery_records.append({
-                    "일시": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "일시": datetime.now().strftime("%Y-%m-%d"),
                     "출고번호": delivery_no, "출고일": delivery_date,
                     "관리번호": row_data.get("관리번호", ""), "품목명": row_data.get("품목명", ""),
                     "시리얼번호": req["serial_no"], "출고수량": deliver_qty,

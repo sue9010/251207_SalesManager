@@ -95,7 +95,7 @@ class PaymentHandler:
 
             # 2. 배치 처리용 집계
             batch_summary = {}
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            now_str = datetime.now().strftime("%Y-%m-%d")
             try: current_user = getpass.getuser()
             except: current_user = "Unknown"
 
