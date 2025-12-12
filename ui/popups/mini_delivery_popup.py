@@ -52,7 +52,7 @@ class MiniDeliveryPopup(BasePopup):
         ctk.CTkLabel(form_frame, text="운송장경로", font=FONTS["main_bold"]).grid(row=3, column=0, sticky="w", pady=5)
         f_waybill = ctk.CTkFrame(form_frame, fg_color="transparent")
         f_waybill.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=5)
-        self.entry_file_waybill, _, _ = self.create_file_input_row(f_waybill, "", "운송장경로")
+        self.entry_file_waybill, _, _, _ = self.create_file_input_row(f_waybill, "", "운송장경로")
 
         # Load Client Shipping Info
         self._load_client_shipping_info()

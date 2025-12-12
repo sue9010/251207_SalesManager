@@ -190,14 +190,13 @@ class ClientPopup(BasePopup):
         
         ctk.CTkLabel(content, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 10))
         
-        entry, _, _ = self.create_file_input_row(content, "사업자등록증", "사업자등록증경로")
+        entry, _, _, _ = self.create_file_input_row(content, "사업자등록증", "사업자등록증경로")
         self.entries["사업자등록증경로"] = entry
 
-        entry_export, _, _ = self.create_file_input_row(content, "수출허가서", "수출허가서경로")
+        entry_export, _, _, _ = self.create_file_input_row(content, "수출허가서", "수출허가서경로")
         self.entries["수출허가서경로"] = entry_export
         
         ctk.CTkFrame(content, height=2, fg_color=COLORS["bg_light"]).pack(fill="x", pady=20) # Divider
-        
         ctk.CTkLabel(content, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 10))
         self.entry_note = ctk.CTkTextbox(content, height=100, border_width=2, 
                                          border_color=COLORS["entry_border"], fg_color=COLORS["entry_bg"])

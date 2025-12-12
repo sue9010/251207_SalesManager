@@ -120,7 +120,7 @@ class OrderPopup(BasePopup):
         # 9행: 발주서 파일
         f_file = ctk.CTkFrame(parent, fg_color="transparent")
         f_file.grid(row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_order_file, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
+        self.entry_order_file, _, _, _ = self.create_file_input_row(f_file, "발주서 파일", "발주서경로")
 
         # 10행: 버튼 (견적서발행, 출고요청서, PI발행)
         f_btn = ctk.CTkFrame(parent, fg_color="transparent")

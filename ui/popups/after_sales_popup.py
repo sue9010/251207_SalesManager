@@ -76,7 +76,7 @@ class AfterSalesPopup(BasePopup):
         # Row 3: Export Declaration File
         f_file = ctk.CTkFrame(parent, fg_color="transparent")
         f_file.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_file_export, _, _ = self.create_file_input_row(f_file, "수출신고필증", "수출신고필증경로")
+        self.entry_file_export, _, _, _ = self.create_file_input_row(f_file, "수출신고필증", "수출신고필증경로")
 
     def _setup_items_panel(self, parent):
         # 타이틀

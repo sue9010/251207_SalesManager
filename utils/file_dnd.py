@@ -2,7 +2,7 @@ import os
 import shutil
 from datetime import datetime
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 import customtkinter as ctk
 from src.styles import COLORS, FONTS
 
@@ -31,6 +31,11 @@ class FileDnDManager:
         entry = ctk.CTkEntry(row, placeholder_text=placeholder, height=height)
         entry.pack(side="left", fill="x", expand=True)
         
+        btn_find = ctk.CTkButton(row, text="찾기", width=50, height=height,
+                      command=lambda: self.browse_file(key),
+                      fg_color=COLORS["bg_dark"], text_color=COLORS["text"])
+        btn_find.pack(side="left", padx=(5, 0))
+
         btn_open = ctk.CTkButton(row, text="열기", width=50, height=height,
                       command=lambda: self.open_file(key),
                       fg_color=COLORS["bg_light"], text_color=COLORS["text"])
@@ -47,7 +52,13 @@ class FileDnDManager:
         if self.DND_AVAILABLE:
             self._setup_dnd(entry, key)
         
-        return entry, btn_open, btn_delete
+        return entry, btn_find, btn_open, btn_delete
+
+    def browse_file(self, key):
+        """Open file dialog to select a file"""
+        file_path = filedialog.askopenfilename(parent=self.parent)
+        if file_path:
+            self.update_file_entry(key, file_path)
 
     def _setup_dnd(self, widget, key):
         """Setup tkinterdnd2 drop target"""
@@ -116,7 +127,7 @@ class FileDnDManager:
         """Clear entry and optionally delete actual file if managed"""
         entry_widget = self.file_entries.get(key)
         if not entry_widget: return
-
+        
         path = self.full_paths.get(key)
         if not path: path = entry_widget.get().strip()
         if not path: return

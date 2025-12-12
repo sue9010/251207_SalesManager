@@ -49,19 +49,6 @@ class MiniPaymentPopup(BasePopup):
         
         self.entry_amount = ctk.CTkEntry(amt_frame, height=30)
         self.entry_amount.pack(side="left", fill="x", expand=True)
-        self.entry_amount.insert(0, f"{int(self.unpaid_amount)}")
-
-        # 3. Foreign Proof File
-        ctk.CTkLabel(form_frame, text="외화입금증빙", font=FONTS["main_bold"]).grid(row=2, column=0, sticky="w", pady=5)
-        f_foreign = ctk.CTkFrame(form_frame, fg_color="transparent")
-        f_foreign.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=5)
-        self.entry_file_foreign, _, _ = self.create_file_input_row(f_foreign, "", "외화입금증빙경로") # Label empty as it's on left
-
-        # 4. Remittance Detail File
-        ctk.CTkLabel(form_frame, text="송금상세", font=FONTS["main_bold"]).grid(row=3, column=0, sticky="w", pady=5)
-        f_remit = ctk.CTkFrame(form_frame, fg_color="transparent")
-        f_remit.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=5)
-        self.entry_file_remit, _, _ = self.create_file_input_row(f_remit, "", "송금상세경로")
 
     def _create_footer(self, parent):
         footer = ctk.CTkFrame(parent, fg_color="transparent")

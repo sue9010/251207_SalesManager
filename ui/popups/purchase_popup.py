@@ -143,7 +143,7 @@ class PurchasePopup(BasePopup):
         f_upload.grid(row=10, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         
         # FileDnDManager 사용
-        self.entry_quote_file, _, _ = self.file_manager.create_file_input_row(f_upload, "견적서", "견적서경로")
+        self.entry_quote_file, _, _, _ = self.file_manager.create_file_input_row(f_upload, "견적서", "견적서경로")
 
         # --- 12행: 문서 생성 버튼들 ---
         f_docs = ctk.CTkFrame(parent, fg_color="transparent")

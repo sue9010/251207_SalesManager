@@ -77,24 +77,6 @@ class PaymentPopup(BasePopup):
         self.combo_currency.pack(side="left", padx=(0, 5))
         self.combo_currency.set("KRW")
         
-        self.entry_payment = ctk.CTkEntry(f_amt, height=28, fg_color=COLORS["entry_bg"], border_color=COLORS["entry_border"], border_width=2)
-        self.entry_payment.pack(side="left", fill="x", expand=True)
-
-        # Row 2: Foreign Remittance File
-        f_file1 = ctk.CTkFrame(parent, fg_color="transparent")
-        f_file1.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_file_foreign, _, _ = self.create_file_input_row(f_file1, "외화입금증빙", "외화입금증빙경로")
-
-        # Row 3: Remittance Detail File
-        f_file2 = ctk.CTkFrame(parent, fg_color="transparent")
-        f_file2.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_file_remit, _, _ = self.create_file_input_row(f_file2, "송금상세(Remittance)", "송금상세경로")
-
-        # Row 4: Totals Display
-        f_totals = ctk.CTkFrame(parent, fg_color="transparent")
-        f_totals.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=15)
-        
-        self.lbl_total_amount = self._add_summary_row(f_totals, "총 청구금액:", "0", 0)
         self.lbl_paid_amount = self._add_summary_row(f_totals, "기수금액:", "0", 1)
         self.lbl_unpaid_amount = self._add_summary_row(f_totals, "미수금액 (잔액):", "0", 2)
 

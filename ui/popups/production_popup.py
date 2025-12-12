@@ -81,7 +81,7 @@ class ProductionPopup(BasePopup):
         # Row 9: PO File (Full Width)
         f_po_file = ctk.CTkFrame(parent, fg_color="transparent")
         f_po_file.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.entry_po_file, _, _ = self.create_file_input_row(f_po_file, "발주서 파일", "발주서경로")
+        self.entry_po_file, _, _, _ = self.create_file_input_row(f_po_file, "발주서 파일", "발주서경로")
 
         # --- Financial Info Section ---
         ctk.CTkLabel(parent, text="재무 정보", font=FONTS["header"]).grid(row=10, column=0, columnspan=2, sticky="w", padx=5, pady=(15, 5))
