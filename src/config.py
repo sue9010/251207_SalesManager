@@ -43,7 +43,8 @@ class Config:
         "수주일", "출고예정일", "출고일", "선적일", "입금완료일", "세금계산서발행일",
         "계산서번호", "수출신고번호", "수출신고필증경로",
         "발주서번호", "발주서경로",
-        "Status", "Delivery Status", "Payment Status", "비고", "주문요청사항"
+        "Status", "Delivery Status", "Payment Status", "비고", "주문요청사항",
+        "취소사유", "보류사유"
     ]
     # [구매 관리] 컬럼 정의 (OrderList.xlsx 기준)
     PURCHASE_COLUMNS = [

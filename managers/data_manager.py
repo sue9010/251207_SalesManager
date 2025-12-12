@@ -169,8 +169,8 @@ class DataManager:
     def process_after_sales(self, mgmt_nos, tax_date, tax_no, export_no, saved_paths):
         return self.order_handler.process_after_sales(mgmt_nos, tax_date, tax_no, export_no, saved_paths)
 
-    def update_order_status(self, mgmt_no, new_status):
-        return self.order_handler.update_status(mgmt_no, new_status)
+    def update_order_status(self, mgmt_no, new_status, updates=None):
+        return self.order_handler.update_status(mgmt_no, new_status, updates)
 
     def confirm_order(self, mgmt_no, confirm_data):
         return self.order_handler.confirm_order(mgmt_no, confirm_data)

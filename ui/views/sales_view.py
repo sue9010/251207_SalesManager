@@ -103,6 +103,15 @@ class SalesView(ctk.CTkFrame):
         if status == "주문":
             self.context_menu.add_command("생산 시작", lambda: self.start_production(mgmt_no), text_color=COLORS["primary"])
         
+        # [신규] 견적, 주문, 생산중 상태일 때 보류/취소 메뉴 추가
+        if status in ["견적", "주문", "생산중"]:
+            self.context_menu.add_command("보류", lambda: self.on_hold_item(mgmt_no), text_color=COLORS["secondary"])
+            self.context_menu.add_command("취소", lambda: self.on_cancel_item(mgmt_no), text_color=COLORS["danger"])
+
+        # [신규] 취소, 보류 상태일 때 주문 재개 메뉴 추가
+        if status in ["취소", "보류"]:
+            self.context_menu.add_command("주문 재개", lambda: self.resume_order(mgmt_no), text_color=COLORS["primary"])
+        
         # Add Delete option
         self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, status), text_color=COLORS["danger"])
         
@@ -174,3 +183,36 @@ class SalesView(ctk.CTkFrame):
             messagebox.showwarning("주의", f"상태는 변경되었으나 생산 요청 파일 업데이트에 실패했습니다.\n{export_msg}")
             
         self.refresh_data()
+
+    def on_hold_item(self, mgmt_no):
+        def callback(reason):
+            success, msg = self.dm.update_order_status(mgmt_no, "보류", updates={"보류사유": reason})
+            if success:
+                messagebox.showinfo("성공", "상태가 '보류'로 변경되었습니다.")
+                self.refresh_data()
+            else:
+                messagebox.showerror("오류", f"상태 변경 실패: {msg}")
+                
+        self.pm.open_reason_popup("보류 사유 입력", callback)
+
+    def on_cancel_item(self, mgmt_no):
+        def callback(reason):
+            success, msg = self.dm.update_order_status(mgmt_no, "취소", updates={"취소사유": reason})
+            if success:
+                messagebox.showinfo("성공", "상태가 '취소'로 변경되었습니다.")
+                self.refresh_data()
+            else:
+                messagebox.showerror("오류", f"상태 변경 실패: {msg}")
+                
+        self.pm.open_reason_popup("취소 사유 입력", callback)
+
+    def resume_order(self, mgmt_no):
+        if not messagebox.askyesno("주문 재개", "해당 항목의 상태를 '주문'으로 변경하시겠습니까?"):
+            return
+
+        success, msg = self.dm.update_order_status(mgmt_no, "주문")
+        if success:
+            messagebox.showinfo("성공", "주문이 재개되었습니다.")
+            self.refresh_data()
+        else:
+            messagebox.showerror("오류", f"주문 재개 실패: {msg}")
