@@ -60,7 +60,7 @@ class FileDnDManager:
         if file_path:
             self.update_file_entry(key, file_path)
 
-    def _setup_dnd(self, widget, key):
+    def _setup_dnd(self, widget, key, callback=None):
         """Setup tkinterdnd2 drop target"""
         # 위젯이 생성된 후 DnD 등록
         def register_dnd():
@@ -68,14 +68,14 @@ class FileDnDManager:
                 # drop_target_register는 tkinterdnd2의 메서드입니다.
                 # 위젯이 TkinterDnD.DnDWrapper를 상속받은 루트 윈도우의 자식이어야 합니다.
                 widget.drop_target_register(DND_FILES)
-                widget.dnd_bind('<<Drop>>', lambda e: self.on_drop(e, key))
+                widget.dnd_bind('<<Drop>>', lambda e: self.on_drop(e, key, callback))
             except Exception as e:
                 print(f"DnD Registration Error ({key}): {e}")
         
         # 위젯이 완전히 생성될 때까지 잠시 대기 후 등록
         self.parent.after(200, register_dnd)
 
-    def on_drop(self, event, key):
+    def on_drop(self, event, key, callback=None):
         """Handle dropped files (tkinterdnd2 event)"""
         # event.data는 '{path1} {path2}' 형태의 문자열일 수 있습니다 (공백 포함 시 중괄호로 감싸짐).
         # 여기서는 첫 번째 파일만 처리하는 간단한 파싱 로직을 사용합니다.
@@ -94,6 +94,11 @@ class FileDnDManager:
              file_path = raw_data.split('} {')[0].replace('{', '')
 
         self.update_file_entry(key, file_path)
+        
+        if callback:
+            # Pass the list of files or just the single path depending on requirement.
+            # Here we pass a list containing the single path we processed to match common dnd callback signatures
+            callback([file_path])
 
     def update_file_entry(self, key, full_path):
         """Update entry text and internal tracking"""

@@ -18,7 +18,7 @@ class AccountingPopup(BasePopup):
             ("공급가액", 100), ("세액", 80), ("합계금액", 100)
         ],
         "delivery": [
-            ("일시", 100), ("출고수량", 80), ("송장번호", 120), ("운송방법", 100), 
+            ("일시", 100), ("모델명", 120), ("출고수량", 80), ("송장번호", 120), ("운송방법", 100), 
             ("수출신고번호", 150), ("수출신고필증", 200)
         ],
         "payment": [
@@ -193,20 +193,37 @@ class AccountingPopup(BasePopup):
         
         widths = [w for h, w in self.COL_SPECS["delivery"]]
         
+        # Get Model Name from main data if available
+        model_name = ""
+        if hasattr(self.dm, 'df_data'):
+            mgmt_no = row.get("관리번호")
+            if mgmt_no:
+                main_row = self.dm.df_data[self.dm.df_data["관리번호"] == mgmt_no]
+                if not main_row.empty:
+                    model_name = main_row.iloc[0].get("모델명", "")
+
         # Read-only fields
         ctk.CTkLabel(row_frame, text=str(row.get("일시", "")), width=widths[0], anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=f"{row.get('출고수량', 0):,.0f}", width=widths[1], anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=str(row.get("송장번호", "")), width=widths[2], anchor="w").pack(side="left", padx=2)
-        ctk.CTkLabel(row_frame, text=str(row.get("운송방법", "")), width=widths[3], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(model_name), width=widths[1], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=f"{row.get('출고수량', 0):,.0f}", width=widths[2], anchor="w").pack(side="left", padx=2)
+        
+        invoice_no = str(row.get("송장번호", ""))
+        ctk.CTkLabel(row_frame, text=invoice_no, width=widths[3], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("운송방법", "")), width=widths[4], anchor="w").pack(side="left", padx=2)
         
         # Editable: Export No
-        entry_export_no = ctk.CTkEntry(row_frame, width=widths[4], height=24)
+        entry_export_no = ctk.CTkEntry(row_frame, width=widths[5], height=24)
         entry_export_no.pack(side="left", padx=2)
         entry_export_no.insert(0, str(row.get("수출신고번호", "")).replace("nan", ""))
+        
+        # Bind FocusOut for synchronization
+        if invoice_no:
+            entry_export_no.bind("<FocusOut>", lambda e, inv=invoice_no, ent=entry_export_no: self._sync_export_info(inv, export_no=ent.get()))
+            
         self.entries[f"delivery_export_no_{idx}"] = entry_export_no
         
         # Editable: Export File
-        file_frame = ctk.CTkFrame(row_frame, width=widths[5], height=30, fg_color="transparent")
+        file_frame = ctk.CTkFrame(row_frame, width=widths[6], height=30, fg_color="transparent")
         file_frame.pack(side="left", padx=2)
         file_frame.pack_propagate(False)
         
@@ -214,6 +231,11 @@ class AccountingPopup(BasePopup):
         entry_file = ctk.CTkEntry(file_frame, placeholder_text="파일", height=24)
         entry_file.pack(side="left", fill="x", expand=True)
         
+        # Bind FocusOut/Return for synchronization (manual entry)
+        if invoice_no:
+             entry_file.bind("<FocusOut>", lambda e, inv=invoice_no, ent=entry_file: self._sync_export_info(inv, export_file_path=ent.get()))
+             entry_file.bind("<Return>", lambda e, inv=invoice_no, ent=entry_file: self._sync_export_info(inv, export_file_path=ent.get()))
+
         btn_del = ctk.CTkButton(file_frame, text="X", width=24, height=24,
                                  command=lambda: self.file_manager.clear_entry(key),
                                  fg_color=COLORS["danger"], hover_color=COLORS["danger_hover"])
@@ -221,11 +243,66 @@ class AccountingPopup(BasePopup):
         
         self.file_manager.file_entries[key] = entry_file
         if self.file_manager.DND_AVAILABLE:
-            self.file_manager._setup_dnd(entry_file, key)
+            # Wrap drop callback to include sync
+            def on_drop(files):
+                if files:
+                    path = files[0]
+                    entry_file.delete(0, "end")
+                    entry_file.insert(0, path)
+                    if invoice_no:
+                        self._sync_export_info(invoice_no, export_file_path=path)
+            
+            self.file_manager._setup_dnd(entry_file, key, callback=on_drop)
             
         current_path = row.get("수출신고필증경로", "")
         if current_path and str(current_path) != "nan":
             self.file_manager.update_file_entry(key, str(current_path))
+
+    def _sync_export_info(self, invoice_no, export_no=None, export_file_path=None):
+        """Sync Export No and File Path for rows with the same Invoice No"""
+        if not invoice_no or invoice_no == "nan": return
+
+        # Iterate through all delivery rows to find matches
+        if hasattr(self.dm, 'df_delivery'):
+            df_d = self.dm.df_delivery
+            # We need to find indices that match this invoice_no AND are in the current popup view
+            # But simpler is to iterate through self.entries keys which we know are loaded
+            
+            target_indices = []
+            # Find indices with same invoice_no in the dataframe
+            # Note: We only care about rows related to this popup's mgmt_nos if we want to limit scope,
+            # but usually invoice_no is unique enough or we want to sync across the board?
+            # Requirement says "송장번호가 동일한 항목", implying within the current view or globally?
+            # Usually within the current view (shipment history of this order/project).
+            # Let's limit to the rows currently displayed (which are filtered by target_mgmt_no in _load_delivery_tab)
+            
+            # Wait, _load_delivery_tab filters by self.target_mgmt_no. 
+            # If we have multiple mgmt_nos (e.g. grouped order), we should check all of them.
+            # But currently _load_delivery_tab only loads for self.target_mgmt_no.
+            # So we only sync within the currently visible rows.
+            
+            d_rows = df_d[df_d["관리번호"] == self.target_mgmt_no]
+            for idx, row in d_rows.iterrows():
+                if str(row.get("송장번호")) == invoice_no:
+                    target_indices.append(idx)
+            
+            for idx in target_indices:
+                # Update Export No
+                if export_no is not None:
+                    entry_key = f"delivery_export_no_{idx}"
+                    if entry_key in self.entries:
+                        current_val = self.entries[entry_key].get()
+                        if current_val != export_no:
+                            self.entries[entry_key].delete(0, "end")
+                            self.entries[entry_key].insert(0, export_no)
+                
+                # Update File Path
+                if export_file_path is not None:
+                    file_key = f"delivery_export_file_{idx}"
+                    if file_key in self.file_manager.file_entries:
+                        current_val = self.file_manager.file_entries[file_key].get()
+                        if current_val != export_file_path:
+                            self.file_manager.update_file_entry(file_key, export_file_path)
 
     def _add_payment_row(self, idx, row):
         row_frame = ctk.CTkFrame(self.payment_scroll, fg_color="transparent", height=30)
