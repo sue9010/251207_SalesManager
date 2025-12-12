@@ -74,7 +74,7 @@ class ClientPopup(BasePopup):
         # 2. 금융 정보
         ctk.CTkLabel(left_col, text="금융 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
         bank_frame = ctk.CTkFrame(left_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        bank_frame.pack(fill="x", pady=(0, 15))
+        bank_frame.pack(fill="x", pady=(0, 10))
 
         self.entries["결제방법"] = self.create_input_row(bank_frame, "결제방법")
         self.entries["예금주"] = self.create_input_row(bank_frame, "예금주")
@@ -94,9 +94,9 @@ class ClientPopup(BasePopup):
         self.entries["이메일"] = self.create_input_row(contact_frame, "이메일")
 
         # 4. 수출/물류 정보
-        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
+        ctk.CTkLabel(right_col, text="수출/물류 정보", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(40, 5))
         logistics_frame = ctk.CTkFrame(right_col, fg_color=COLORS["bg_medium"], corner_radius=6)
-        logistics_frame.pack(fill="x", pady=(0, 15))
+        logistics_frame.pack(fill="x", pady=(0, 10))
         
         self.entries["수출허가구분"] = self.create_input_row(logistics_frame, "수출허가구분")
         self.entries["수출허가번호"] = self.create_input_row(logistics_frame, "수출허가번호")
@@ -106,7 +106,7 @@ class ClientPopup(BasePopup):
 
         # --- Bottom Section ---
         bottom_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 0))
         
         # 5. 증빙 서류
         ctk.CTkLabel(bottom_frame, text="증빙 서류", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
@@ -115,6 +115,9 @@ class ClientPopup(BasePopup):
         
         entry, _, _ = self.create_file_input_row(doc_frame, "사업자등록증", "사업자등록증경로")
         self.entries["사업자등록증경로"] = entry
+
+        entry_export, _, _ = self.create_file_input_row(doc_frame, "수출허가서", "수출허가서경로")
+        self.entries["수출허가서경로"] = entry_export
 
         # 6. 기타 특이사항
         ctk.CTkLabel(bottom_frame, text="기타 특이사항", font=FONTS["header"], text_color=COLORS["primary"]).pack(anchor="w", pady=(0, 5))
@@ -136,7 +139,7 @@ class ClientPopup(BasePopup):
             val = str(row.get(key, ""))
             if val == "nan": val = ""
             
-            if key == "사업자등록증경로" and val:
+            if key in ["사업자등록증경로", "수출허가서경로"] and val:
                 self.update_file_entry(key, val)
             else:
                 if isinstance(widget, ctk.CTkComboBox):
@@ -154,7 +157,7 @@ class ClientPopup(BasePopup):
     def save(self):
         data = {}
         for key, widget in self.entries.items():
-            if key == "사업자등록증경로":
+            if key in ["사업자등록증경로", "수출허가서경로"]:
                 data[key] = self.full_paths.get(key, "").strip()
             elif isinstance(widget, ctk.CTkTextbox):
                 data[key] = widget.get("1.0", "end-1c").strip()
@@ -166,13 +169,24 @@ class ClientPopup(BasePopup):
             return
 
         # File Save Logic
+        # 1. 사업자등록증
         success, msg, new_path = self.file_manager.save_file(
             "사업자등록증경로", "사업자등록증", f"사업자등록증_{data['업체명']}", ""
         )
         if success and new_path:
             data["사업자등록증경로"] = new_path
         elif not success:
-            messagebox.showerror("파일 저장 실패", msg, parent=self)
+            messagebox.showerror("파일 저장 실패", f"사업자등록증 저장 실패: {msg}", parent=self)
+            return
+
+        # 2. 수출허가서
+        success, msg, new_path = self.file_manager.save_file(
+            "수출허가서경로", "수출허가서", f"수출허가서_{data['업체명']}", ""
+        )
+        if success and new_path:
+            data["수출허가서경로"] = new_path
+        elif not success:
+            messagebox.showerror("파일 저장 실패", f"수출허가서 저장 실패: {msg}", parent=self)
             return
 
         if self.client_name: # Edit

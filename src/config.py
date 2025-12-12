@@ -4,10 +4,10 @@ class Config:
     APP_VERSION = "1.0.0"
     
     # 파일 경로 설정
-    DEFAULT_EXCEL_PATH = "sales_data.xlsx"
-    DEFAULT_PURCHASE_DATA_PATH = "purchase_data.xlsx"
+    DEFAULT_EXCEL_PATH = "//cox_biz/business/SalesManager/SalesList.xlsx"
+    DEFAULT_PURCHASE_DATA_PATH = "//cox_biz/business/SalesManager/OrderList.xlsx"
     DEFAULT_ATTACHMENT_ROOT = "attachments"
-    DEFAULT_PRODUCTION_REQUEST_PATH = "production_request.xlsx"
+    DEFAULT_PRODUCTION_REQUEST_PATH = "//cox_biz/business/SalesManager/생산 요청.xlsx"
     CONFIG_FILENAME = "config.json"
     
     # 폼(템플릿) 파일 경로 (항상 attachments/forms 참조)
@@ -32,7 +32,7 @@ class Config:
         "결제방법", "예금주", "계좌번호", "은행명", "은행주소", "Swift Code",
         "담당자", "전화번호", "이메일",
         "수출허가구분", "수출허가번호", "만료일", "운송계정", "운송방법",
-        "사업자등록증경로", "특이사항"
+        "사업자등록증경로", "수출허가서경로", "특이사항"
     ]
     
     DATA_COLUMNS = [
