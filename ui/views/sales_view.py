@@ -95,6 +95,14 @@ class SalesView(ctk.CTkFrame):
         # Add Copy option
         self.context_menu.add_command("복사", lambda: self.copy_item(mgmt_no, status), text_color=COLORS["text"])
         
+        # [신규] 견적 상태일 때 주문확정 메뉴 추가
+        if status == "견적":
+            self.context_menu.add_command("주문확정", lambda: self.confirm_order(mgmt_no), text_color=COLORS["primary"])
+
+        # [신규] 주문 상태일 때 생산 시작 메뉴 추가
+        if status == "주문":
+            self.context_menu.add_command("생산 시작", lambda: self.start_production(mgmt_no), text_color=COLORS["primary"])
+        
         # Add Delete option
         self.context_menu.add_command("삭제", lambda: self.delete_item(mgmt_no, status), text_color=COLORS["danger"])
         
@@ -126,3 +134,43 @@ class SalesView(ctk.CTkFrame):
             self.refresh_data()
         else:
             messagebox.showerror("오류", f"삭제 실패: {msg}")
+
+    def confirm_order(self, mgmt_no):
+        def on_confirm(po_no):
+            success, msg = self.dm.confirm_order(mgmt_no, po_no)
+            if success:
+                messagebox.showinfo("성공", "주문이 확정되었습니다.")
+                self.refresh_data()
+            else:
+                messagebox.showerror("오류", f"주문 확정 실패: {msg}")
+                
+        self.pm.open_mini_order_popup(mgmt_no, on_confirm)
+
+    def start_production(self, mgmt_no):
+        if not messagebox.askyesno("생산 시작", "주문 상태를 '생산중'으로 변경하고 생산 요청을 진행하시겠습니까?"):
+            return
+
+        # 1. 상태 업데이트
+        success, msg = self.dm.update_order_status(mgmt_no, "생산중")
+        if not success:
+            messagebox.showerror("오류", f"상태 변경 실패: {msg}")
+            return
+
+        # 2. 변경된 데이터 가져오기
+        df = self.dm.df_data
+        target_rows = df[df["관리번호"] == mgmt_no].to_dict("records")
+        
+        if not target_rows:
+            messagebox.showwarning("경고", "데이터를 찾을 수 없어 생산 요청 파일 생성을 건너뜁니다.")
+            self.refresh_data()
+            return
+
+        # 3. 생산 요청 파일 내보내기
+        export_success, export_msg = self.dm.export_to_production_request(target_rows)
+
+        if export_success:
+            messagebox.showinfo("성공", f"생산 요청이 완료되었습니다.\n{export_msg}")
+        else:
+            messagebox.showwarning("주의", f"상태는 변경되었으나 생산 요청 파일 업데이트에 실패했습니다.\n{export_msg}")
+            
+        self.refresh_data()

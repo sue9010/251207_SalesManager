@@ -10,6 +10,7 @@ from ui.popups.packing_list_popup import PackingListPopup
 from ui.popups.after_sales_popup import AfterSalesPopup
 from ui.popups.purchase_popup import PurchasePopup
 from ui.popups.accounting_popup import AccountingPopup
+from ui.popups.mini_order_popup import MiniOrderPopup
 
 
 class PopupManager:
@@ -50,3 +51,6 @@ class PopupManager:
 
     def open_accounting_popup(self, mgmt_nos):
         win = AccountingPopup(self.parent, self.dm, self.refresh_callback, mgmt_nos)
+
+    def open_mini_order_popup(self, mgmt_no, on_confirm_callback):
+        win = MiniOrderPopup(self.parent, self.dm, mgmt_no, on_confirm_callback)
