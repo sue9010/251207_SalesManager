@@ -43,6 +43,9 @@ class QuotePopup(BasePopup):
         # [신규] 품목 추가 단축키 (Ctrl + +)
         self.bind("<Control-plus>", self._on_add_item_shortcut)
         self.bind("<Control-equal>", self._on_add_item_shortcut)
+        
+        # [신규] 저장/생성 단축키 (Ctrl + Enter)
+        self.bind("<Control-Return>", lambda e: self.save())
 
     def _create_header(self, parent):
         # 공통 헤더 사용 (Title + ID)

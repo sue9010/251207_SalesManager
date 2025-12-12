@@ -37,6 +37,9 @@ class OrderPopup(BasePopup):
         self.bind("<Control-plus>", self._on_add_item_shortcut)
         self.bind("<Control-equal>", self._on_add_item_shortcut)
 
+        # [신규] 저장/생성 단축키 (Ctrl + Enter)
+        self.bind("<Control-Return>", lambda e: self.save())
+
     def _create_header(self, parent):
         # 공통 헤더 사용 (Title + ID)
         header_frame = ctk.CTkFrame(parent, height=50, fg_color="transparent")
