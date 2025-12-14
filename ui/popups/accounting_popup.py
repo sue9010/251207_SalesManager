@@ -26,7 +26,7 @@ class AccountingPopup(BasePopup):
             ("일시", 100), ("입금액", 120), ("통화", 60), ("증빙", 150)
         ],
         "tax_invoice": [
-            ("발행일", 100), ("금액", 120), ("세금계산서번호", 150), ("비고", 200)
+            ("발행일", 100), ("금액", 100), ("발행총액", 100), ("세금계산서번호", 150), ("비고", 200)
         ]
     }
 
@@ -146,37 +146,49 @@ class AccountingPopup(BasePopup):
     def _load_data(self):
         # Load Main Data
         df = self.dm.df_data
-        row = df[df["관리번호"] == self.target_mgmt_no].iloc[0]
         
-        # Basic Info
-        self.lbl_client.configure(text=row.get("업체명", ""))
-        self.lbl_project.configure(text=row.get("프로젝트명", ""))
-        self.lbl_type.configure(text=row.get("구분", ""))
-        self.lbl_currency.configure(text=row.get("통화", ""))
+        # Determine target rows for all selected mgmt_nos
+        # Note: self.mgmt_nos is guaranteed to be a list by __init__
+        target_rows = df[df["관리번호"].isin(self.mgmt_nos)]
         
-        # Financials
-        rows = df[df["관리번호"] == self.target_mgmt_no]
-        total = rows["합계금액"].sum()
-        paid = rows["기수금액"].sum()
+        if target_rows.empty:
+            return
+
+        # Basic Info (Use the first item's info for Client/Project/Type/Currency)
+        first_row = target_rows.iloc[0]
+        self.lbl_client.configure(text=first_row.get("업체명", ""))
+        self.lbl_project.configure(text=first_row.get("프로젝트명", ""))
+        self.lbl_type.configure(text=first_row.get("구분", ""))
+        self.lbl_currency.configure(text=first_row.get("통화", ""))
+        
+        # Financials (Aggregate)
+        total = target_rows["합계금액"].sum()
+        paid = target_rows["기수금액"].sum()
         unpaid = total - paid
         
         self.lbl_total_amount.configure(text=f"{total:,.0f}")
         self.lbl_paid_amount.configure(text=f"{paid:,.0f}")
         self.lbl_unpaid_amount.configure(text=f"{unpaid:,.0f}")
         
-        # 세금계산서 발행 금액 합계 계산
+        # 세금계산서 발행 금액 합계 계산 (Aggregate)
         tax_total = 0
         if hasattr(self.dm, 'df_tax_invoice') and not self.dm.df_tax_invoice.empty:
-            t_rows = self.dm.df_tax_invoice[self.dm.df_tax_invoice["관리번호"].astype(str) == str(self.target_mgmt_no)]
+            # Filter for all mgmt_nos
+            t_rows = self.dm.df_tax_invoice[self.dm.df_tax_invoice["관리번호"].isin(self.mgmt_nos)]
             if not t_rows.empty:
                 tax_total = pd.to_numeric(t_rows["금액"], errors='coerce').sum()
         
         self.lbl_tax_invoice_total.configure(text=f"{tax_total:,.0f}")
         
-        # Notes
-        self.txt_note.insert("1.0", str(row.get("비고", "")).replace("nan", ""))
+        # Notes (Use first item's notes for now, or could combine)
+        self.txt_note.configure(state="normal")
+        self.txt_note.delete("1.0", "end")
+        self.txt_note.insert("1.0", str(first_row.get("비고", "")).replace("nan", ""))
         self.txt_note.configure(state="disabled")
-        self.txt_req_note.insert("1.0", str(row.get("주문요청사항", "")).replace("nan", ""))
+
+        self.txt_req_note.configure(state="normal")
+        self.txt_req_note.delete("1.0", "end")
+        self.txt_req_note.insert("1.0", str(first_row.get("주문요청사항", "")).replace("nan", ""))
         self.txt_req_note.configure(state="disabled")
 
         # Load Files
@@ -184,10 +196,10 @@ class AccountingPopup(BasePopup):
         has_files = False
         
         # 1. Purchase Order (from Data sheet)
-        if self._add_file_row("주문서(발주서)", row.get("발주서경로")): has_files = True
+        if self._add_file_row("주문서(발주서)", first_row.get("발주서경로")): has_files = True
         
         # 2. Business Registration (from Client sheet)
-        client_name = row.get("업체명", "")
+        client_name = first_row.get("업체명", "")
         if client_name:
             client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
             if not client_row.empty:
@@ -197,7 +209,7 @@ class AccountingPopup(BasePopup):
             ctk.CTkLabel(self.files_scroll, text="첨부 파일 없음", font=FONTS["small"], text_color=COLORS["text_dim"]).pack(pady=10)
 
         # Load Tabs
-        self._load_items_tab(rows)
+        self._load_items_tab(target_rows)
         self._load_delivery_tab()
         self._load_payment_tab()
         self._load_tax_invoice_tab()
@@ -218,7 +230,8 @@ class AccountingPopup(BasePopup):
         if hasattr(self.dm, 'df_delivery'):
             df_d = self.dm.df_delivery
             if "관리번호" in df_d.columns:
-                d_rows = df_d[df_d["관리번호"] == self.target_mgmt_no]
+                # Filter for all mgmt_nos
+                d_rows = df_d[df_d["관리번호"].isin(self.mgmt_nos)]
                 for idx, row in d_rows.iterrows():
                     self._add_delivery_row(idx, row)
 
@@ -227,7 +240,8 @@ class AccountingPopup(BasePopup):
         if hasattr(self.dm, 'df_payment'):
             df_p = self.dm.df_payment
             if "관리번호" in df_p.columns:
-                p_rows = df_p[df_p["관리번호"] == self.target_mgmt_no]
+                # Filter for all mgmt_nos
+                p_rows = df_p[df_p["관리번호"].isin(self.mgmt_nos)]
                 for idx, row in p_rows.iterrows():
                     self._add_payment_row(idx, row)
 
@@ -236,7 +250,8 @@ class AccountingPopup(BasePopup):
         if hasattr(self.dm, 'df_tax_invoice'):
             df_t = self.dm.df_tax_invoice
             if "관리번호" in df_t.columns:
-                t_rows = df_t[df_t["관리번호"].astype(str) == str(self.target_mgmt_no)]
+                # Filter for all mgmt_nos
+                t_rows = df_t[df_t["관리번호"].isin(self.mgmt_nos)]
                 for idx, row in t_rows.iterrows():
                     self._add_tax_invoice_row(idx, row)
 
@@ -326,7 +341,8 @@ class AccountingPopup(BasePopup):
             df_d = self.dm.df_delivery
             
             target_indices = []
-            d_rows = df_d[df_d["관리번호"] == self.target_mgmt_no]
+            # Filter for all mgmt_nos
+            d_rows = df_d[df_d["관리번호"].isin(self.mgmt_nos)]
             for idx, row in d_rows.iterrows():
                 if str(row.get("송장번호")) == invoice_no:
                     target_indices.append(idx)
@@ -378,18 +394,23 @@ class AccountingPopup(BasePopup):
         
         widths = [w for h, w in self.COL_SPECS["tax_invoice"]]
         
-        # Read-only: Issue Date, Amount
+        # Read-only: Issue Date, Amount, Total Amount
         ctk.CTkLabel(row_frame, text=str(row.get("발행일", "")), width=widths[0], anchor="w").pack(side="left", padx=2)
         ctk.CTkLabel(row_frame, text=f"{row.get('금액', 0):,.0f}", width=widths[1], anchor="w").pack(side="left", padx=2)
         
+        total_issued = row.get("발행총액", 0)
+        try: total_issued = float(total_issued)
+        except: total_issued = 0
+        ctk.CTkLabel(row_frame, text=f"{total_issued:,.0f}", width=widths[2], anchor="w").pack(side="left", padx=2)
+        
         # Editable: Tax Invoice No
-        entry_tax_no = ctk.CTkEntry(row_frame, width=widths[2], height=24)
+        entry_tax_no = ctk.CTkEntry(row_frame, width=widths[3], height=24)
         entry_tax_no.pack(side="left", padx=2)
         entry_tax_no.insert(0, str(row.get("세금계산서번호", "")).replace("nan", ""))
         self.entries[f"tax_invoice_no_{idx}"] = entry_tax_no
 
         # Read-only: Note
-        ctk.CTkLabel(row_frame, text=str(row.get("비고", "")), width=widths[3], anchor="w").pack(side="left", padx=2)
+        ctk.CTkLabel(row_frame, text=str(row.get("비고", "")), width=widths[4], anchor="w").pack(side="left", padx=2)
 
     def _on_add_tax_invoice_btn(self):
         MiniAccountingPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, default_amount=0)
@@ -443,20 +464,41 @@ class AccountingPopup(BasePopup):
             return False
 
     def close_order(self):
-        """Set order status to '종료'"""
-        if messagebox.askyesno("종결", "정말 이 주문을 종결 처리하시겠습니까?\n종결 후에는 수정이 제한될 수 있습니다.", parent=self):
+        """Set order status to '종료' for all selected items"""
+        count = len(self.mgmt_nos)
+        msg = "정말 이 주문을 종결 처리하시겠습니까?\n종결 후에는 수정이 제한될 수 있습니다."
+        if count > 1:
+            msg = f"선택된 {count}건의 주문을 모두 종결 처리하시겠습니까?\n종결 후에는 수정이 제한될 수 있습니다."
+
+        if messagebox.askyesno("종결", msg, parent=self):
             # Auto-save before closing
             if not self.save_data(silent=True):
                 return
 
-            try:
-                self.dm.update_order_status(self.target_mgmt_no, "종료")
-                messagebox.showinfo("완료", "주문이 종결되었습니다.", parent=self)
-                if self.refresh_callback:
-                    self.refresh_callback()
-                self.destroy()
-            except Exception as e:
-                messagebox.showerror("오류", f"상태 업데이트 실패: {e}", parent=self)
+            success_count = 0
+            errors = []
+
+            for mgmt_no in self.mgmt_nos:
+                try:
+                    success, err_msg = self.dm.update_order_status(mgmt_no, "종료")
+                    if success:
+                        success_count += 1
+                    else:
+                        errors.append(f"{mgmt_no}: {err_msg}")
+                except Exception as e:
+                    errors.append(f"{mgmt_no}: {str(e)}")
+
+            if success_count == count:
+                messagebox.showinfo("완료", f"{success_count}건의 주문이 모두 종결되었습니다.", parent=self)
+            else:
+                error_details = "\n".join(errors)
+                messagebox.showwarning("부분 완료", 
+                    f"{count}건 중 {success_count}건 종결 완료.\n\n[실패 항목]\n{error_details}", 
+                    parent=self)
+
+            if self.refresh_callback:
+                self.refresh_callback()
+            self.destroy()
 
     def _create_footer(self, parent):
         footer_frame = ctk.CTkFrame(parent, fg_color="transparent")

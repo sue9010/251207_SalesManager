@@ -28,7 +28,8 @@ class SalesView(ctk.CTkFrame):
         buttons = [
             ("신규견적", self.on_quote),
             ("신규주문", self.on_order),
-            ("일괄출고/입금", self.on_production)
+            ("일괄출고/입금", self.on_production),
+            ("일괄회계", self.on_accounting)
         ]
         
         for text, cmd in buttons:
@@ -64,6 +65,11 @@ class SalesView(ctk.CTkFrame):
         mgmt_nos = self.get_selected_mgmt_nos()
         if mgmt_nos:
             self.pm.open_production_popup(mgmt_nos)
+
+    def on_accounting(self):
+        mgmt_nos = self.get_selected_mgmt_nos()
+        if mgmt_nos:
+            self.pm.open_accounting_popup(mgmt_nos)
             
     def on_close(self):
         mgmt_nos = self.get_selected_mgmt_nos()
