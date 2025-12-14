@@ -29,12 +29,13 @@ class BasePopup(ctk.CTkToplevel):
         
         self._create_widgets()
         
+        self.lift()
+        self.focus_force()
         if self.mgmt_no:
             self._load_data()
         
         self.transient(parent)
         self.grab_set()
-        self.attributes("-topmost", True)
         
         self.bind("<Escape>", lambda e: self.destroy())
 
@@ -135,17 +136,13 @@ class BasePopup(ctk.CTkToplevel):
         from ui.popups.client_popup import ClientPopup
         df = self.dm.df_clients
         if client_name not in df["업체명"].values:
-            self.attributes("-topmost", False)
             if messagebox.askyesno("알림", f"'{client_name}'은(는) 등록되지 않은 업체입니다.\n신규 등록하시겠습니까?", parent=self):
-                self.attributes("-topmost", True)
                 def on_client_registered():
                     self._load_clients()
                     if hasattr(self, "entry_client"):
                         self.entry_client.set_completion_list(self.dm.df_clients["업체명"].unique().tolist())
                     self._on_client_select(client_name)
                 ClientPopup(self, self.dm, on_client_registered, client_name=None)
-            else:
-                self.attributes("-topmost", True)
             return
         row = df[df["업체명"] == client_name]
         if not row.empty:

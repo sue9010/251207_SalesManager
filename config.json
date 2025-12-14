@@ -1,7 +1,7 @@
 {
-    "excel_path": "//cox_biz/business/SalesManager/SalesList.xlsx",
+    "excel_path": "C:/Users/sue/Desktop/임시/Saleslist.xlsx",
     "theme": "Dark",
-    "attachment_root": "//cox_biz/business/SalesManager/attachments",
-    "production_request_path": "//cox_biz/business/SalesManager/생산 요청.xlsx",
-    "purchase_data_path": "//cox_biz/business/SalesManager/OrderList.xlsx"
+    "attachment_root": "C:/Users/sue/Desktop/임시/Attachments",
+    "production_request_path": "C:/Users/sue/Desktop/임시/생산 요청.xlsx",
+    "purchase_data_path": "C:/Users/sue/Desktop/임시/Orderlist.xlsx"
 }

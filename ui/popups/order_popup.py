@@ -623,16 +623,12 @@ class OrderPopup(BasePopup):
     def export_quote(self):
         client_name = self.entry_client.get()
         if not client_name:
-            self.attributes("-topmost", False)
             messagebox.showwarning("경고", "고객사를 선택해주세요.", parent=self)
-            self.attributes("-topmost", True)
             return
 
         client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
         if client_row.empty:
-            self.attributes("-topmost", False)
             messagebox.showerror("오류", "고객 정보를 찾을 수 없습니다.", parent=self)
-            self.attributes("-topmost", True)
             return
         
         quote_info = {
@@ -665,26 +661,20 @@ class OrderPopup(BasePopup):
             client_row.iloc[0], quote_info, items
         )
         
-        self.attributes("-topmost", False)
         if success:
             messagebox.showinfo("성공", f"견적서가 생성되었습니다.\n{result}", parent=self)
         else:
             messagebox.showerror("실패", result, parent=self)
-        self.attributes("-topmost", True)
 
     def export_order_request(self):
         client_name = self.entry_client.get()
         if not client_name:
-            self.attributes("-topmost", False)
             messagebox.showwarning("경고", "고객사를 선택해주세요.", parent=self)
-            self.attributes("-topmost", True)
             return
 
         client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
         if client_row.empty:
-            self.attributes("-topmost", False)
             messagebox.showerror("오류", "고객 정보를 찾을 수 없습니다.", parent=self)
-            self.attributes("-topmost", True)
             return
         
         order_info = {
@@ -708,26 +698,20 @@ class OrderPopup(BasePopup):
             client_row.iloc[0], order_info, items
         )
         
-        self.attributes("-topmost", False)
         if success:
             messagebox.showinfo("성공", f"출고요청서가 생성되었습니다.\n{result}", parent=self)
         else:
             messagebox.showerror("실패", result, parent=self)
-        self.attributes("-topmost", True)
 
     def export_pi(self):
         client_name = self.entry_client.get()
         if not client_name:
-            self.attributes("-topmost", False)
             messagebox.showwarning("경고", "고객사를 선택해주세요.", parent=self)
-            self.attributes("-topmost", True)
             return
 
         client_row = self.dm.df_clients[self.dm.df_clients["업체명"] == client_name]
         if client_row.empty:
-            self.attributes("-topmost", False)
             messagebox.showerror("오류", "고객 정보를 찾을 수 없습니다.", parent=self)
-            self.attributes("-topmost", True)
             return
         
         order_info = {
@@ -752,12 +736,10 @@ class OrderPopup(BasePopup):
             client_row.iloc[0], order_info, items
         )
         
-        self.attributes("-topmost", False)
         if success:
             messagebox.showinfo("성공", f"PI가 생성되었습니다.\n{result}", parent=self)
         else:
             messagebox.showerror("실패", result, parent=self)
-        self.attributes("-topmost", True)
 
     def _generate_new_id(self):
         new_id = self.dm.get_next_order_id()

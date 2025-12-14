@@ -186,9 +186,7 @@ class ProductionPopup(BasePopup):
             return
 
         # Open Mini Delivery Popup
-        self.attributes("-topmost", False)
         MiniDeliveryPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, delivery_items)
-        self.attributes("-topmost", True)
 
     def on_payment_btn(self):
         # Calculate unpaid amount
@@ -202,9 +200,7 @@ class ProductionPopup(BasePopup):
                  return
 
         # Open Mini Payment Popup
-        self.attributes("-topmost", False)
         MiniPaymentPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, unpaid_amount)
-        self.attributes("-topmost", True)
 
     def on_tax_invoice_btn(self):
         # Calculate unpaid amount for default
@@ -216,9 +212,7 @@ class ProductionPopup(BasePopup):
         if unpaid_amount < 0: unpaid_amount = 0
 
         # Open Mini Accounting Popup
-        self.attributes("-topmost", False)
         MiniAccountingPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, default_amount=unpaid_amount)
-        self.attributes("-topmost", True)
 
     def _on_popup_closed(self):
         """Mini Popup이 닫힐 때 호출되는 콜백"""
@@ -528,18 +522,15 @@ class ProductionPopup(BasePopup):
             success, result = self.export_manager.export_pl_to_pdf(client_info, order_info, pl_items)
             return success, result 
 
-        self.attributes("-topmost", False)
         from ui.popups.packing_list_popup import PackingListPopup
         PackingListPopup(self, self.dm, on_pl_confirm, initial_data)
 
     def _execute_export(self, export_func, client_info, order_info, items, doc_name):
-        self.attributes("-topmost", False)
         success, result = export_func(client_info, order_info, items)
         if success:
             messagebox.showinfo("성공", f"{doc_name}가 생성되었습니다.\n{result}", parent=self)
         else:
             messagebox.showerror("실패", result, parent=self)
-        self.attributes("-topmost", True)
 
     # 저장 (납품 처리) 메서드 - Placeholder for now as per plan
     def save(self):

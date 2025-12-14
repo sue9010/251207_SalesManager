@@ -392,9 +392,7 @@ class AccountingPopup(BasePopup):
         ctk.CTkLabel(row_frame, text=str(row.get("비고", "")), width=widths[3], anchor="w").pack(side="left", padx=2)
 
     def _on_add_tax_invoice_btn(self):
-        self.attributes("-topmost", False)
         MiniAccountingPopup(self, self.dm, self._on_popup_closed, self.mgmt_nos, default_amount=0)
-        self.attributes("-topmost", True)
 
     def save_data(self, silent=False):
         """Save changes to Delivery and Payment sheets"""

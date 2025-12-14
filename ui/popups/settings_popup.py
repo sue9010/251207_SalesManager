@@ -29,7 +29,6 @@ class SettingsPopup(ctk.CTkToplevel):
         # [수정] 팝업을 최상위로 강제 이동 및 포커스
         self.lift()
         self.focus_force()
-        self.attributes("-topmost", True)
         
         # ESC 닫기
         self.bind("<Escape>", lambda e: self.destroy())
@@ -168,25 +167,19 @@ class SettingsPopup(ctk.CTkToplevel):
         ctk.set_appearance_mode(new_theme)
 
     def browse_excel(self):
-        self.attributes("-topmost", False)
         file_path = filedialog.askopenfilename(parent=self, filetypes=[("Excel files", "*.xlsx;*.xls;*.xlsm")])
-        self.attributes("-topmost", True)
         if file_path:
             self.path_entry.delete(0, "end")
             self.path_entry.insert(0, file_path)
 
     def browse_production_file(self):
-        self.attributes("-topmost", False)
         file_path = filedialog.askopenfilename(parent=self, filetypes=[("Excel files", "*.xlsx;*.xls;*.xlsm")])
-        self.attributes("-topmost", True)
         if file_path:
             self.prod_path_entry.delete(0, "end")
             self.prod_path_entry.insert(0, file_path)
 
     def browse_folder(self):
-        self.attributes("-topmost", False)
         folder_path = filedialog.askdirectory(parent=self)
-        self.attributes("-topmost", True)
         if folder_path:
             self.attach_path_entry.delete(0, "end")
             self.attach_path_entry.insert(0, folder_path)
@@ -194,18 +187,14 @@ class SettingsPopup(ctk.CTkToplevel):
 
 
     def browse_purchase_file(self):
-        self.attributes("-topmost", False)
         file_path = filedialog.askopenfilename(parent=self, filetypes=[("Excel files", "*.xlsx;*.xls;*.xlsm")])
-        self.attributes("-topmost", True)
         if file_path:
             self.purchase_path_entry.delete(0, "end")
             self.purchase_path_entry.insert(0, file_path)
 
     def toggle_dev_mode(self):
         if self.dev_var.get():
-            self.attributes("-topmost", False)
             pwd = simpledialog.askstring("관리자 인증", "관리자 비밀번호를 입력하세요:", show="*", parent=self)
-            self.attributes("-topmost", True)
             
             if pwd == Config.DEV_PASSWORD:
                 self.dm.set_dev_mode(True)
@@ -219,21 +208,17 @@ class SettingsPopup(ctk.CTkToplevel):
             self.dev_tools_frame.pack_forget()
 
     def do_backup(self):
-        self.attributes("-topmost", False)
         if messagebox.askyesno("백업", "현재 데이터 파일의 백업본을 생성하시겠습니까?", parent=self):
             success, msg = self.dm.create_backup()
             if success:
                 messagebox.showinfo("성공", msg, parent=self)
             else:
                 messagebox.showerror("실패", msg, parent=self)
-        self.attributes("-topmost", True)
 
     def do_clean_logs(self):
-        self.attributes("-topmost", False)
         if messagebox.askyesno("로그 정리", "오래된 로그 데이터를 정리하시겠습니까?", parent=self):
             success, msg = self.dm.clean_old_logs()
             messagebox.showinfo("완료", msg, parent=self)
-        self.attributes("-topmost", True)
 
     def save(self):
         new_path = self.path_entry.get()
@@ -251,7 +236,6 @@ class SettingsPopup(ctk.CTkToplevel):
                 new_purchase_path=new_purchase_path
             )
             
-            self.attributes("-topmost", False)
             messagebox.showinfo("설정 저장", "설정이 저장되었습니다.", parent=self)
             self.destroy()
             

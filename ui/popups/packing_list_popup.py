@@ -21,7 +21,6 @@ class PackingListPopup(ctk.CTkToplevel):
         self.bind("<Escape>", lambda e: self.destroy())
         
         self.transient(parent)
-        self.attributes("-topmost", True)
         
         self.item_entries = []
         self._create_ui()
@@ -214,13 +213,11 @@ class PackingListPopup(ctk.CTkToplevel):
             messagebox.showinfo("성공", f"PL이 생성되었습니다.\n{msg}", parent=self)
             self.on_close()
         else:
-            messagebox.showerror("실패", msg, parent=self)
-            self.attributes("-topmost", True) 
+            messagebox.showerror("실패", msg, parent=self) 
 
     def on_close(self):
         if self.parent:
             try:
-                self.parent.attributes("-topmost", True)
                 self.parent.lift()
             except: pass
         self.destroy()

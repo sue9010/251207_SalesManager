@@ -250,14 +250,11 @@ class PaymentPopup(BasePopup):
         )
 
         if success:
-            self.attributes("-topmost", False)
             messagebox.showinfo("성공", "수금 처리가 완료되었습니다.", parent=self)
             self.refresh_callback()
             self.destroy()
         else:
-            self.attributes("-topmost", False)
             messagebox.showerror("실패", f"저장에 실패했습니다: {msg}", parent=self)
-            self.attributes("-topmost", True)
     
     # BasePopup 추상 메서드 구현 (사용 안함)
     def _generate_new_id(self): pass

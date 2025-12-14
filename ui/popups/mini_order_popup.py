@@ -21,7 +21,6 @@ class MiniOrderPopup(ctk.CTkToplevel):
         
         self.transient(parent)
         self.grab_set()
-        self.attributes("-topmost", True)
         
         self._create_widgets()
         
